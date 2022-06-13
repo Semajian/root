@@ -4,6 +4,7 @@ if (NOT builtin_clang)
 endif()
 
 #---Define the way we want to build and what of llvm/clang/cling------------------------------------
+set(LLVM_ENABLE_RTTI ON CACHE BOOL "")
 set(LLVM_APPEND_VC_REV OFF CACHE BOOL "")
 set(LLVM_ENABLE_BINDINGS OFF CACHE BOOL "")
 set(LLVM_ENABLE_FFI OFF CACHE BOOL "")
@@ -103,8 +104,10 @@ endif()
 if(MSVC)
   # FIXME: since Visual Studio v16.4.0 the /O2 optimization flag make many (25%) of the tests failing
   # Try to re-enable /O2 after the upgrade of llvm & clang
-  string(REPLACE "-O2" "-O1 -Oi" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-  string(REPLACE "-O2" "-O1 -Oi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  if (MSVC_VERSION GREATER_EQUAL 1924 AND MSVC_VERSION LESS 1929)
+    string(REPLACE "-O2" "-O1 -Oi" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string(REPLACE "-O2" "-O1 -Oi" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+  endif()
   # replace dashes in the -EH* and -GR* flags with slashes (/EH* /GR*)
   string(REPLACE " -EH" " /EH" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   string(REPLACE " -GR" " /GR" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

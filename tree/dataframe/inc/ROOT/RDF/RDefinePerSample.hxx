@@ -39,7 +39,7 @@ class R__CLING_PTRCHECK(off) RDefinePerSample final : public RDefineBase {
 
 public:
    RDefinePerSample(std::string_view name, std::string_view type, F expression, RLoopManager &lm)
-      : RDefineBase(name, type, /*colRegister*/ {}, lm, /*columnNames*/ {}), fExpression(std::move(expression)),
+      : RDefineBase(name, type, /*colRegister*/ {nullptr}, lm, /*columnNames*/ {}), fExpression(std::move(expression)),
         fLastResults(lm.GetNSlots() * RDFInternal::CacheLineStep<RetType_t>())
    {
    }
@@ -70,11 +70,12 @@ public:
 
    void FinalizeSlot(unsigned int) final {}
 
-   void MakeVariations(const std::vector<std::string> &) final { R__ASSERT(false && "Unimplemented"); }
+   // No-op for RDefinePerSample: it never depends on systematic variations
+   void MakeVariations(const std::vector<std::string> &) final {}
 
    RDefineBase &GetVariedDefine(const std::string &) final
    {
-      R__ASSERT(false && "Unimplemented");
+      R__ASSERT(false && "This should never be called");
       return *this;
    }
 };

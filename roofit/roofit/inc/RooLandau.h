@@ -29,7 +29,7 @@ public:
   TObject* clone(const char* newname) const override { return new RooLandau(*this,newname); }
   inline ~RooLandau() override { }
 
-  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK=kTRUE) const override;
+  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK=true) const override;
   void generateEvent(Int_t code) override;
 
 protected:
@@ -38,8 +38,8 @@ protected:
   RooRealProxy mean ;
   RooRealProxy sigma ;
 
-  Double_t evaluate() const override ;
-  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooBatchCompute::DataMap&) const override;
+  double evaluate() const override ;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
   inline bool canComputeBatchWithCuda() const override { return true; }
 
 private:

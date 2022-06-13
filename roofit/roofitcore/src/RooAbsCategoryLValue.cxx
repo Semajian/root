@@ -30,7 +30,6 @@ to other RooAbsArgs must be invertible.
 
 #include "RooAbsCategoryLValue.h"
 
-#include "RooFit.h"
 #include "RooArgSet.h"
 #include "RooRandom.h"
 #include "RooMsgService.h"
@@ -79,7 +78,7 @@ RooAbsCategoryLValue::~RooAbsCategoryLValue()
 
 RooAbsArg& RooAbsCategoryLValue::operator=(Int_t index)
 {
-  setIndex(index,kTRUE) ;
+  setIndex(index,true) ;
   return *this ;
 }
 
@@ -121,7 +120,7 @@ RooAbsArg& RooAbsCategoryLValue::operator=(const RooAbsCategory& other)
 ////////////////////////////////////////////////////////////////////////////////
 /// Set our state to our `n`th defined type.
 /// \return true in case of an error.
-Bool_t RooAbsCategoryLValue::setOrdinal(UInt_t n)
+bool RooAbsCategoryLValue::setOrdinal(UInt_t n)
 {
   return setIndex(getOrdinal(n).second, true);
 }
@@ -134,7 +133,7 @@ Bool_t RooAbsCategoryLValue::setOrdinal(UInt_t n)
 /// cache is clean(valid) before this function is called, e.g. by
 /// calling syncCache() on the source.
 
-void RooAbsCategoryLValue::copyCache(const RooAbsArg* source, Bool_t valueOnly, Bool_t setValDirty)
+void RooAbsCategoryLValue::copyCache(const RooAbsArg* source, bool valueOnly, bool setValDirty)
 {
   RooAbsCategory::copyCache(source,valueOnly,setValDirty) ;
 

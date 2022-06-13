@@ -31,39 +31,39 @@ public:
   RooAbsBinning* clone(const char* name=0) const override { return new RooParamBinning(*this,name?name:GetName()) ; }
   ~RooParamBinning() override ;
 
-  void setRange(Double_t xlo, Double_t xhi) override ;
+  void setRange(double xlo, double xhi) override ;
 
   Int_t numBoundaries() const override { return _nbins + 1 ; }
-  Int_t binNumber(Double_t x) const override  ;
+  Int_t binNumber(double x) const override  ;
 
-  Double_t lowBound() const override { return xlo()->getVal() ; }
-  Double_t highBound() const override { return xhi()->getVal() ; }
+  double lowBound() const override { return xlo()->getVal() ; }
+  double highBound() const override { return xhi()->getVal() ; }
 
-  Double_t binCenter(Int_t bin) const override ;
-  Double_t binWidth(Int_t bin) const override ;
-  Double_t binLow(Int_t bin) const override ;
-  Double_t binHigh(Int_t bin) const override ;
+  double binCenter(Int_t bin) const override ;
+  double binWidth(Int_t bin) const override ;
+  double binLow(Int_t bin) const override ;
+  double binHigh(Int_t bin) const override ;
 
-  Double_t averageBinWidth() const override { return _binw ; }
-  Double_t* array() const override ;
+  double averageBinWidth() const override { return _binw ; }
+  double* array() const override ;
 
-  void printMultiline(std::ostream &os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const override ;
+  void printMultiline(std::ostream &os, Int_t content, bool verbose=false, TString indent="") const override ;
 
   void insertHook(RooAbsRealLValue&) const override  ;
   void removeHook(RooAbsRealLValue&) const override  ;
 
-  Bool_t isShareable() const override { return kFALSE ; } // parameterized binning cannot be shared across instances
-  Bool_t isParameterized() const override { return kTRUE ; } // binning is parameterized, range will need special handling in integration
+  bool isShareable() const override { return false ; } // parameterized binning cannot be shared across instances
+  bool isParameterized() const override { return true ; } // binning is parameterized, range will need special handling in integration
   RooAbsReal* lowBoundFunc() const override { return xlo() ; }
   RooAbsReal* highBoundFunc() const override { return xhi() ; }
 
 protected:
 
-  mutable Double_t* _array ; //! do not persist
+  mutable double* _array ; //! do not persist
   mutable RooAbsReal* _xlo ; //!
   mutable RooAbsReal* _xhi ; //!
   Int_t    _nbins ;
-  Double_t _binw ;
+  double _binw ;
   mutable RooListProxy* _lp ; //
   mutable RooAbsArg* _owner ; //
 

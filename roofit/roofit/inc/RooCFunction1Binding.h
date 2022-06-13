@@ -28,8 +28,8 @@
 
 namespace RooFit {
 
-typedef Double_t (*CFUNCD1D)(Double_t) ;
-typedef Double_t (*CFUNCD1I)(Int_t) ;
+typedef double (*CFUNCD1D)(double) ;
+typedef double (*CFUNCD1I)(Int_t) ;
 
 RooAbsReal* bindFunction(const char* name,CFUNCD1D func,RooAbsReal& x) ;
 RooAbsReal* bindFunction(const char* name,CFUNCD1I func,RooAbsReal& x) ;
@@ -190,7 +190,7 @@ void RooCFunction1Ref<VO,VI>::Streamer(TBuffer &R__b)
    } else {
 
      UInt_t R__c;
-     R__c = R__b.WriteVersion(thisClass::IsA(), kTRUE);
+     R__c = R__b.WriteVersion(thisClass::IsA(), true);
 
      // Lookup name of reference C function
      TString tmpName = fmap().lookupName(_ptr) ;
@@ -209,7 +209,7 @@ void RooCFunction1Ref<VO,VI>::Streamer(TBuffer &R__b)
      // Persist the name
      tmpName.Streamer(R__b) ;
 
-     R__b.SetByteCount(R__c, kTRUE);
+     R__b.SetByteCount(R__c, true);
 
    }
 }
@@ -245,7 +245,7 @@ protected:
   RooCFunction1Ref<VO,VI> func ; // Function pointer reference
   RooRealProxy x ;              // Argument reference
 
-  Double_t evaluate() const override {
+  double evaluate() const override {
     // Return value of embedded function using value of referenced variable x
     return func(x) ;
   }
@@ -309,7 +309,7 @@ protected:
   RooCFunction1Ref<VO,VI> func ; // Function pointer reference
   RooRealProxy x ;              // Argument reference
 
-  Double_t evaluate() const override {
+  double evaluate() const override {
     // Return value of embedded function using value of referenced variable x
     return func(x) ;
   }

@@ -580,15 +580,23 @@ function(ROOT_GENERATE_DICTIONARY dictionary)
 
   #---what rootcling command to use--------------------------
   if(ARG_STAGE1)
-    set(command ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/lib:$ENV{LD_LIBRARY_PATH}" $<TARGET_FILE:rootcling_stage1>)
+    if(MSVC AND CMAKE_ROOTTEST_DICT)
+      set(command ${CMAKE_COMMAND} -E ${CMAKE_BINARY_DIR}/bin/rootcling_stage1.exe)
+    else()
+      set(command ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/lib:$ENV{LD_LIBRARY_PATH}" $<TARGET_FILE:rootcling_stage1>)
+    endif()
     set(ROOTCINTDEP rconfigure)
     set(pcm_name)
   else()
     if(CMAKE_PROJECT_NAME STREQUAL ROOT)
-      set(command ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/lib:$ENV{LD_LIBRARY_PATH}"
-                  "ROOTIGNOREPREFIX=1" $<TARGET_FILE:rootcling> -rootbuild)
-      # Modules need RConfigure.h copied into include/.
-      set(ROOTCINTDEP rootcling rconfigure)
+      if(MSVC AND CMAKE_ROOTTEST_DICT)
+        set(command ${CMAKE_COMMAND} -E env "ROOTIGNOREPREFIX=1" ${CMAKE_BINARY_DIR}/bin/rootcling.exe)
+      else()
+        set(command ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/lib:$ENV{LD_LIBRARY_PATH}"
+                    "ROOTIGNOREPREFIX=1" $<TARGET_FILE:rootcling> -rootbuild)
+        # Modules need RConfigure.h copied into include/.
+        set(ROOTCINTDEP rootcling rconfigure)
+      endif()
     elseif(TARGET ROOT::rootcling)
       set(command ${CMAKE_COMMAND} -E env "LD_LIBRARY_PATH=${ROOT_LIBRARY_DIR}:$ENV{LD_LIBRARY_PATH}" $<TARGET_FILE:ROOT::rootcling>)
     else()
@@ -1158,6 +1166,7 @@ endfunction(ROOT_GENERATE_ROOTMAP)
 #---ROOT_FIND_DIRS_WITH_HEADERS([dir1 dir2 ...] OPTIONS [options])
 #---------------------------------------------------------------------------------------------------
 function(ROOT_FIND_DIRS_WITH_HEADERS result_dirs)
+  set(dirs "")
   if(ARGN)
     set(dirs ${ARGN})
   else()
@@ -1458,12 +1467,14 @@ set(ROOT_TEST_DRIVER ${CMAKE_CURRENT_LIST_DIR}/RootTestDriver.cmake)
 #                        [FIXTURES_SETUP ...] [FIXTURES_CLEANUP ...] [FIXTURES_REQUIRED ...]
 #                        [LABELS label1 label2]
 #                        [PYTHON_DEPS numpy numba keras torch ...] # List of python packages required to run this test.
-#                                                              A fixture will be added the tries to import them before the test starts.)
+#                                                              A fixture will be added the tries to import them before the test starts.
+#                        [PROPERTIES prop1 value1 prop2 value2...] 
+#                       )
 #
 function(ROOT_ADD_TEST test)
   CMAKE_PARSE_ARGUMENTS(ARG "DEBUG;WILLFAIL;CHECKOUT;CHECKERR;RUN_SERIAL"
                             "TIMEOUT;BUILD;INPUT;OUTPUT;ERROR;SOURCE_DIR;BINARY_DIR;WORKING_DIR;PROJECT;PASSRC;RESOURCE_LOCK"
-                            "COMMAND;COPY_TO_BUILDDIR;DIFFCMD;OUTCNV;OUTCNVCMD;PRECMD;POSTCMD;ENVIRONMENT;COMPILEMACROS;DEPENDS;PASSREGEX;OUTREF;ERRREF;FAILREGEX;LABELS;PYTHON_DEPS;FIXTURES_SETUP;FIXTURES_CLEANUP;FIXTURES_REQUIRED"
+                            "COMMAND;COPY_TO_BUILDDIR;DIFFCMD;OUTCNV;OUTCNVCMD;PRECMD;POSTCMD;ENVIRONMENT;COMPILEMACROS;DEPENDS;PASSREGEX;OUTREF;ERRREF;FAILREGEX;LABELS;PYTHON_DEPS;FIXTURES_SETUP;FIXTURES_CLEANUP;FIXTURES_REQUIRED;PROPERTIES"
                             ${ARGN})
 
   #- Handle COMMAND argument
@@ -1583,10 +1594,16 @@ function(ROOT_ADD_TEST test)
   #- Handle ENVIRONMENT argument
   if(ASAN_EXTRA_LD_PRELOAD)
     # Address sanitizer runtime needs to be preloaded in all python tests
-    # Check now if the -DCMD= contains "python[0-9.] "
+    # Check now if the -DCMD= contains "python[0-9.] ", but exclude helper
+    # scripts such as roottest/root/meta/genreflex/XMLParsing/parseXMLs.py
+    # and roottest/root/rint/driveTabCom.py
     set(theCommand ${_command})
     list(FILTER theCommand INCLUDE REGEX "^-DCMD=.*python[0-9.]*[\\^]")
-    if(theCommand OR _command MATCHES roottest/python/cmdLineUtils)
+    if((theCommand AND
+        NOT (_command MATCHES XMLParsing/parseXMLs.py OR
+             _command MATCHES roottest/root/rint/driveTabCom.py))
+       OR (_command MATCHES roottest/python/cmdLineUtils AND
+           NOT _command MATCHES MakeNameCyclesRootmvInput))
       list(APPEND ARG_ENVIRONMENT ${ld_preload}=${ASAN_EXTRA_LD_PRELOAD})
     endif()
   endif()
@@ -1703,6 +1720,11 @@ function(ROOT_ADD_TEST test)
 
   if(ARG_RUN_SERIAL)
     set_property(TEST ${test} PROPERTY RUN_SERIAL true)
+  endif()
+
+  # Pass PROPERTIES argument to the set_tests_properties as-is
+  if(ARG_PROPERTIES)
+    set_tests_properties(${test} PROPERTIES ${ARG_PROPERTIES})
   endif()
 
 endfunction()

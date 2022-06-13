@@ -8,8 +8,7 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-
-
+#include "RooStats/HistFactory/MakeModelAndMeasurementsFast.h"
 
 // from std
 #include <string>
@@ -21,8 +20,6 @@
 // from root
 #include "TFile.h"
 #include "TH1F.h"
-#include "TDOMParser.h"
-#include "TXMLAttr.h"
 #include "TString.h"
 #include "TCanvas.h"
 #include "TStyle.h"
@@ -34,13 +31,10 @@
 #include "RooStats/ModelConfig.h"
 
 // from this package
-#include "Helper.h"
 #include "RooStats/HistFactory/EstimateSummary.h"
 #include "RooStats/HistFactory/Measurement.h"
-#include "RooStats/HistFactory/HistoToWorkspaceFactoryFast.h"
 #include "RooStats/HistFactory/HistFactoryException.h"
 
-#include "RooStats/HistFactory/MakeModelAndMeasurementsFast.h"
 #include "HFMsgService.h"
 
 using namespace RooFit;
@@ -101,12 +95,12 @@ using namespace RooFit;
   </ul>
   </ul>
 */
-RooWorkspace* RooStats::HistFactory::MakeModelAndMeasurementFast( RooStats::HistFactory::Measurement& measurement ) {
-
+RooWorkspace* RooStats::HistFactory::MakeModelAndMeasurementFast( RooStats::HistFactory::Measurement& measurement, HistoToWorkspaceFactoryFast::Configuration const& cfg)
+{
   // This will be returned
-  RooWorkspace* ws = NULL;
-  TFile* outFile = NULL;
-  FILE*  tableFile=NULL;
+  RooWorkspace* ws = nullptr;
+  TFile* outFile = nullptr;
+  FILE*  tableFile=nullptr;
 
   auto& msgSvc = RooMsgService::instance();
   msgSvc.getStream(1).removeTopic(RooFit::ObjectHandling);
@@ -167,7 +161,7 @@ RooWorkspace* RooStats::HistFactory::MakeModelAndMeasurementFast( RooStats::Hist
     tableFile =  fopen( tableFileName.c_str(), "a");
 
     cxcoutIHF << "Creating the HistoToWorkspaceFactoryFast factory" << std::endl;
-    HistoToWorkspaceFactoryFast factory( measurement );
+    HistoToWorkspaceFactoryFast factory{measurement, cfg};
 
     // Make the factory, and do some preprocessing
     // HistoToWorkspaceFactoryFast factory(measurement, rowTitle, outFile);
@@ -254,7 +248,7 @@ RooWorkspace* RooStats::HistFactory::MakeModelAndMeasurementFast( RooStats::Hist
     ws->writeToFile( CombinedFileName.c_str() );
     cxcoutPHF << "Writing combined measurement to file: " << CombinedFileName << std::endl;
     TFile* combFile = TFile::Open( CombinedFileName.c_str(), "UPDATE" );
-    if( combFile == NULL ) {
+    if( combFile == nullptr ) {
       cxcoutEHF << "Error: Failed to open file " << CombinedFileName << std::endl;
       throw hf_exc();
     }
@@ -307,18 +301,18 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
                    std::string data_name,
                    TFile* outFile, FILE* tableFile  ) {
 
-  if( outFile == NULL ) {
-    cxcoutEHF << "Error: Output File in FitModelAndPlot is NULL" << std::endl;
+  if( outFile == nullptr ) {
+    cxcoutEHF << "Error: Output File in FitModelAndPlot is nullptr" << std::endl;
     throw hf_exc();
   }
 
-  if( tableFile == NULL ) {
-    cxcoutEHF << "Error: tableFile in FitModelAndPlot is NULL" << std::endl;
+  if( tableFile == nullptr ) {
+    cxcoutEHF << "Error: tableFile in FitModelAndPlot is nullptr" << std::endl;
     throw hf_exc();
   }
 
-  if( combined == NULL ) {
-    cxcoutEHF << "Error: Supplied workspace in FitModelAndPlot is NULL" << std::endl;
+  if( combined == nullptr ) {
+    cxcoutEHF << "Error: Supplied workspace in FitModelAndPlot is nullptr" << std::endl;
     throw hf_exc();
   }
 
@@ -345,7 +339,7 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
   }
 
   RooAbsPdf* model = combined_config->GetPdf();
-  if( model==NULL ) {
+  if( model==nullptr ) {
     cxcoutEHF << "Error: Failed to find pdf in ModelConfig: " << combined_config->GetName()
          << std::endl;
     throw hf_exc();
@@ -364,22 +358,17 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
   cxcoutPHF << "\n---------------"
     << "\nDoing "<< channel << " Fit"
     << "\n---------------\n\n" << std::endl;
-  model->fitTo(*simData, Minos(kTRUE), PrintLevel(RooMsgService::instance().isActive(static_cast<TObject*>(nullptr), RooFit::HistFactory, RooFit::DEBUG) ? 1 : -1));
+  model->fitTo(*simData, Minos(true), PrintLevel(RooMsgService::instance().isActive(static_cast<TObject*>(nullptr), RooFit::HistFactory, RooFit::DEBUG) ? 1 : -1));
 
   // If there are no parameters of interest,
   // we exit the function here
-  if( POIs->getSize()==0 ) {
+  if( POIs->empty() ) {
     cxcoutWHF << "WARNING: No POIs found in measurement: " << MeasurementName << std::endl;
     return;
   }
 
   // Loop over all POIs and print their fitted values
-  RooRealVar* poi = NULL; // (RooRealVar*) POIs->first();
-  TIter params_itr = POIs->createIterator();
-  TObject* poi_obj=NULL;
-  while( (poi_obj=params_itr.Next()) ) {
-    //poi = (RooRealVar*) poi_obj;
-    poi = dynamic_cast<RooRealVar*>(poi_obj);
+  for (auto const *poi : static_range_cast<RooRealVar *>(*POIs)) {
     cxcoutIHF << "printing results for " << poi->GetName()
          << " at " << poi->getVal()<< " high "
          << poi->getErrorLo() << " low "
@@ -388,7 +377,7 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
 
   // But we only make detailed plots and tables
   // for the 'first' POI
-  poi = dynamic_cast<RooRealVar*>(POIs->first());
+  RooRealVar* poi = static_cast<RooRealVar *>(POIs->first());
 
   // Print the MINOS errors to the TableFile
   fprintf(tableFile, " %.4f / %.4f  ", poi->getErrorLo(), poi->getErrorHi());
@@ -396,7 +385,7 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
   // Make the Profile Likelihood Plot
   RooAbsReal* nll = model->createNLL(*simData);
   RooAbsReal* profile = nll->createProfile(*poi);
-  if( profile==NULL ) {
+  if( profile==nullptr ) {
     cxcoutEHF << "Error: Failed to make ProfileLikelihood for: " << poi->GetName()
          << " using model: " << model->GetName()
          << " and data: " << simData->GetName()
@@ -405,7 +394,7 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
   }
 
   RooPlot* frame = poi->frame();
-  if( frame == NULL ) {
+  if( frame == nullptr ) {
     cxcoutEHF << "Error: Failed to create RooPlot frame for: " << poi->GetName() << std::endl;
     throw hf_exc();
   }
@@ -429,12 +418,12 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
 
   // Save to the output file
   TDirectory* channel_dir = outFile->mkdir(channel.c_str());
-  if( channel_dir == NULL ) {
+  if( channel_dir == nullptr ) {
     cxcoutEHF << "Error: Failed to make channel directory: " << channel << std::endl;
     throw hf_exc();
   }
   TDirectory* summary_dir = channel_dir->mkdir("Summary");
-  if( summary_dir == NULL ) {
+  if( summary_dir == nullptr ) {
     cxcoutEHF << "Error: Failed to make Summary directory for channel: "
          << channel << std::endl;
     throw hf_exc();
@@ -444,10 +433,10 @@ void RooStats::HistFactory::FitModelAndPlot(const std::string& MeasurementName,
   // Save a graph of the profile likelihood curve
   RooCurve* curve=frame->getCurve();
   Int_t curve_N=curve->GetN();
-  Double_t* curve_x=curve->GetX();
+  double* curve_x=curve->GetX();
 
-  Double_t * x_arr = new Double_t[curve_N];
-  Double_t * y_arr_nll = new Double_t[curve_N];
+  double * x_arr = new double[curve_N];
+  double * y_arr_nll = new double[curve_N];
 
   for(int i=0; i<curve_N; i++){
     double f=curve_x[i];
@@ -493,7 +482,7 @@ void RooStats::HistFactory::FitModel(RooWorkspace * combined, std::string data_n
     }
 
     RooAbsPdf* model=combined_config->GetPdf();
-    model->fitTo(*simData, Minos(kTRUE), PrintLevel(1));
+    model->fitTo(*simData, Minos(true), PrintLevel(1));
 
   }
 
@@ -531,3 +520,174 @@ void RooStats::HistFactory::FormatFrameForLikelihood(RooPlot* frame, std::string
 }
 
 
+// Looking to deprecate this function and convert entirely to Measurements
+std::vector<RooStats::HistFactory::EstimateSummary> RooStats::HistFactory::GetChannelEstimateSummaries(
+        RooStats::HistFactory::Measurement& measurement,
+        RooStats::HistFactory::Channel& channel) {
+
+      // Convert a "Channel" into a list of "Estimate Summaries"
+      // This should only be a temporary function, as the
+      // EstimateSummary class should be deprecated
+
+      std::vector<EstimateSummary> channel_estimateSummary;
+
+      std::cout << "Processing data: " << std::endl;
+
+      // Add the data
+      EstimateSummary data_es;
+      data_es.name = "Data";
+      data_es.channel = channel.GetName();
+      TH1* data_hist = (TH1*) channel.GetData().GetHisto();
+      if( data_hist != nullptr ) {
+   //data_es.nominal = (TH1*) channel.GetData().GetHisto()->Clone();
+   data_es.nominal = data_hist;
+   channel_estimateSummary.push_back( data_es );
+      }
+
+      // Add the samples
+      for( unsigned int sampleItr = 0; sampleItr < channel.GetSamples().size(); ++sampleItr ) {
+
+   EstimateSummary sample_es;
+   RooStats::HistFactory::Sample& sample = channel.GetSamples().at( sampleItr );
+
+   std::cout << "Processing sample: " << sample.GetName() << std::endl;
+
+   // Define the mapping
+   sample_es.name = sample.GetName();
+   sample_es.channel = sample.GetChannelName();
+   sample_es.nominal = (TH1*) sample.GetHisto()->Clone();
+
+   std::cout << "Checking NormalizeByTheory" << std::endl;
+
+   if( sample.GetNormalizeByTheory() ) {
+     sample_es.normName = "" ; // Really bad, confusion convention
+   }
+   else {
+     TString lumiStr;
+     lumiStr += measurement.GetLumi();
+     lumiStr.ReplaceAll(' ', TString());
+     sample_es.normName = lumiStr ;
+   }
+
+   std::cout << "Setting the Histo Systs" << std::endl;
+
+   // Set the Histo Systs:
+   for( unsigned int histoItr = 0; histoItr < sample.GetHistoSysList().size(); ++histoItr ) {
+
+     RooStats::HistFactory::HistoSys& histoSys = sample.GetHistoSysList().at( histoItr );
+
+     sample_es.systSourceForHist.push_back( histoSys.GetName() );
+     sample_es.lowHists.push_back( (TH1*) histoSys.GetHistoLow()->Clone()  );
+     sample_es.highHists.push_back( (TH1*) histoSys.GetHistoHigh()->Clone() );
+
+   }
+
+   std::cout << "Setting the NormFactors" << std::endl;
+
+   for( unsigned int normItr = 0; normItr < sample.GetNormFactorList().size(); ++normItr ) {
+
+     RooStats::HistFactory::NormFactor& normFactor = sample.GetNormFactorList().at( normItr );
+
+     EstimateSummary::NormFactor normFactor_es;
+     normFactor_es.name = normFactor.GetName();
+     normFactor_es.val  = normFactor.GetVal();
+     normFactor_es.high = normFactor.GetHigh();
+     normFactor_es.low  = normFactor.GetLow();
+     normFactor_es.constant = normFactor.GetConst();
+
+     sample_es.normFactor.push_back( normFactor_es );
+
+   }
+
+   std::cout << "Setting the OverallSysList" << std::endl;
+
+   for( unsigned int sysItr = 0; sysItr < sample.GetOverallSysList().size(); ++sysItr ) {
+
+     RooStats::HistFactory::OverallSys& overallSys = sample.GetOverallSysList().at( sysItr );
+
+     std::pair<double, double> DownUpPair( overallSys.GetLow(), overallSys.GetHigh() );
+     sample_es.overallSyst[ overallSys.GetName() ]  = DownUpPair; //
+
+   }
+
+   std::cout << "Checking Stat Errors" << std::endl;
+
+   // Do Stat Error
+   sample_es.IncludeStatError  = sample.GetStatError().GetActivate();
+
+   // Set the error and error threshold
+   sample_es.RelErrorThreshold = channel.GetStatErrorConfig().GetRelErrorThreshold();
+   if( sample.GetStatError().GetErrorHist() ) {
+     sample_es.relStatError      = (TH1*) sample.GetStatError().GetErrorHist()->Clone();
+   }
+   else {
+     sample_es.relStatError    = nullptr;
+   }
+
+
+   // Set the constraint type;
+   Constraint::Type type = channel.GetStatErrorConfig().GetConstraintType();
+
+   // Set the default
+   sample_es.StatConstraintType = EstimateSummary::Gaussian;
+
+   if( type == Constraint::Gaussian) {
+     std::cout << "Using Gaussian StatErrors" << std::endl;
+     sample_es.StatConstraintType = EstimateSummary::Gaussian;
+   }
+   if( type == Constraint::Poisson ) {
+     std::cout << "Using Poisson StatErrors" << std::endl;
+     sample_es.StatConstraintType = EstimateSummary::Poisson;
+   }
+
+
+   std::cout << "Getting the shape Factor" << std::endl;
+
+   // Get the shape factor
+   if( sample.GetShapeFactorList().size() > 0 ) {
+     sample_es.shapeFactorName = sample.GetShapeFactorList().at(0).GetName();
+   }
+   if( sample.GetShapeFactorList().size() > 1 ) {
+     std::cout << "Error: Only One Shape Factor currently supported" << std::endl;
+     throw hf_exc();
+   }
+
+
+   std::cout << "Setting the ShapeSysts" << std::endl;
+
+   // Get the shape systs:
+   for( unsigned int shapeItr=0; shapeItr < sample.GetShapeSysList().size(); ++shapeItr ) {
+
+     RooStats::HistFactory::ShapeSys& shapeSys = sample.GetShapeSysList().at( shapeItr );
+
+     EstimateSummary::ShapeSys shapeSys_es;
+     shapeSys_es.name = shapeSys.GetName();
+     shapeSys_es.hist = shapeSys.GetErrorHist();
+
+     // Set the constraint type;
+     Constraint::Type systype = shapeSys.GetConstraintType();
+
+     // Set the default
+     shapeSys_es.constraint = EstimateSummary::Gaussian;
+
+     if( systype == Constraint::Gaussian) {
+       shapeSys_es.constraint = EstimateSummary::Gaussian;
+     }
+     if( systype == Constraint::Poisson ) {
+       shapeSys_es.constraint = EstimateSummary::Poisson;
+     }
+
+     sample_es.shapeSysts.push_back( shapeSys_es );
+
+   }
+
+   std::cout << "Adding this sample" << std::endl;
+
+   // Push back
+   channel_estimateSummary.push_back( sample_es );
+
+      }
+
+      return channel_estimateSummary;
+
+}

@@ -450,7 +450,7 @@ their color. The simplest way is to pick colors in the current active color
 palette. Palette coloring for histogram is activated thanks to the options `PFC`
 (Palette Fill Color), `PLC` (Palette Line Color) and `PMC` (Palette Marker Color).
 When one of these options is given to `TH1::Draw` the histogram get its color
-from the current color palette defined by `gStyle->SetPalette(…)`. The color
+from the current color palette defined by `gStyle->SetPalette(...)`. The color
 is determined according to the number of objects having palette coloring in
 the current pad.
 
@@ -4669,8 +4669,8 @@ void THistPainter::PaintArrows(Option_t *)
    Double_t yrg = gPad->GetUymin();
    Double_t xln = gPad->GetUxmax() - xrg;
    Double_t yln = gPad->GetUymax() - yrg;
-   Double_t cx  = (xln/Double_t(ncx) -0.03)/2;
-   Double_t cy  = (yln/Double_t(ncy) -0.03)/2;
+   Double_t cx  = (xln/Double_t(ncx))/2.;
+   Double_t cy  = (yln/Double_t(ncy))/2.;
    Double_t dn  = 1.E-30;
 
    auto arrow = new TArrow();

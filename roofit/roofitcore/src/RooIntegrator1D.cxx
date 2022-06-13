@@ -24,7 +24,6 @@ numerical integration algorithm.
 **/
 
 
-#include "RooFit.h"
 #include "Riostream.h"
 
 #include "TClass.h"
@@ -67,7 +66,7 @@ void RooIntegrator1D::registerIntegrator(RooNumIntFactory& fact)
 
   RooIntegrator1D* proto = new RooIntegrator1D() ;
   fact.storeProtoIntegrator(proto,RooArgSet(sumRule,extrap,maxSteps,minSteps,fixSteps)) ;
-  RooNumIntConfig::defaultConfig().method1D().setLabel(proto->IsA()->GetName()) ;
+  RooNumIntConfig::defaultConfig().method1D().setLabel(proto->ClassName()) ;
 }
 
 
@@ -88,10 +87,10 @@ RooIntegrator1D::RooIntegrator1D() :
 /// limits are taken from the function binding
 
 RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, SummationRule rule,
-             Int_t maxSteps, Double_t eps) :
-  RooAbsIntegrator(function), _rule(rule), _maxSteps(maxSteps),  _minStepsZero(999), _fixSteps(0), _epsAbs(eps), _epsRel(eps), _doExtrap(kTRUE)
+             Int_t maxSteps, double eps) :
+  RooAbsIntegrator(function), _rule(rule), _maxSteps(maxSteps),  _minStepsZero(999), _fixSteps(0), _epsAbs(eps), _epsRel(eps), _doExtrap(true)
 {
-  _useIntegrandLimits= kTRUE;
+  _useIntegrandLimits= true;
   _valid= initialize();
 }
 
@@ -102,8 +101,8 @@ RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, SummationRule rule,
 /// conversion tolerance. The integration limits are taken from the
 /// function binding
 
-RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, Double_t xmin, Double_t xmax,
-             SummationRule rule, Int_t maxSteps, Double_t eps) :
+RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, double xmin, double xmax,
+             SummationRule rule, Int_t maxSteps, double eps) :
   RooAbsIntegrator(function),
   _rule(rule),
   _maxSteps(maxSteps),
@@ -111,9 +110,9 @@ RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, Double_t xmin, Doub
   _fixSteps(0),
   _epsAbs(eps),
   _epsRel(eps),
-  _doExtrap(kTRUE)
+  _doExtrap(true)
 {
-  _useIntegrandLimits= kFALSE;
+  _useIntegrandLimits= false;
   _xmin= xmin;
   _xmax= xmax;
   _valid= initialize();
@@ -131,19 +130,19 @@ RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, const RooNumIntConf
   _epsRel(config.epsRel())
 {
   // Extract parameters from config object
-  const RooArgSet& configSet = config.getConfigSection(IsA()->GetName()) ;
+  const RooArgSet& configSet = config.getConfigSection(ClassName()) ;
   _rule = (SummationRule) configSet.getCatIndex("sumRule",Trapezoid) ;
   _maxSteps = (Int_t) configSet.getRealValue("maxSteps",20) ;
   _minStepsZero = (Int_t) configSet.getRealValue("minSteps",999) ;
   _fixSteps = (Int_t) configSet.getRealValue("fixSteps",0) ;
-  _doExtrap = (Bool_t) configSet.getCatIndex("extrapolation",1) ;
+  _doExtrap = (bool) configSet.getCatIndex("extrapolation",1) ;
 
   if (_fixSteps>_maxSteps) {
-    oocoutE((TObject*)0,Integration) << "RooIntegrator1D::ctor() ERROR: fixSteps>maxSteps, fixSteps set to maxSteps" << endl ;
+    oocoutE(nullptr,Integration) << "RooIntegrator1D::ctor() ERROR: fixSteps>maxSteps, fixSteps set to maxSteps" << endl ;
     _fixSteps = _maxSteps ;
   }
 
-  _useIntegrandLimits= kTRUE;
+  _useIntegrandLimits= true;
   _valid= initialize();
 }
 
@@ -153,21 +152,21 @@ RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, const RooNumIntConf
 /// Construct integrator on given function binding, using specified
 /// configuration object and integration range
 
-RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, Double_t xmin, Double_t xmax,
+RooIntegrator1D::RooIntegrator1D(const RooAbsFunc& function, double xmin, double xmax,
             const RooNumIntConfig& config) :
   RooAbsIntegrator(function,config.printEvalCounter()),
   _epsAbs(config.epsAbs()),
   _epsRel(config.epsRel())
 {
   // Extract parameters from config object
-  const RooArgSet& configSet = config.getConfigSection(IsA()->GetName()) ;
+  const RooArgSet& configSet = config.getConfigSection(ClassName()) ;
   _rule = (SummationRule) configSet.getCatIndex("sumRule",Trapezoid) ;
   _maxSteps = (Int_t) configSet.getRealValue("maxSteps",20) ;
   _minStepsZero = (Int_t) configSet.getRealValue("minSteps",999) ;
   _fixSteps = (Int_t) configSet.getRealValue("fixSteps",0) ;
-  _doExtrap = (Bool_t) configSet.getCatIndex("extrapolation",1) ;
+  _doExtrap = (bool) configSet.getCatIndex("extrapolation",1) ;
 
-  _useIntegrandLimits= kFALSE;
+  _useIntegrandLimits= false;
   _xmin= xmin;
   _xmax= xmax;
   _valid= initialize();
@@ -188,7 +187,7 @@ RooAbsIntegrator* RooIntegrator1D::clone(const RooAbsFunc& function, const RooNu
 ////////////////////////////////////////////////////////////////////////////////
 /// Initialize the integrator
 
-Bool_t RooIntegrator1D::initialize()
+bool RooIntegrator1D::initialize()
 {
   // apply defaults if necessary
   if(_maxSteps <= 0) {
@@ -200,19 +199,19 @@ Bool_t RooIntegrator1D::initialize()
 
   // check that the integrand is a valid function
   if(!isValid()) {
-    oocoutE((TObject*)0,Integration) << "RooIntegrator1D::initialize: cannot integrate invalid function" << endl;
-    return kFALSE;
+    oocoutE(nullptr,Integration) << "RooIntegrator1D::initialize: cannot integrate invalid function" << endl;
+    return false;
   }
 
   // Allocate coordinate buffer size after number of function dimensions
-  _x = new Double_t[_function->getDimension()] ;
+  _x = new double[_function->getDimension()] ;
 
 
   // Allocate workspace for numerical integration engine
-  _h= new Double_t[_maxSteps + 2];
-  _s= new Double_t[_maxSteps + 2];
-  _c= new Double_t[_nPoints + 1];
-  _d= new Double_t[_nPoints + 1];
+  _h= new double[_maxSteps + 2];
+  _s= new double[_maxSteps + 2];
+  _c= new double[_nPoints + 1];
+  _d= new double[_nPoints + 1];
 
   return checkLimits();
 }
@@ -233,15 +232,15 @@ RooIntegrator1D::~RooIntegrator1D()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Change our integration limits. Return kTRUE if the new limits are
-/// ok, or otherwise kFALSE. Always returns kFALSE and does nothing
+/// Change our integration limits. Return true if the new limits are
+/// ok, or otherwise false. Always returns false and does nothing
 /// if this object was constructed to always use our integrand's limits.
 
-Bool_t RooIntegrator1D::setLimits(Double_t *xmin, Double_t *xmax)
+bool RooIntegrator1D::setLimits(double *xmin, double *xmax)
 {
   if(_useIntegrandLimits) {
-    oocoutE((TObject*)0,Integration) << "RooIntegrator1D::setLimits: cannot override integrand's limits" << endl;
-    return kFALSE;
+    oocoutE(nullptr,Integration) << "RooIntegrator1D::setLimits: cannot override integrand's limits" << endl;
+    return false;
   }
   _xmin= *xmin;
   _xmax= *xmax;
@@ -250,10 +249,10 @@ Bool_t RooIntegrator1D::setLimits(Double_t *xmin, Double_t *xmax)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Check that our integration range is finite and otherwise return kFALSE.
+/// Check that our integration range is finite and otherwise return false.
 /// Update the limits from the integrand if requested.
 
-Bool_t RooIntegrator1D::checkLimits() const
+bool RooIntegrator1D::checkLimits() const
 {
   if(_useIntegrandLimits) {
     assert(0 != integrand() && integrand()->isValid());
@@ -262,17 +261,17 @@ Bool_t RooIntegrator1D::checkLimits() const
   }
   const_cast<double&>(_range) = _xmax - _xmin;
   if (_range < 0.) {
-    oocoutE((TObject*)0,Integration) << "RooIntegrator1D::checkLimits: bad range with min > max (_xmin = " << _xmin << " _xmax = " << _xmax << ")" << endl;
-    return kFALSE;
+    oocoutE(nullptr,Integration) << "RooIntegrator1D::checkLimits: bad range with min > max (_xmin = " << _xmin << " _xmax = " << _xmax << ")" << endl;
+    return false;
   }
-  return (RooNumber::isInfinite(_xmin) || RooNumber::isInfinite(_xmax)) ? kFALSE : kTRUE;
+  return (RooNumber::isInfinite(_xmin) || RooNumber::isInfinite(_xmax)) ? false : true;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate numeric integral at given set of function binding parameters
 
-Double_t RooIntegrator1D::integral(const Double_t *yvec)
+double RooIntegrator1D::integral(const double *yvec)
 {
   assert(isValid());
 
@@ -288,16 +287,16 @@ Double_t RooIntegrator1D::integral(const Double_t *yvec)
 
 
   _h[1]=1.0;
-  Double_t zeroThresh = _epsAbs/_range ;
+  double zeroThresh = _epsAbs/_range ;
   for(Int_t j = 1; j <= _maxSteps; ++j) {
     // refine our estimate using the appropriate summation rule
     _s[j]= (_rule == Trapezoid) ? addTrapezoids(j) : addMidpoints(j);
 
     if (j >= _minStepsZero) {
-      Bool_t allZero(kTRUE) ;
+      bool allZero(true) ;
       for (int jj=0 ; jj<=j ; jj++) {
         if (_s[j]>=zeroThresh) {
-          allZero=kFALSE ;
+          allZero=false ;
         }
       }
       if (allZero) {
@@ -336,10 +335,10 @@ Double_t RooIntegrator1D::integral(const Double_t *yvec)
     _h[j+1]= (_rule == Trapezoid) ? _h[j]/4. : _h[j]/9.;
   }
 
-  oocoutW((TObject*)0,Integration) << "RooIntegrator1D::integral: integral of " << _function->getName() << " over range (" << _xmin << "," << _xmax << ") did not converge after "
+  oocoutW(nullptr,Integration) << "RooIntegrator1D::integral: integral of " << _function->getName() << " over range (" << _xmin << "," << _xmax << ") did not converge after "
       << _maxSteps << " steps" << endl;
   for(Int_t j = 1; j <= _maxSteps; ++j) {
-    ooccoutW((TObject*)0,Integration) << "   [" << j << "] h = " << _h[j] << " , s = " << _s[j] << endl;
+    ooccoutW(nullptr,Integration) << "   [" << j << "] h = " << _h[j] << " , s = " << _s[j] << endl;
   }
 
   return _s[_maxSteps] ;
@@ -353,13 +352,13 @@ Double_t RooIntegrator1D::integral(const Double_t *yvec)
 /// evaluations than the trapezoidal rule. This rule can be used with
 /// a suitable change of variables to estimate improper integrals.
 
-Double_t RooIntegrator1D::addMidpoints(Int_t n)
+double RooIntegrator1D::addMidpoints(Int_t n)
 {
-  Double_t x,tnm,sum,del,ddel;
+  double x,tnm,sum,del,ddel;
   Int_t it,j;
 
   if(n == 1) {
-    Double_t xmid= 0.5*(_xmin + _xmax);
+    double xmid= 0.5*(_xmin + _xmax);
     return (_savedResult= _range*integrand(xvec(xmid)));
   }
   else {
@@ -385,7 +384,7 @@ Double_t RooIntegrator1D::addMidpoints(Int_t n)
 /// integrands that can be evaluated over its entire range, including the
 /// endpoints.
 
-Double_t RooIntegrator1D::addTrapezoids(Int_t n)
+double RooIntegrator1D::addTrapezoids(Int_t n)
 {
   if (n == 1) {
     // use a single trapezoid to cover the full range
@@ -416,10 +415,10 @@ Double_t RooIntegrator1D::addTrapezoids(Int_t n)
 
 void RooIntegrator1D::extrapolate(Int_t n)
 {
-  Double_t *xa= &_h[n-_nPoints];
-  Double_t *ya= &_s[n-_nPoints];
+  double *xa= &_h[n-_nPoints];
+  double *ya= &_s[n-_nPoints];
   Int_t i,m,ns=1;
-  Double_t den,dif,dift,ho,hp,w;
+  double den,dif,dift,ho,hp,w;
 
   dif=fabs(xa[1]);
   for (i= 1; i <= _nPoints; i++) {
@@ -437,7 +436,7 @@ void RooIntegrator1D::extrapolate(Int_t n)
       hp=xa[i+m];
       w=_c[i+1]-_d[i];
       if((den=ho-hp) == 0.0) {
-   oocoutE((TObject*)0,Integration) << "RooIntegrator1D::extrapolate: internal error" << endl;
+   oocoutE(nullptr,Integration) << "RooIntegrator1D::extrapolate: internal error" << endl;
       }
       den=w/den;
       _d[i]=hp*den;

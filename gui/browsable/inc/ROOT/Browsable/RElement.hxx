@@ -79,6 +79,12 @@ public:
    /** Access object */
    virtual std::unique_ptr<RHolder> GetObject() { return nullptr; }
 
+   /** Check if element contains provided pointer */
+   virtual bool IsObject(void *) { return false; }
+
+   /** Check if element still contains valid content */
+   virtual bool CheckValid() { return true; }
+
    /** Get default action */
    virtual EActionKind GetDefaultAction() const { return kActNone; }
 
@@ -87,6 +93,9 @@ public:
 
    /** Should item representing element be expand by default */
    virtual bool IsExpandByDefault() const { return false; }
+
+   /** Select element as active */
+   virtual bool cd() { return false; }
 
    static std::shared_ptr<RElement> GetSubElement(std::shared_ptr<RElement> &elem, const RElementPath_t &path);
 

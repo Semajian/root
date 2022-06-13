@@ -68,6 +68,8 @@ public:
       : RActionBase(pd->GetLoopManagerUnchecked(), columns, colRegister, pd->GetVariations()),
         fHelper(std::forward<Helper>(h)), fPrevNodePtr(std::move(pd)), fPrevNode(*fPrevNodePtr), fValues(GetNSlots())
    {
+      fLoopManager->Register(this);
+
       const auto nColumns = columns.size();
       const auto &customCols = GetColRegister();
       for (auto i = 0u; i < nColumns; ++i)
@@ -76,13 +78,8 @@ public:
 
    RAction(const RAction &) = delete;
    RAction &operator=(const RAction &) = delete;
-   ~RAction()
-   {
-      // must Deregister objects from the RLoopManager here, before the fPrevNode data member is destroyed:
-      // otherwise if fPrevNode is the RLoopManager, it will be destroyed before the calls to Deregister happen.
-      RActionBase::GetColRegister().Clear(); // triggers RDefine deregistration
-      fLoopManager->Deregister(this);
-   }
+
+   ~RAction() { fLoopManager->Deregister(this); }
 
    /**
       Retrieve a wrapper to the result of the action that knows how to merge
@@ -140,18 +137,18 @@ public:
    GetGraph(std::unordered_map<void *, std::shared_ptr<RDFGraphDrawing::GraphNode>> &visitedMap) final
    {
       auto prevNode = fPrevNode.GetGraph(visitedMap);
-      auto prevColumns = prevNode->GetDefinedColumns();
+      const auto &prevColumns = prevNode->GetDefinedColumns();
 
       // Action nodes do not need to go through CreateFilterNode: they are never common nodes between multiple branches
-      auto thisNode = std::make_shared<RDFGraphDrawing::GraphNode>(fHelper.GetActionName());
+      const auto nodeType = HasRun() ? RDFGraphDrawing::ENodeType::kUsedAction : RDFGraphDrawing::ENodeType::kAction;
+      auto thisNode =
+         std::make_shared<RDFGraphDrawing::GraphNode>(fHelper.GetActionName(), visitedMap.size(), nodeType);
+      visitedMap[(void *)this] = thisNode;
 
       auto upmostNode = AddDefinesToGraph(thisNode, GetColRegister(), prevColumns, visitedMap);
 
       thisNode->AddDefinedColumns(GetColRegister().GetNames());
-      thisNode->SetAction(HasRun());
       upmostNode->SetPrevNode(prevNode);
-      thisNode->SetCounter(visitedMap.size());
-      visitedMap[(void *)this] = thisNode;
       return thisNode;
    }
 
@@ -162,10 +159,10 @@ public:
    std::unique_ptr<RActionBase> MakeVariedAction(std::vector<void *> &&results) final
    {
       const auto nVariations = GetVariations().size();
-      assert(results.size() == nVariations + 1);
+      assert(results.size() == nVariations);
 
       std::vector<Helper> helpers;
-      helpers.reserve(nVariations + 1);
+      helpers.reserve(nVariations);
 
       for (auto &&res : results)
          helpers.emplace_back(fHelper.CallMakeNew(res));

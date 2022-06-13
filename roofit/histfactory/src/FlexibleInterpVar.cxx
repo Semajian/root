@@ -15,8 +15,6 @@
  *  \ingroup HistFactory
  */
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include <math.h>
 #include "TMath.h"
@@ -43,7 +41,7 @@ FlexibleInterpVar::FlexibleInterpVar()
 {
   _nominal = 0;
   _interpBoundary=1.;
-  _logInit = kFALSE ;
+  _logInit = false ;
   TRACE_CREATE
 }
 
@@ -57,7 +55,7 @@ FlexibleInterpVar::FlexibleInterpVar(const char* name, const char* title,
   _paramList("paramList","List of paramficients",this),
   _nominal(argNominal), _low(lowVec), _high(highVec), _interpBoundary(1.)
 {
-  _logInit = kFALSE ;
+  _logInit = false ;
 
   for (auto param : paramList) {
     if (!dynamic_cast<RooAbsReal*>(param)) {
@@ -86,20 +84,15 @@ FlexibleInterpVar::FlexibleInterpVar(const char* name, const char* title,
   _paramList("paramList","List of paramficients",this),
   _nominal(argNominal), _interpBoundary(1.)
 {
-  RooFIter lowIter = lowList.fwdIterator() ;
-  RooAbsReal* val ;
-  while ((val = (RooAbsReal*) lowIter.next())) {
+  for (auto const *val : static_range_cast<RooAbsReal *>(lowList)){
     _low.push_back(val->getVal()) ;
   }
 
-  RooFIter highIter = highList.fwdIterator() ;
-  while ((val = (RooAbsReal*) highIter.next())) {
+  for (auto const *val : static_range_cast<RooAbsReal *>(highList)) {
     _high.push_back(val->getVal()) ;
   }
 
-
-  _logInit = kFALSE ;
-
+  _logInit = false ;
 
   for (auto param : paramList) {
     if (!dynamic_cast<RooAbsReal*>(param)) {
@@ -132,7 +125,7 @@ FlexibleInterpVar::FlexibleInterpVar(const char* name, const char* title,
   _paramList("paramList","List of paramficients",this),
   _nominal(argNominal), _low(lowVec), _high(highVec), _interpCode(code), _interpBoundary(1.)
 {
-  _logInit = kFALSE ;
+  _logInit = false ;
 
   for (auto param : paramList) {
     if (!dynamic_cast<RooAbsReal*>(param)) {
@@ -162,7 +155,7 @@ FlexibleInterpVar::FlexibleInterpVar(const char* name, const char* title) :
   _paramList("paramList","List of coefficients",this),
   _nominal(0), _interpBoundary(1.)
 {
-  _logInit = kFALSE ;
+  _logInit = false ;
   TRACE_CREATE
 }
 
@@ -175,7 +168,7 @@ FlexibleInterpVar::FlexibleInterpVar(const FlexibleInterpVar& other, const char*
 
 {
   // Copy constructor
-  _logInit = kFALSE ;
+  _logInit = false ;
   TRACE_CREATE
 
 }
@@ -203,7 +196,7 @@ void FlexibleInterpVar::setInterpCode(RooAbsReal& param, int code){
     _interpCode.at(index) = code;
   }
   // GHL: Adding suggestion by Swagato:
-  _logInit = kFALSE ;
+  _logInit = false ;
   setValueDirty();
 }
 
@@ -214,25 +207,25 @@ void FlexibleInterpVar::setAllInterpCodes(int code){
     _interpCode.at(i) = code;
   }
   // GHL: Adding suggestion by Swagato:
-  _logInit = kFALSE ;
+  _logInit = false ;
   setValueDirty();
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void FlexibleInterpVar::setNominal(Double_t newNominal){
+void FlexibleInterpVar::setNominal(double newNominal){
   coutW(InputArguments) << "FlexibleInterpVar::setNominal : nominal is now " << newNominal << endl ;
   _nominal = newNominal;
 
-  _logInit = kFALSE ;
+  _logInit = false ;
 
   setValueDirty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void FlexibleInterpVar::setLow(RooAbsReal& param, Double_t newLow){
+void FlexibleInterpVar::setLow(RooAbsReal& param, double newLow){
   int index = _paramList.index(&param);
   if(index<0){
       coutE(InputArguments) << "FlexibleInterpVar::setLow ERROR:  " << param.GetName()
@@ -243,14 +236,14 @@ void FlexibleInterpVar::setLow(RooAbsReal& param, Double_t newLow){
     _low.at(index) = newLow;
   }
 
-  _logInit = kFALSE ;
+  _logInit = false ;
 
   setValueDirty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void FlexibleInterpVar::setHigh(RooAbsReal& param, Double_t newHigh){
+void FlexibleInterpVar::setHigh(RooAbsReal& param, double newHigh){
   int index = _paramList.index(&param);
   if(index<0){
       coutE(InputArguments) << "FlexibleInterpVar::setHigh ERROR:  " << param.GetName()
@@ -261,7 +254,7 @@ void FlexibleInterpVar::setHigh(RooAbsReal& param, Double_t newHigh){
     _high.at(index) = newHigh;
   }
 
-  _logInit = kFALSE ;
+  _logInit = false ;
   setValueDirty();
 }
 
@@ -291,7 +284,7 @@ double FlexibleInterpVar::PolyInterpValue(int i, double x) const {
    // which do not depend on x but on the boundaries values
    if (!_logInit) {
 
-      _logInit=kTRUE ;
+      _logInit=true ;
 
       unsigned int n = _low.size();
       assert(n == _high.size() );
@@ -367,9 +360,9 @@ const std::vector<double>& FlexibleInterpVar::high() const { return _high; }
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return value of polynomial
 
-Double_t FlexibleInterpVar::evaluate() const
+double FlexibleInterpVar::evaluate() const
 {
-  Double_t total(_nominal) ;
+  double total(_nominal) ;
   int i=0;
 
   for (auto arg : _paramList) {
@@ -459,7 +452,7 @@ Double_t FlexibleInterpVar::evaluate() const
 }
 
 void FlexibleInterpVar::printMultiline(ostream& os, Int_t contents,
-                   Bool_t verbose, TString indent) const
+                   bool verbose, TString indent) const
 {
   RooAbsReal::printMultiline(os,contents,verbose,indent);
   os << indent << "--- FlexibleInterpVar ---" << endl;

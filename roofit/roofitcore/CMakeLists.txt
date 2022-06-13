@@ -15,6 +15,7 @@ endif()
 
 ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
   HEADERS
+    RooFit/Detail/DataMap.h
     RooFit/Floats.h
     Roo1DTable.h
     RooAbsAnaConvPdf.h
@@ -35,7 +36,6 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooAbsIntegrator.h
     RooAbsLValue.h
     RooAbsMCStudyModule.h
-    RooAbsMinimizerFcn.h
     RooAbsMoment.h
     RooAbsNumGenerator.h
     RooAbsOptTestStatistic.h
@@ -135,12 +135,11 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooLinkedList.h
     RooLinkedListIter.h
     RooLinTransBinning.h
-    RooList.h
     RooListProxy.h
+    RooMath.h
     RooMappedCategory.h
     RooMCIntegrator.h
     RooMCStudy.h
-    RooMinimizerFcn.h
     RooMinimizer.h
     RooMoment.h
     RooMPSentinel.h
@@ -245,11 +244,15 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     RooFit/TestStatistics/RooUnbinnedL.h
     RooFit/TestStatistics/optional_parameter_types.h
     RooFit/TestStatistics/buildLikelihood.h
+    RunContext.h
   SOURCES
     src/BatchModeHelpers.cxx
+    src/BatchModeDataHelpers.cxx
+    src/CUDAHelpers.cxx
     src/Buffers.cxx
     src/BidirMMapPipe.cxx
     src/BidirMMapPipe.h
+    src/NormalizationHelpers.cxx
     src/Roo1DTable.cxx
     src/RooAbsAnaConvPdf.cxx
     src/RooAbsArg.cxx
@@ -365,7 +368,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooLinkedList.cxx
     src/RooLinkedListElem.cxx
     src/RooLinTransBinning.cxx
-    src/RooList.cxx
+    src/RooMath.cxx
     src/RooMappedCategory.cxx
     src/RooMCIntegrator.cxx
     src/RooMCStudy.cxx
@@ -382,6 +385,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooNLLVar.cxx
     src/RooNLLVarNew.cxx
     src/RooNormSetCache.cxx
+    src/RooNormalizedPdf.cxx
     src/RooNumber.cxx
     src/RooNumCdf.cxx
     src/RooNumConvolution.cxx
@@ -458,6 +462,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(RooFitCore
     src/RooFitLegacy/RooCatTypeLegacy.cxx
     src/RooFitLegacy/RooMinuit.cxx
     src/RooFitLegacy/RooMultiCatIter.cxx
+    src/RunContext.cxx
     src/TestStatistics/ConstantTermsOptimizer.cxx
     src/TestStatistics/LikelihoodGradientWrapper.cxx
     src/TestStatistics/LikelihoodWrapper.cxx

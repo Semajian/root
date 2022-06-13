@@ -34,7 +34,6 @@ setting the states.
 
 #include "RooMultiCategory.h"
 
-#include "RooFit.h"
 #include "RooStreamParser.h"
 #include "RooArgSet.h"
 #include "RooAbsCategory.h"
@@ -54,7 +53,7 @@ ClassImp(RooMultiCategory);
 /// of the input categories.
 
 RooMultiCategory::RooMultiCategory(const char *name, const char *title, const RooArgSet& inputCategories) :
-  RooAbsCategory(name, title), _catSet("input","Input category set",this,kTRUE,kTRUE)
+  RooAbsCategory(name, title), _catSet("input","Input category set",this,true,true)
 {
   // Copy category list
   for (const auto arg : inputCategories) {
@@ -95,7 +94,7 @@ std::string RooMultiCategory::createLabel() const
 {
   // Construct composite label name
   std::string label;
-  Bool_t first = true;
+  bool first = true;
   for (const auto arg : _catSet) {
     auto cat = static_cast<const RooAbsCategory*>(arg);
 
@@ -140,7 +139,7 @@ RooAbsCategory::value_type RooMultiCategory::evaluate() const
   value_type multiplier = 1;
   for (const auto arg : _catSet) {
     auto cat = static_cast<const RooAbsCategory*>(arg);
-    if (cat->size() == 0) {
+    if (cat->empty()) {
       coutW(InputArguments) << __func__ << " Trying to build a multi-category state based on "
           "a category with zero states. Fix '" << cat->GetName() << "'." << std::endl;
       continue;
@@ -163,7 +162,7 @@ RooAbsCategory::value_type RooMultiCategory::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print the state of this object to the specified output stream.
 
-void RooMultiCategory::printMultiline(ostream& os, Int_t content, Bool_t verbose, TString indent) const
+void RooMultiCategory::printMultiline(ostream& os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsCategory::printMultiline(os,content,verbose,indent) ;
 
@@ -180,7 +179,7 @@ void RooMultiCategory::printMultiline(ostream& os, Int_t content, Bool_t verbose
 ////////////////////////////////////////////////////////////////////////////////
 /// Write object contents to given stream
 
-void RooMultiCategory::writeToStream(ostream& os, Bool_t compact) const
+void RooMultiCategory::writeToStream(ostream& os, bool compact) const
 {
   RooAbsCategory::writeToStream(os,compact) ;
 }

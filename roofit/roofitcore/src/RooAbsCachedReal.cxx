@@ -31,7 +31,6 @@ for changes to trigger a refilling of the cache histogram.
 #include "Riostream.h"
 using namespace std ;
 
-#include "RooFit.h"
 #include "TString.h"
 #include "RooAbsCachedReal.h"
 #include "RooAbsReal.h"
@@ -52,7 +51,7 @@ RooAbsCachedReal::RooAbsCachedReal(const char *name, const char *title, Int_t ip
   RooAbsReal(name,title),
   _cacheMgr(this,10),
   _ipOrder(ipOrder),
-  _disableCache(kFALSE)
+  _disableCache(false)
  {
  }
 
@@ -86,7 +85,7 @@ RooAbsCachedReal::~RooAbsCachedReal()
 /// rather than return value of evaluate() which is undefined
 /// for RooAbsCachedReal
 
-Double_t RooAbsCachedReal::getValV(const RooArgSet* nset) const
+double RooAbsCachedReal::getValV(const RooArgSet* nset) const
 {
   if (_disableCache) {
     return RooAbsReal::getValV(nset) ;
@@ -139,7 +138,7 @@ RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::getCache(const RooArgSet* nse
   Int_t sterileIdx(-1) ;
   FuncCacheElem* cache = (FuncCacheElem*) _cacheMgr.getObj(nset,0,&sterileIdx) ;
   if (cache) {
-    if (cache->paramTracker()->hasChanged(kTRUE)) {
+    if (cache->paramTracker()->hasChanged(true)) {
       ccoutD(Eval) << "RooAbsCachedReal::getCache(" << GetName() << ") cached function "
         << cache->func()->GetName() << " requires recalculation as parameters changed" << endl ;
       fillCacheObject(*cache) ;
@@ -194,7 +193,7 @@ RooAbsCachedReal::FuncCacheElem* RooAbsCachedReal::getCache(const RooArgSet* nse
 RooAbsCachedReal::FuncCacheElem::FuncCacheElem(const RooAbsCachedReal& self, const RooArgSet* nset)
 {
   // Disable source caching by default
-  _cacheSource = kFALSE ;
+  _cacheSource = false ;
   _sourceClone = 0 ;
 
   RooArgSet* nset2 = self.actualObservables(nset?*nset:RooArgSet()) ;
@@ -223,8 +222,8 @@ RooAbsCachedReal::FuncCacheElem::FuncCacheElem(const RooAbsCachedReal& self, con
   // Create pseudo-object that tracks changes in parameter values
   RooArgSet* params = self.actualParameters(orderedObs) ;
   string name= Form("%s_CACHEPARAMS",_func->GetName()) ;
-  _paramTracker = new RooChangeTracker(name.c_str(),name.c_str(),*params,kTRUE) ;
-  _paramTracker->hasChanged(kTRUE) ; // clear dirty flag as cache is up-to-date upon creation
+  _paramTracker = new RooChangeTracker(name.c_str(),name.c_str(),*params,true) ;
+  _paramTracker->hasChanged(true) ; // clear dirty flag as cache is up-to-date upon creation
 
   // Introduce formal dependency of RooHistFunc on parameters so that const optimization code
   // makes the correct decisions
@@ -259,18 +258,15 @@ TString RooAbsCachedReal::cacheNameSuffix(const RooArgSet& nset) const
   TString name ;
   name.Append("_Obs[") ;
   if (nset.getSize()>0) {
-    TIterator* iter = nset.createIterator() ;
-    RooAbsArg* arg ;
-    Bool_t first(kTRUE) ;
-    while((arg=(RooAbsArg*)iter->Next())) {
+    bool first(true) ;
+    for (RooAbsArg * arg : nset) {
       if (first) {
-   first=kFALSE ;
+   first=false ;
       } else {
    name.Append(",") ;
       }
       name.Append(arg->GetName()) ;
     }
-    delete iter ;
   }
 
   name.Append("]") ;
@@ -352,7 +348,7 @@ Int_t RooAbsCachedReal::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& a
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward call to implementation in relevant RooHistFunc instance
 
-Double_t RooAbsCachedReal::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
+double RooAbsCachedReal::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
 {
   if (code==0) {
     return getVal(normSet) ;

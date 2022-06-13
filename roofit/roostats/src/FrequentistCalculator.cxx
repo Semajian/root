@@ -35,9 +35,9 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////////////////
 
 void FrequentistCalculator::PreHook() const {
-   if (fFitInfo != NULL) {
+   if (fFitInfo != nullptr) {
       delete fFitInfo;
-      fFitInfo = NULL;
+      fFitInfo = nullptr;
    }
    if (fStoreFitInfo) {
       fFitInfo = new RooArgSet();
@@ -70,21 +70,21 @@ int FrequentistCalculator::PreNullHook(RooArgSet *parameterPoint, double obsTest
    if( fNullModel->GetNuisanceParameters() ) {
       allButNuisance.remove(*fNullModel->GetNuisanceParameters());
       if( fConditionalMLEsNull ) {
-         oocoutI((TObject*)0,InputArguments) << "Using given conditional MLEs for Null." << endl;
+         oocoutI(nullptr,InputArguments) << "Using given conditional MLEs for Null." << endl;
          allParams->assign(*fConditionalMLEsNull);
          // LM: fConditionalMLEsNull must be nuisance parameters otherwise an error message will be printed
          allButNuisance.add( *fConditionalMLEsNull );
          if (fNullModel->GetNuisanceParameters()) {
             RooArgSet remain(*fNullModel->GetNuisanceParameters());
             remain.remove(*fConditionalMLEsNull,true,true);
-            if( remain.getSize() == 0 ) doProfile = false;
+            if( remain.empty() ) doProfile = false;
          }
       }
    }else{
       doProfile = false;
    }
    if (doProfile) {
-      oocoutI((TObject*)0,InputArguments) << "Profiling conditional MLEs for Null." << endl;
+      oocoutI(nullptr,InputArguments) << "Profiling conditional MLEs for Null." << endl;
       RooFit::MsgLevel msglevel = RooMsgService::instance().globalKillBelow();
       RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL);
 
@@ -94,7 +94,7 @@ int FrequentistCalculator::PreNullHook(RooArgSet *parameterPoint, double obsTest
       if (fNullModel->GetGlobalObservables()) globalObs.add(*fNullModel->GetGlobalObservables());
 
       auto& config = GetGlobalRooStatsConfig();
-      RooAbsReal* nll = fNullModel->GetPdf()->createNLL(*const_cast<RooAbsData*>(fData), RooFit::CloneData(kFALSE), RooFit::Constrain(*allParams),
+      RooAbsReal* nll = fNullModel->GetPdf()->createNLL(*const_cast<RooAbsData*>(fData), RooFit::CloneData(false), RooFit::Constrain(*allParams),
                                                         RooFit::GlobalObservables(globalObs),
                                                         RooFit::ConditionalObservables(conditionalObs),
                                                         RooFit::Offset(config.useLikelihoodOffset));
@@ -141,7 +141,7 @@ int FrequentistCalculator::PreNullHook(RooArgSet *parameterPoint, double obsTest
    // check whether TestStatSampler is a ToyMCSampler
    ToyMCSampler *toymcs = dynamic_cast<ToyMCSampler*>(GetTestStatSampler());
    if(toymcs) {
-      oocoutI((TObject*)0,InputArguments) << "Using a ToyMCSampler. Now configuring for Null." << endl;
+      oocoutI(nullptr,InputArguments) << "Using a ToyMCSampler. Now configuring for Null." << endl;
 
       // variable number of toys
       if(fNToysNull >= 0) toymcs->SetNToys(fNToysNull);
@@ -151,7 +151,7 @@ int FrequentistCalculator::PreNullHook(RooArgSet *parameterPoint, double obsTest
 
       // adaptive sampling
       if(fNToysNullTail) {
-         oocoutI((TObject*)0,InputArguments) << "Adaptive Sampling" << endl;
+         oocoutI(nullptr,InputArguments) << "Adaptive Sampling" << endl;
          if(GetTestStatSampler()->GetTestStatistic()->PValueIsRightTail()) {
             toymcs->SetToysRightTail(fNToysNullTail, obsTestStat);
          }else{
@@ -182,21 +182,21 @@ int FrequentistCalculator::PreAltHook(RooArgSet *parameterPoint, double obsTestS
    if( fAltModel->GetNuisanceParameters() ) {
       allButNuisance.remove(*fAltModel->GetNuisanceParameters());
       if( fConditionalMLEsAlt ) {
-         oocoutI((TObject*)0,InputArguments) << "Using given conditional MLEs for Alt." << endl;
+         oocoutI(nullptr,InputArguments) << "Using given conditional MLEs for Alt." << endl;
          allParams->assign(*fConditionalMLEsAlt);
          // LM: fConditionalMLEsAlt must be nuisance parameters otherwise an error message will be printed
          allButNuisance.add( *fConditionalMLEsAlt );
          if (fAltModel->GetNuisanceParameters()) {
             RooArgSet remain(*fAltModel->GetNuisanceParameters());
             remain.remove(*fConditionalMLEsAlt,true,true);
-            if( remain.getSize() == 0 ) doProfile = false;
+            if( remain.empty() ) doProfile = false;
          }
       }
    }else{
       doProfile = false;
    }
    if (doProfile) {
-      oocoutI((TObject*)0,InputArguments) << "Profiling conditional MLEs for Alt." << endl;
+      oocoutI(nullptr,InputArguments) << "Profiling conditional MLEs for Alt." << endl;
       RooFit::MsgLevel msglevel = RooMsgService::instance().globalKillBelow();
       RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL);
 
@@ -206,7 +206,7 @@ int FrequentistCalculator::PreAltHook(RooArgSet *parameterPoint, double obsTestS
       if (fAltModel->GetGlobalObservables()) globalObs.add(*fAltModel->GetGlobalObservables());
 
       const auto& config = GetGlobalRooStatsConfig();
-      RooAbsReal* nll = fAltModel->GetPdf()->createNLL(*const_cast<RooAbsData*>(fData), RooFit::CloneData(kFALSE), RooFit::Constrain(*allParams),
+      RooAbsReal* nll = fAltModel->GetPdf()->createNLL(*const_cast<RooAbsData*>(fData), RooFit::CloneData(false), RooFit::Constrain(*allParams),
                                                        RooFit::GlobalObservables(globalObs),
                                                        RooFit::ConditionalObservables(conditionalObs),
                                                        RooFit::Offset(config.useLikelihoodOffset));
@@ -253,7 +253,7 @@ int FrequentistCalculator::PreAltHook(RooArgSet *parameterPoint, double obsTestS
    // check whether TestStatSampler is a ToyMCSampler
    ToyMCSampler *toymcs = dynamic_cast<ToyMCSampler*>(GetTestStatSampler());
    if(toymcs) {
-      oocoutI((TObject*)0,InputArguments) << "Using a ToyMCSampler. Now configuring for Alt." << endl;
+      oocoutI(nullptr,InputArguments) << "Using a ToyMCSampler. Now configuring for Alt." << endl;
 
       // variable number of toys
       if(fNToysAlt >= 0) toymcs->SetNToys(fNToysAlt);
@@ -263,7 +263,7 @@ int FrequentistCalculator::PreAltHook(RooArgSet *parameterPoint, double obsTestS
 
       // adaptive sampling
       if(fNToysAltTail) {
-         oocoutI((TObject*)0,InputArguments) << "Adaptive Sampling" << endl;
+         oocoutI(nullptr,InputArguments) << "Adaptive Sampling" << endl;
          if(GetTestStatSampler()->GetTestStatistic()->PValueIsRightTail()) {
             toymcs->SetToysLeftTail(fNToysAltTail, obsTestStat);
          }else{

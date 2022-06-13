@@ -179,12 +179,12 @@ public:
                       const int *pgDebug = 0);
    virtual ~TClingLookupHelper() { /* we're not owner */ }
 
-   virtual bool ExistingTypeCheck(const std::string &tname, std::string &result);
-   virtual void GetPartiallyDesugaredName(std::string &nameLong);
-   virtual bool IsAlreadyPartiallyDesugaredName(const std::string &nondef, const std::string &nameLong);
-   virtual bool IsDeclaredScope(const std::string &base, bool &isInlined);
-   virtual bool GetPartiallyDesugaredNameWithScopeHandling(const std::string &tname, std::string &result, bool dropstd = true);
-   virtual void ShuttingDownSignal();
+   bool ExistingTypeCheck(const std::string &tname, std::string &result) override;
+   void GetPartiallyDesugaredName(std::string &nameLong) override;
+   bool IsAlreadyPartiallyDesugaredName(const std::string &nondef, const std::string &nameLong) override;
+   bool IsDeclaredScope(const std::string &base, bool &isInlined) override;
+   bool GetPartiallyDesugaredNameWithScopeHandling(const std::string &tname, std::string &result, bool dropstd = true) override;
+   void ShuttingDownSignal() override;
 };
 
 //______________________________________________________________________________
@@ -354,7 +354,7 @@ clang::QualType AddDefaultParameters(clang::QualType instanceType,
                                      const TNormalizedCtxt &normCtxt);
 
 //______________________________________________________________________________
-llvm::StringRef DataMemberInfo__ValidArrayIndex(const clang::DeclaratorDecl &m, int *errnum = 0, llvm::StringRef  *errstr = 0);
+llvm::StringRef DataMemberInfo__ValidArrayIndex(const cling::Interpreter& interp, const clang::DeclaratorDecl &m, int *errnum = nullptr, llvm::StringRef *errstr = nullptr);
 
 enum class EIOCtorCategory : short { kAbsent, kDefault, kIOPtrType, kIORefType };
 
@@ -561,8 +561,7 @@ bool HasCustomConvStreamerMemberFunction(const AnnotatedRecordDecl &cl,
 
 //______________________________________________________________________________
 // Return the header file to be included to declare the Decl
-llvm::StringRef GetFileName(const clang::Decl& decl,
-                            const cling::Interpreter& interp);
+std::string GetFileName(const clang::Decl& decl, const cling::Interpreter& interp);
 
 //______________________________________________________________________________
 // Return the dictionary file name for a module
@@ -623,6 +622,10 @@ std::pair<std::string,clang::QualType> GetNameTypeForIO(const clang::QualType& t
 //______________________________________________________________________________
 // Returns comment in a meaningful way
 llvm::StringRef GetComment(const clang::Decl &decl, clang::SourceLocation *loc = 0);
+
+//______________________________________________________________________________
+// Returns true if class def macro exists
+bool HasClassDefMacro(const clang::Decl *decl, const cling::Interpreter &interpreter);
 
 //______________________________________________________________________________
 // Returns the comment of the ClassDef macro

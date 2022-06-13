@@ -29,7 +29,6 @@ Use RooAbsCollection derived objects for public use
 
 #include "RooLinkedList.h"
 
-#include "RooFit.h"
 #include "RooLinkedListIter.h"
 #include "RooAbsArg.h"
 #include "RooAbsData.h"
@@ -444,7 +443,7 @@ void RooLinkedList::Add(TObject* arg, Int_t refCount)
 ////////////////////////////////////////////////////////////////////////////////
 /// Remove object from collection
 
-Bool_t RooLinkedList::Remove(TObject* arg)
+bool RooLinkedList::Remove(TObject* arg)
 {
   // Find link element
   RooLinkedListElem* elem = findLink(arg) ;
@@ -505,7 +504,7 @@ TObject* RooLinkedList::At(Int_t index) const
 /// Replace object 'oldArg' in collection with new object 'newArg'.
 /// If 'oldArg' is not found in collection false is returned
 
-Bool_t RooLinkedList::Replace(const TObject* oldArg, const TObject* newArg)
+bool RooLinkedList::Replace(const TObject* oldArg, const TObject* newArg)
 {
   // Find existing element and replace arg
   RooLinkedListElem* elem = findLink(oldArg) ;
@@ -605,7 +604,8 @@ TObject* RooLinkedList::find(const char* name) const
 {
 
   if (_htableName) {
-    TObject *a = const_cast<TObject*>((*_htableName)[name]) ;
+    auto found = _htableName->find(name);
+    TObject *a = found != _htableName->end() ? const_cast<TObject*>(found->second) : nullptr;
     // RooHashTable::find could return false negative if element was renamed to 'name'.
     // The list search means it won't return false positive, so can return here.
     if (a) return a;
@@ -731,7 +731,7 @@ void RooLinkedList::Print(const char* opt) const
 /// \param forward Run in forward direction (default).
 /// \return Pointer to a TIterator. The caller owns the pointer.
 
-TIterator* RooLinkedList::MakeIterator(Bool_t forward) const {
+TIterator* RooLinkedList::MakeIterator(bool forward) const {
   auto iterImpl = std::make_unique<RooLinkedListIterImpl>(this, forward);
   return new RooLinkedListIter(std::move(iterImpl));
 }
@@ -741,7 +741,7 @@ TIterator* RooLinkedList::MakeIterator(Bool_t forward) const {
 /// \param forward Run in forward direction (default).
 /// \return RooLinkedListIter (subclass of TIterator) over this list
 
-RooLinkedListIter RooLinkedList::iterator(Bool_t forward) const {
+RooLinkedListIter RooLinkedList::iterator(bool forward) const {
   auto iterImpl = std::make_unique<RooLinkedListIterImpl>(this, forward);
   return RooLinkedListIter(std::move(iterImpl));
 }
@@ -773,7 +773,7 @@ RooLinkedListIterImpl RooLinkedList::rend() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooLinkedList::Sort(Bool_t ascend)
+void RooLinkedList::Sort(bool ascend)
 {
   if (ascend) _first = mergesort_impl<true>(_first, _size, &_last);
   else _first = mergesort_impl<false>(_first, _size, &_last);

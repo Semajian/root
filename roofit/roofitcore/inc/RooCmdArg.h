@@ -35,14 +35,14 @@ public:
   /// a name and no payload doesn't make sense anyway.
   RooCmdArg(const char* name,
             Int_t i1, Int_t i2=0,
-            Double_t d1=0, Double_t d2=0,
+            double d1=0, double d2=0,
             const char* s1=0, const char* s2=0,
             const TObject* o1=0, const TObject* o2=0, const RooCmdArg* ca=0, const char* s3=0,
             const RooArgSet* c1=0, const RooArgSet* c2=0) ;
   RooCmdArg(const RooCmdArg& other) ;
   RooCmdArg& operator=(const RooCmdArg& other) ;
   void addArg(const RooCmdArg& arg) ;
-  void setProcessRecArgs(Bool_t flag, Bool_t prefix=kTRUE) {
+  void setProcessRecArgs(bool flag, bool prefix=true) {
     // If true flag this object as containing recursive arguments
     _procSubArgs = flag ;
     _prefixSubArgs = prefix ;
@@ -72,7 +72,7 @@ public:
   void setInt(Int_t idx,Int_t value) {
     _i[idx] = value ;
   }
-  void setDouble(Int_t idx,Double_t value) {
+  void setDouble(Int_t idx,double value) {
     _d[idx] = value ;
   }
   void setString(Int_t idx,const char* value) {
@@ -88,7 +88,7 @@ public:
     return _i[idx] ;
   }
   /// Return double stored in slot idx
-  Double_t getDouble(Int_t idx) const {
+  double getDouble(Int_t idx) const {
     return _d[idx] ;
   }
   /// Return string stored in slot idx
@@ -118,14 +118,14 @@ private:
   static const RooCmdArg _none  ; ///< Static instance of null object
 
   // Payload
-  Double_t _d[2] ;         ///< Payload doubles
+  double _d[2] ;         ///< Payload doubles
   Int_t _i[2] ;            ///< Payload integers
   std::string _s[3] ;      ///< Payload strings
   TObject* _o[2] ;         ///< Payload objects
-  Bool_t _procSubArgs ;    ///< If true argument requires recursive processing
+  bool _procSubArgs ;    ///< If true argument requires recursive processing
   RooArgSet* _c ;          ///< Payload RooArgSets
   RooLinkedList _argList ; ///< Payload sub-arguments
-  Bool_t _prefixSubArgs ;  ///< Prefix sub-arguments with container name?
+  bool _prefixSubArgs ;  ///< Prefix sub-arguments with container name?
 
   using DataCollection = std::vector<std::unique_ptr<TObject>>;
   std::shared_ptr<DataCollection> _sharedData; ///<!

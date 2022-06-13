@@ -231,34 +231,50 @@ ROOT::Experimental::Detail::RPageSourceFile::RPageSourceFile(std::string_view nt
    fReader = Internal::RMiniFileReader(fFile.get());
 }
 
+void ROOT::Experimental::Detail::RPageSourceFile::InitDescriptor(const Internal::RFileNTupleAnchor &anchor)
+{
+   fDescriptorBuilder.SetOnDiskHeaderSize(anchor.fNBytesHeader);
+   auto buffer = std::make_unique<unsigned char[]>(anchor.fLenHeader);
+   auto zipBuffer = std::make_unique<unsigned char[]>(anchor.fNBytesHeader);
+   fReader.ReadBuffer(zipBuffer.get(), anchor.fNBytesHeader, anchor.fSeekHeader);
+   fDecompressor->Unzip(zipBuffer.get(), anchor.fNBytesHeader, anchor.fLenHeader, buffer.get());
+   Internal::RNTupleSerializer::DeserializeHeaderV1(buffer.get(), anchor.fLenHeader, fDescriptorBuilder);
+
+   fDescriptorBuilder.AddToOnDiskFooterSize(anchor.fNBytesFooter);
+   buffer = std::make_unique<unsigned char[]>(anchor.fLenFooter);
+   zipBuffer = std::make_unique<unsigned char[]>(anchor.fNBytesFooter);
+   fReader.ReadBuffer(zipBuffer.get(), anchor.fNBytesFooter, anchor.fSeekFooter);
+   fDecompressor->Unzip(zipBuffer.get(), anchor.fNBytesFooter, anchor.fLenFooter, buffer.get());
+   Internal::RNTupleSerializer::DeserializeFooterV1(buffer.get(), anchor.fLenFooter, fDescriptorBuilder);
+}
+
+std::unique_ptr<ROOT::Experimental::Detail::RPageSourceFile>
+ROOT::Experimental::Detail::RPageSourceFile::CreateFromAnchor(const Internal::RFileNTupleAnchor &anchor,
+                                                              std::string_view path, const RNTupleReadOptions &options)
+{
+   auto pageSource = std::make_unique<RPageSourceFile>("", path, options);
+   pageSource->InitDescriptor(anchor);
+   pageSource->fNTupleName = pageSource->fDescriptorBuilder.GetDescriptor().GetName();
+   return pageSource;
+}
 
 ROOT::Experimental::Detail::RPageSourceFile::~RPageSourceFile() = default;
 
 
 ROOT::Experimental::RNTupleDescriptor ROOT::Experimental::Detail::RPageSourceFile::AttachImpl()
 {
-   RNTupleDescriptorBuilder descBuilder;
-   auto ntpl = fReader.GetNTuple(fNTupleName).Unwrap();
+   // If we constructed the page source with (ntuple name, path), we need to find the anchor first.
+   // Otherwise, the page source was created by OpenFromAnchor() and the header and footer are already processed.
+   if (fDescriptorBuilder.GetDescriptor().GetOnDiskHeaderSize() == 0) {
+      auto anchor = fReader.GetNTuple(fNTupleName).Unwrap();
+      InitDescriptor(anchor);
+   }
 
-   descBuilder.SetOnDiskHeaderSize(ntpl.fNBytesHeader);
-   auto buffer = std::make_unique<unsigned char[]>(ntpl.fLenHeader);
-   auto zipBuffer = std::make_unique<unsigned char[]>(ntpl.fNBytesHeader);
-   fReader.ReadBuffer(zipBuffer.get(), ntpl.fNBytesHeader, ntpl.fSeekHeader);
-   fDecompressor->Unzip(zipBuffer.get(), ntpl.fNBytesHeader, ntpl.fLenHeader, buffer.get());
-   Internal::RNTupleSerializer::DeserializeHeaderV1(buffer.get(), ntpl.fLenHeader, descBuilder);
-
-   descBuilder.AddToOnDiskFooterSize(ntpl.fNBytesFooter);
-   buffer = std::make_unique<unsigned char[]>(ntpl.fLenFooter);
-   zipBuffer = std::make_unique<unsigned char[]>(ntpl.fNBytesFooter);
-   fReader.ReadBuffer(zipBuffer.get(), ntpl.fNBytesFooter, ntpl.fSeekFooter);
-   fDecompressor->Unzip(zipBuffer.get(), ntpl.fNBytesFooter, ntpl.fLenFooter, buffer.get());
-   Internal::RNTupleSerializer::DeserializeFooterV1(buffer.get(), ntpl.fLenFooter, descBuilder);
-
-   auto ntplDesc = descBuilder.MoveDescriptor();
+   auto ntplDesc = fDescriptorBuilder.MoveDescriptor();
 
    for (const auto &cgDesc : ntplDesc.GetClusterGroupIterable()) {
-      buffer = std::make_unique<unsigned char[]>(cgDesc.GetPageListLength());
-      zipBuffer = std::make_unique<unsigned char[]>(cgDesc.GetPageListLocator().fBytesOnStorage);
+      auto buffer = std::make_unique<unsigned char[]>(cgDesc.GetPageListLength());
+      auto zipBuffer = std::make_unique<unsigned char[]>(cgDesc.GetPageListLocator().fBytesOnStorage);
       fReader.ReadBuffer(zipBuffer.get(), cgDesc.GetPageListLocator().fBytesOnStorage,
                          cgDesc.GetPageListLocator().fPosition);
       fDecompressor->Unzip(zipBuffer.get(), cgDesc.GetPageListLocator().fBytesOnStorage, cgDesc.GetPageListLength(),
@@ -279,9 +295,13 @@ void ROOT::Experimental::Detail::RPageSourceFile::LoadSealedPage(
    DescriptorId_t columnId, const RClusterIndex &clusterIndex, RSealedPage &sealedPage)
 {
    const auto clusterId = clusterIndex.GetClusterId();
-   const auto &clusterDescriptor = fDescriptor.GetClusterDescriptor(clusterId);
 
-   auto pageInfo = clusterDescriptor.GetPageRange(columnId).Find(clusterIndex.GetIndex());
+   RClusterDescriptor::RPageRange::RPageInfo pageInfo;
+   {
+      auto descriptorGuard = GetSharedDescriptorGuard();
+      const auto &clusterDescriptor = descriptorGuard->GetClusterDescriptor(clusterId);
+      pageInfo = clusterDescriptor.GetPageRange(columnId).Find(clusterIndex.GetIndex());
+   }
 
    const auto bytesOnStorage = pageInfo.fLocator.fBytesOnStorage;
    sealedPage.fSize = bytesOnStorage;
@@ -290,13 +310,14 @@ void ROOT::Experimental::Detail::RPageSourceFile::LoadSealedPage(
       fReader.ReadBuffer(const_cast<void *>(sealedPage.fBuffer), bytesOnStorage, pageInfo.fLocator.fPosition);
 }
 
-ROOT::Experimental::Detail::RPage ROOT::Experimental::Detail::RPageSourceFile::PopulatePageFromCluster(
-   ColumnHandle_t columnHandle, const RClusterDescriptor &clusterDescriptor, ClusterSize_t::ValueType idxInCluster)
+ROOT::Experimental::Detail::RPage
+ROOT::Experimental::Detail::RPageSourceFile::PopulatePageFromCluster(ColumnHandle_t columnHandle,
+                                                                     const RClusterInfo &clusterInfo,
+                                                                     ClusterSize_t::ValueType idxInCluster)
 {
    const auto columnId = columnHandle.fId;
-   const auto clusterId = clusterDescriptor.GetId();
-
-   auto pageInfo = clusterDescriptor.GetPageRange(columnId).Find(idxInCluster);
+   const auto clusterId = clusterInfo.fClusterId;
+   const auto pageInfo = clusterInfo.fPageInfo;
 
    const auto element = columnHandle.fColumn->GetElement();
    const auto elementSize = element->GetSize();
@@ -334,9 +355,9 @@ ROOT::Experimental::Detail::RPage ROOT::Experimental::Detail::RPageSourceFile::P
       fCounters->fSzUnzip.Add(elementSize * pageInfo.fNElements);
    }
 
-   const auto indexOffset = clusterDescriptor.GetColumnRange(columnId).fFirstElementIndex;
    auto newPage = fPageAllocator->NewPage(columnId, pageBuffer.release(), elementSize, pageInfo.fNElements);
-   newPage.SetWindow(indexOffset + pageInfo.fFirstInPage, RPage::RClusterInfo(clusterId, indexOffset));
+   newPage.SetWindow(clusterInfo.fColumnOffset + pageInfo.fFirstInPage,
+                     RPage::RClusterInfo(clusterId, clusterInfo.fColumnOffset));
    fPagePool->RegisterPage(newPage,
       RPageDeleter([](const RPage &page, void * /*userData*/)
       {
@@ -355,12 +376,21 @@ ROOT::Experimental::Detail::RPage ROOT::Experimental::Detail::RPageSourceFile::P
    if (!cachedPage.IsNull())
       return cachedPage;
 
-   const auto clusterId = fDescriptor.FindClusterId(columnId, globalIndex);
-   R__ASSERT(clusterId != kInvalidDescriptorId);
-   const auto &clusterDescriptor = fDescriptor.GetClusterDescriptor(clusterId);
-   const auto selfOffset = clusterDescriptor.GetColumnRange(columnId).fFirstElementIndex;
-   R__ASSERT(selfOffset <= globalIndex);
-   return PopulatePageFromCluster(columnHandle, clusterDescriptor, globalIndex - selfOffset);
+   std::uint64_t idxInCluster;
+   RClusterInfo clusterInfo;
+   {
+      auto descriptorGuard = GetSharedDescriptorGuard();
+      clusterInfo.fClusterId = descriptorGuard->FindClusterId(columnId, globalIndex);
+      R__ASSERT(clusterInfo.fClusterId != kInvalidDescriptorId);
+
+      const auto &clusterDescriptor = descriptorGuard->GetClusterDescriptor(clusterInfo.fClusterId);
+      clusterInfo.fColumnOffset = clusterDescriptor.GetColumnRange(columnId).fFirstElementIndex;
+      R__ASSERT(clusterInfo.fColumnOffset <= globalIndex);
+      idxInCluster = globalIndex - clusterInfo.fColumnOffset;
+      clusterInfo.fPageInfo = clusterDescriptor.GetPageRange(columnId).Find(idxInCluster);
+   }
+
+   return PopulatePageFromCluster(columnHandle, clusterInfo, idxInCluster);
 }
 
 
@@ -375,8 +405,16 @@ ROOT::Experimental::Detail::RPage ROOT::Experimental::Detail::RPageSourceFile::P
       return cachedPage;
 
    R__ASSERT(clusterId != kInvalidDescriptorId);
-   const auto &clusterDescriptor = fDescriptor.GetClusterDescriptor(clusterId);
-   return PopulatePageFromCluster(columnHandle, clusterDescriptor, idxInCluster);
+   RClusterInfo clusterInfo;
+   {
+      auto descriptorGuard = GetSharedDescriptorGuard();
+      const auto &clusterDescriptor = descriptorGuard->GetClusterDescriptor(clusterId);
+      clusterInfo.fClusterId = clusterId;
+      clusterInfo.fColumnOffset = clusterDescriptor.GetColumnRange(columnId).fFirstElementIndex;
+      clusterInfo.fPageInfo = clusterDescriptor.GetPageRange(columnId).Find(idxInCluster);
+   }
+
+   return PopulatePageFromCluster(columnHandle, clusterInfo, idxInCluster);
 }
 
 void ROOT::Experimental::Detail::RPageSourceFile::ReleasePage(RPage &page)
@@ -405,20 +443,23 @@ ROOT::Experimental::Detail::RPageSourceFile::PrepareSingleCluster(
       std::size_t fBufPos = 0;
    };
 
-   const auto &clusterDesc = GetDescriptor().GetClusterDescriptor(clusterKey.fClusterId);
-
-   // Collect the page necessary page meta-data and sum up the total size of the compressed and packed pages
    std::vector<ROnDiskPageLocator> onDiskPages;
    auto activeSize = 0;
-   for (auto columnId : clusterKey.fColumnSet) {
-      const auto &pageRange = clusterDesc.GetPageRange(columnId);
-      NTupleSize_t pageNo = 0;
-      for (const auto &pageInfo : pageRange.fPageInfos) {
-         const auto &pageLocator = pageInfo.fLocator;
-         activeSize += pageLocator.fBytesOnStorage;
-         onDiskPages.push_back(
-            {columnId, pageNo, std::uint64_t(pageLocator.fPosition), pageLocator.fBytesOnStorage, 0});
-         ++pageNo;
+   {
+      auto descriptorGuard = GetSharedDescriptorGuard();
+      const auto &clusterDesc = descriptorGuard->GetClusterDescriptor(clusterKey.fClusterId);
+
+      // Collect the page necessary page meta-data and sum up the total size of the compressed and packed pages
+      for (auto columnId : clusterKey.fColumnSet) {
+         const auto &pageRange = clusterDesc.GetPageRange(columnId);
+         NTupleSize_t pageNo = 0;
+         for (const auto &pageInfo : pageRange.fPageInfos) {
+            const auto &pageLocator = pageInfo.fLocator;
+            activeSize += pageLocator.fBytesOnStorage;
+            onDiskPages.push_back(
+               {columnId, pageNo, std::uint64_t(pageLocator.fPosition), pageLocator.fBytesOnStorage, 0});
+            ++pageNo;
+         }
       }
    }
 
@@ -537,13 +578,14 @@ void ROOT::Experimental::Detail::RPageSourceFile::UnzipClusterImpl(RCluster *clu
    fTaskScheduler->Reset();
 
    const auto clusterId = cluster->GetId();
-   const auto &clusterDescriptor = fDescriptor.GetClusterDescriptor(clusterId);
+   auto descriptorGuard = GetSharedDescriptorGuard();
+   const auto &clusterDescriptor = descriptorGuard->GetClusterDescriptor(clusterId);
 
    std::vector<std::unique_ptr<RColumnElementBase>> allElements;
 
    const auto &columnsInCluster = cluster->GetAvailColumns();
    for (const auto columnId : columnsInCluster) {
-      const auto &columnDesc = fDescriptor.GetColumnDescriptor(columnId);
+      const auto &columnDesc = descriptorGuard->GetColumnDescriptor(columnId);
 
       allElements.emplace_back(RColumnElementBase::Generate(columnDesc.GetModel().GetType()));
 

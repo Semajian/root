@@ -32,7 +32,6 @@ discrete dimensions and may have negative values.
 #include "RooWorkspace.h"
 #include "RooHistPdf.h"
 #include "RooHelpers.h"
-#include "RunContext.h"
 
 #include "TError.h"
 #include "TBuffer.h"
@@ -52,9 +51,9 @@ ClassImp(RooHistFunc);
 RooHistFunc::RooHistFunc() :
   _dataHist(0),
   _intOrder(0),
-  _cdfBoundaries(kFALSE),
+  _cdfBoundaries(false),
   _totVolume(0),
-  _unitNorm(kFALSE)
+  _unitNorm(false)
 {
   TRACE_CREATE
 }
@@ -74,9 +73,9 @@ RooHistFunc::RooHistFunc(const char *name, const char *title, const RooArgSet& v
   _dataHist((RooDataHist*)&dhist),
   _codeReg(10),
   _intOrder(intOrder),
-  _cdfBoundaries(kFALSE),
+  _cdfBoundaries(false),
   _totVolume(0),
-  _unitNorm(kFALSE)
+  _unitNorm(false)
 {
   _histObsList.addClone(vars) ;
   _depList.add(vars) ;
@@ -116,9 +115,9 @@ RooHistFunc::RooHistFunc(const char *name, const char *title, const RooArgList& 
   _dataHist((RooDataHist*)&dhist),
   _codeReg(10),
   _intOrder(intOrder),
-  _cdfBoundaries(kFALSE),
+  _cdfBoundaries(false),
   _totVolume(0),
-  _unitNorm(kFALSE)
+  _unitNorm(false)
 {
   _histObsList.addClone(histObs) ;
   _depList.add(funcObs) ;
@@ -179,7 +178,7 @@ RooHistFunc::~RooHistFunc()
 /// of the dependents, normalized by the histograms contents. Interpolation
 /// is applied if the RooHistFunc is configured to do that
 
-Double_t RooHistFunc::evaluate() const
+double RooHistFunc::evaluate() const
 {
   // Transfer values from
   if (_depList.getSize()>0) {
@@ -189,7 +188,7 @@ Double_t RooHistFunc::evaluate() const
 
       if (harg != parg) {
         parg->syncCache() ;
-        harg->copyCache(parg,kTRUE) ;
+        harg->copyCache(parg,true) ;
         if (!harg->inRange(0)) {
           return 0 ;
         }
@@ -197,31 +196,24 @@ Double_t RooHistFunc::evaluate() const
     }
   }
 
-  Double_t ret =  _dataHist->weightFast(_histObsList,_intOrder,kFALSE,_cdfBoundaries) ;
+  double ret =  _dataHist->weightFast(_histObsList,_intOrder,false,_cdfBoundaries) ;
   return ret ;
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-/// Compute value of the HistFunc for every entry in `evalData`.
-/// \param[in,out] evalData Struct with input data. The computation results will be stored here.
-RooSpan<double> RooHistFunc::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* /*normSet*/) const {
+void RooHistFunc::computeBatch(cudaStream_t*, double* output, size_t size, RooFit::Detail::DataMap const& dataMap) const {
   std::vector<RooSpan<const double>> inputValues;
-  std::size_t batchSize = 0;
   for (const auto& obs : _depList) {
     auto realObs = dynamic_cast<const RooAbsReal*>(obs);
     if (realObs) {
-      auto inputs = realObs->getValues(evalData, nullptr);
-      batchSize = std::max(batchSize, inputs.size());
+      auto inputs = dataMap.at(realObs);
       inputValues.push_back(std::move(inputs));
     } else {
       inputValues.emplace_back();
     }
   }
 
-  auto results = evalData.makeBatch(this, batchSize);
-
-  for (std::size_t i = 0; i < batchSize; ++i) {
+  for (std::size_t i = 0; i < size; ++i) {
     bool skip = false;
 
     for (auto j = 0u; j < _histObsList.size(); ++j) {
@@ -236,10 +228,8 @@ RooSpan<double> RooHistFunc::evaluateSpan(RooBatchCompute::RunContext& evalData,
       }
     }
 
-    results[i] = skip ? 0. : _dataHist->weightFast(_histObsList, _intOrder, false, _cdfBoundaries);
+    output[i] = skip ? 0. : _dataHist->weightFast(_histObsList, _intOrder, false, _cdfBoundaries);
   }
-
-  return results;
 }
 
 
@@ -259,14 +249,14 @@ Int_t RooHistFunc::getMaxVal(const RooArgSet& vars) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooHistFunc::maxVal(Int_t code) const
+double RooHistFunc::maxVal(Int_t code) const
 {
   R__ASSERT(code==1) ;
 
-  Double_t max(-1) ;
+  double max(-1) ;
   for (Int_t i=0 ; i<_dataHist->numEntries() ; i++) {
     _dataHist->get(i) ;
-    Double_t wgt = _dataHist->weight() ;
+    double wgt = _dataHist->weight() ;
     if (wgt>max) max=wgt ;
   }
 
@@ -276,7 +266,7 @@ Double_t RooHistFunc::maxVal(Int_t code) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the total volume spanned by the observables of the RooDataHist
 
-Double_t RooHistFunc::totVolume() const
+double RooHistFunc::totVolume() const
 {
   // Return previously calculated value, if any
   if (_totVolume>0) {
@@ -317,7 +307,7 @@ Int_t RooHistFunc::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars
 /// is deferred to RooDataHist::sum() which implements partial
 /// or complete summation over the histograms contents
 
-Double_t RooHistFunc::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooHistFunc::analyticalIntegral(Int_t code, const char* rangeName) const
 {
     return RooHistPdf::analyticalIntegral(code, rangeName, _histObsList, _depList, *_dataHist, true);
 }
@@ -328,7 +318,7 @@ Double_t RooHistFunc::analyticalIntegral(Int_t code, const char* rangeName) cons
 /// as the recursive division strategy of RooCurve cannot deal efficiently
 /// with the vertical lines that occur in a non-interpolated histogram
 
-list<Double_t>* RooHistFunc::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+list<double>* RooHistFunc::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   // No hints are required when interpolation is used
   if (_intOrder>1) {
@@ -357,15 +347,15 @@ list<Double_t>* RooHistFunc::plotSamplingHint(RooAbsRealLValue& obs, Double_t xl
 
   // Retrieve position of all bin boundaries
   const RooAbsBinning* binning = lvarg->getBinningPtr(0) ;
-  Double_t* boundaries = binning->array() ;
+  double* boundaries = binning->array() ;
 
-  list<Double_t>* hint = new list<Double_t> ;
+  list<double>* hint = new list<double> ;
 
   // Widen range slighty
   xlo = xlo - 0.01*(xhi-xlo) ;
   xhi = xhi + 0.01*(xhi-xlo) ;
 
-  Double_t delta = (xhi-xlo)*1e-8 ;
+  double delta = (xhi-xlo)*1e-8 ;
 
   // Construct array with pairs of points positioned epsilon to the left and
   // right of the bin boundaries
@@ -385,7 +375,7 @@ list<Double_t>* RooHistFunc::plotSamplingHint(RooAbsRealLValue& obs, Double_t xl
 /// as the recursive division strategy of RooCurve cannot deal efficiently
 /// with the vertical lines that occur in a non-interpolated histogram
 
-std::list<Double_t>* RooHistFunc::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooHistFunc::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   // No hints are required when interpolation is used
   if (_intOrder>1) {
@@ -449,18 +439,18 @@ std::list<Double_t>* RooHistFunc::binBoundaries(RooAbsRealLValue& obs, Double_t 
 
   // Retrieve position of all bin boundaries
   const RooAbsBinning* binning = lvarg->getBinningPtr(0) ;
-  Double_t* boundaries = binning->array() ;
+  double* boundaries = binning->array() ;
 
-  list<Double_t>* hint = new list<Double_t> ;
+  list<double>* hint = new list<double> ;
 
-  Double_t delta = (xhi-xlo)*1e-8 ;
+  double delta = (xhi-xlo)*1e-8 ;
 
   // Construct array with pairs of points positioned epsilon to the left and
   // right of the bin boundaries
   for (Int_t i=0 ; i<binning->numBoundaries() ; i++) {
     if (boundaries[i]>xlo-delta && boundaries[i]<xhi+delta) {
 
-      Double_t boundary = boundaries[i] ;
+      double boundary = boundaries[i] ;
       if (transform) {
    transform->setVal(boundary) ;
    //cout << "transform bound " << boundary << " using " << transform->GetName() << " result " << obs.getVal() << endl ;
@@ -479,7 +469,7 @@ std::list<Double_t>* RooHistFunc::binBoundaries(RooAbsRealLValue& obs, Double_t 
 ////////////////////////////////////////////////////////////////////////////////
 /// Check if our datahist is already in the workspace.
 /// In case of error, return true.
-Bool_t RooHistFunc::importWorkspaceHook(RooWorkspace& ws)
+bool RooHistFunc::importWorkspaceHook(RooWorkspace& ws)
 {
   // Check if dataset with given name already exists
   RooAbsData* wsdata = ws.embeddedData(_dataHist->GetName()) ;
@@ -501,10 +491,10 @@ Bool_t RooHistFunc::importWorkspaceHook(RooWorkspace& ws)
 
         // not identical, clone rename and import
         TString uniqueName = Form("%s_%s",_dataHist->GetName(),GetName()) ;
-        Bool_t flag = ws.import(*_dataHist,RooFit::Rename(uniqueName.Data()),RooFit::Embedded()) ;
+        bool flag = ws.import(*_dataHist,RooFit::Rename(uniqueName.Data()),RooFit::Embedded()) ;
         if (flag) {
           coutE(ObjectHandling) << " RooHistPdf::importWorkspaceHook(" << GetName() << ") unable to import clone of underlying RooDataHist with unique name " << uniqueName << ", abort" << endl ;
-          return kTRUE ;
+          return true ;
         }
         _dataHist = (RooDataHist*) ws.embeddedData(uniqueName.Data()) ;
       }
@@ -513,15 +503,15 @@ Bool_t RooHistFunc::importWorkspaceHook(RooWorkspace& ws)
 
       // Exists and is NOT of correct type: clone rename and import
       TString uniqueName = Form("%s_%s",_dataHist->GetName(),GetName()) ;
-      Bool_t flag = ws.import(*_dataHist,RooFit::Rename(uniqueName.Data()),RooFit::Embedded()) ;
+      bool flag = ws.import(*_dataHist,RooFit::Rename(uniqueName.Data()),RooFit::Embedded()) ;
       if (flag) {
         coutE(ObjectHandling) << " RooHistPdf::importWorkspaceHook(" << GetName() << ") unable to import clone of underlying RooDataHist with unique name " << uniqueName << ", abort" << endl ;
-        return kTRUE ;
+        return true ;
       }
       _dataHist = (RooDataHist*) ws.embeddedData(uniqueName.Data()) ;
 
     }
-    return kFALSE ;
+    return false ;
   }
 
   // We need to import our datahist into the workspace
@@ -529,24 +519,24 @@ Bool_t RooHistFunc::importWorkspaceHook(RooWorkspace& ws)
 
   // Redirect our internal pointer to the copy in the workspace
   _dataHist = (RooDataHist*) ws.embeddedData(_dataHist->GetName()) ;
-  return kFALSE ;
+  return false ;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Bool_t RooHistFunc::areIdentical(const RooDataHist& dh1, const RooDataHist& dh2)
+bool RooHistFunc::areIdentical(const RooDataHist& dh1, const RooDataHist& dh2)
 {
-  if (fabs(dh1.sumEntries()-dh2.sumEntries())>1e-8) return kFALSE ;
-  if (dh1.numEntries() != dh2.numEntries()) return kFALSE ;
+  if (fabs(dh1.sumEntries()-dh2.sumEntries())>1e-8) return false ;
+  if (dh1.numEntries() != dh2.numEntries()) return false ;
   for (int i=0 ; i < dh1.numEntries() ; i++) {
     dh1.get(i) ;
     dh2.get(i) ;
-    if (fabs(dh1.weight()-dh2.weight())>1e-8) return kFALSE ;
+    if (fabs(dh1.weight()-dh2.weight())>1e-8) return false ;
   }
   using RooHelpers::getColonSeparatedNameString;
-  if (getColonSeparatedNameString(*dh1.get()) != getColonSeparatedNameString(*dh2.get())) return kFALSE ;
-  return kTRUE ;
+  if (getColonSeparatedNameString(*dh1.get()) != getColonSeparatedNameString(*dh2.get())) return false ;
+  return true ;
 }
 
 
@@ -574,7 +564,7 @@ void RooHistFunc::Streamer(TBuffer &R__b)
 
 void RooHistFunc::ioStreamerPass2()
 {
-  if (_histObsList.getSize()==0) {
+  if (_histObsList.empty()) {
     _histObsList.addClone(_depList) ;
   }
 }
@@ -591,7 +581,7 @@ Int_t RooHistFunc::getBin() const {
 
       if (harg != parg) {
         parg->syncCache() ;
-        harg->copyCache(parg,kTRUE) ;
+        harg->copyCache(parg,true) ;
         if (!harg->inRange(nullptr)) {
           return -1;
         }
@@ -606,12 +596,12 @@ Int_t RooHistFunc::getBin() const {
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute bin numbers corresponding to all coordinates in `evalData`.
 /// \return Vector of bin numbers. If a bin is not in the current range of the observables, return -1.
-std::vector<Int_t> RooHistFunc::getBins(RooBatchCompute::RunContext& evalData) const {
+std::vector<Int_t> RooHistFunc::getBins(RooFit::Detail::DataMap const& dataMap) const {
   std::vector<RooSpan<const double>> depData;
   for (const auto dep : _depList) {
     auto real = dynamic_cast<const RooAbsReal*>(dep);
     if (real) {
-      depData.push_back(real->getValues(evalData, nullptr));
+      depData.push_back(dataMap.at(real));
     } else {
       depData.emplace_back(nullptr, 0);
     }

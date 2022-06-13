@@ -31,13 +31,13 @@ protected:
     RICacheElem(const RooNumRunningInt& ri, const RooArgSet* nset) ;
     ~RICacheElem() override ;
     RooArgList containedArgs(Action) override ;
-    void calculate(Bool_t cdfmode) ;
+    void calculate(bool cdfmode) ;
     void addRange(Int_t ixlo, Int_t ixhi, Int_t nbins) ;
     void addPoint(Int_t ix) ;
 
     RooNumRunningInt* _self ;
-    Double_t* _ax ;
-    Double_t* _ay ;
+    double* _ax ;
+    double* _ay ;
     RooRealVar* _xx ;
 
   } ;
@@ -49,7 +49,7 @@ protected:
   RooArgSet* actualObservables(const RooArgSet& nset) const override ;
   RooArgSet* actualParameters(const RooArgSet& nset) const override ;
   void fillCacheObject(FuncCacheElem& cacheFunc) const override ;
-  Double_t evaluate() const override ;
+  double evaluate() const override ;
 
   const char* payloadUniqueSuffix() const override { return func.arg().aggregateCacheUniqueSuffix() ; }
 

@@ -25,8 +25,6 @@ interface to pass on calls for server redirection, operation mode
 change calls and constant term optimization management calls
 **/
 
-
-#include "RooFit.h"
 #include "RooAbsCacheElement.h"
 #include "RooAbsArg.h"
 #include "RooArgList.h"
@@ -40,10 +38,10 @@ ClassImp(RooAbsCacheElement);
 ////////////////////////////////////////////////////////////////////////////////
 /// Interface for server redirect calls
 
-Bool_t RooAbsCacheElement::redirectServersHook(const RooAbsCollection& /*newServerList*/, Bool_t /*mustReplaceAll*/,
-                      Bool_t /*nameChange*/, Bool_t /*isRecursive*/)
+bool RooAbsCacheElement::redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/,
+                      bool /*nameChange*/, bool /*isRecursive*/)
 {
-  return kFALSE ;
+  return false ;
 }
 
 
@@ -63,13 +61,9 @@ void RooAbsCacheElement::printCompactTreeHook(std::ostream&, const char *, Int_t
 
 void RooAbsCacheElement::optimizeCacheMode(const RooArgSet& obs, RooArgSet& optNodes, RooLinkedList& processedNodes)
 {
-  RooArgList list = containedArgs(OptimizeCaching) ;
-  TIterator* iter = list.createIterator() ;
-  RooAbsArg* arg ;
-  while((arg=(RooAbsArg*)iter->Next())) {
+  for (RooAbsArg * arg : containedArgs(OptimizeCaching)) {
     arg->optimizeCacheMode(obs, optNodes, processedNodes) ;
   }
-  delete iter ;
 }
 
 

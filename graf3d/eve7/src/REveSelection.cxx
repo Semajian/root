@@ -106,7 +106,7 @@ void REveSelection::DoElementSelect(SelMap_i &entry)
 {
    Set_t &imp_set = entry->second.f_implied;
 
-   entry->first->FillImpliedSelectedSet(imp_set);
+   entry->first->FillImpliedSelectedSet(imp_set, entry->second.f_sec_idcs);
 
    auto i = imp_set.begin();
    while (i != imp_set.end())
@@ -174,9 +174,21 @@ bool REveSelection::AcceptNiece(REveElement* el)
 
 void REveSelection::AddNieceInternal(REveElement* el)
 {
-   auto res = fMap.emplace(el, Record(el));
+   fMap.emplace(el, Record(el));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+void REveSelection::AddNieceForSelection(REveElement* el, bool secondary, const std::set<int>& sec_idcs)
+{
+   AddNiece(el);
+
+   auto i = fMap.find(el);
+   i->second.f_is_sec = secondary;
+   i->second.f_sec_idcs = sec_idcs;
+
    if (fActive) {
-      DoElementSelect(res.first);
+      DoElementSelect(i);
       SelectionAdded(el);
    }
    StampObjPropsPreChk();
@@ -256,7 +268,7 @@ void REveSelection::RecheckImpliedSet(SelMap_i &smi)
 {
    bool  changed = false;
    Set_t set;
-   smi->first->FillImpliedSelectedSet(set);
+   smi->first->FillImpliedSelectedSet(set, smi->second.f_sec_idcs);
    for (auto &i: set)
    {
       if (smi->second.f_implied.find(i) == smi->second.f_implied.end())
@@ -479,32 +491,38 @@ void REveSelection::UserUnPickedElement(REveElement* el)
 ////////////////////////////////////////////////////////////////////////////////
 /// Called from GUI when user picks or un-picks an element.
 
-void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary, const std::set<int>& in_secondary_idcs)
+void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary, const std::set<int> &secondary_idcs)
 {
    static const REveException eh("REveSelection::NewElementPicked ");
 
    REveElement *pel = nullptr, *el = nullptr;
 
-   // AMT the forth/last argument is optional and therefore need to be constant
-   std::set<int> secondary_idcs = in_secondary_idcs;
+   if (id > 0) {
+      pel = REX::gEve->FindElementById(id);
 
-   if (id > 0)
-   {
-     pel = REX::gEve->FindElementById(id);
+      if (!pel)
+         throw eh + "picked element id=" + id + " not found.";
 
-     if ( ! pel) throw eh + "picked element id=" + id + " not found.";
-
-     el = MapPickedToSelected(pel);
-
-     if (el != pel) {
-        REveSecondarySelectable* ss = dynamic_cast<REveSecondarySelectable*>(el);
-        if (!secondary && ss) {
-           secondary = true;
-           secondary_idcs = ss->RefSelectedSet();
-        }
-     }
+      el = MapPickedToSelected(pel);
    }
 
+   if (fDeviator && fDeviator->DeviateSelection(this, el, multi, secondary, secondary_idcs))
+   {
+      return;
+   }
+   else
+   {
+      NewElementPickedInternal(el, multi, secondary, secondary_idcs);
+   }
+}
+
+//==============================================================================
+
+////////////////////////////////////////////////////////////////////////////////
+/// Called from NewElementPicked or Deviator::DeviateSelection
+
+void REveSelection::NewElementPickedInternal(REveElement* el, bool multi, bool secondary, const std::set<int>& secondary_idcs)
+{
    if (gDebug > 0) {
       std::string debug_secondary;
       if (secondary) {
@@ -515,7 +533,7 @@ void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary,
          }
          debug_secondary.append(" }");
       }
-      ::Info("REveSelection::NewElementPicked", "%p -> %p, multi: %d, secondary: %d  %s", pel, el, multi, secondary, debug_secondary.c_str());
+      ::Info("REveSelection::NewElementPickedInternal", " %p, multi: %d, secondary: %d  %s", el, multi, secondary, debug_secondary.c_str());
    }
 
    Record *rec = find_record(el);
@@ -544,12 +562,11 @@ void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary,
                for (auto &dit :  dup)
                   rec->f_sec_idcs.erase(dit);
 
-               secondary_idcs  = rec->f_sec_idcs;
-               if (!secondary_idcs.empty()) {
-                  AddNiece(el);
-                  rec = find_record(el);
-                  rec->f_is_sec   = true;
-                  rec->f_sec_idcs = secondary_idcs;
+               // re-adding is needed to refresh implied selected
+               std::set<int> newSet = rec->f_sec_idcs;
+               RemoveNiece(el);
+               if (!newSet.empty()) {
+                  AddNieceForSelection(el, secondary, newSet);
                }
             }
             else
@@ -559,10 +576,7 @@ void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary,
          }
          else
          {
-            AddNiece(el);
-            rec = find_record(el);
-            rec->f_is_sec   = true;
-            rec->f_sec_idcs = secondary_idcs;
+            AddNieceForSelection(el, secondary, secondary_idcs);
          }
       }
       else
@@ -579,14 +593,11 @@ void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary,
          {
             if (secondary)
             {
-                bool modified = (rec->f_sec_idcs != secondary_idcs);
+               bool modified = (rec->f_sec_idcs != secondary_idcs);
                RemoveNieces();
                // re-adding is needed to refresh implied selected
                if (modified) {
-                  AddNiece(el);
-                  rec = find_record(el);
-                  rec->f_is_sec   = true;
-                  rec->f_sec_idcs = secondary_idcs;
+                  AddNieceForSelection(el, secondary, secondary_idcs);
                }
             }
             else
@@ -597,13 +608,7 @@ void REveSelection::NewElementPicked(ElementId_t id, bool multi, bool secondary,
          else
          {
             if (HasNieces()) RemoveNieces();
-            AddNiece(el);
-            if (secondary)
-            {
-               rec = find_record(el);
-               rec->f_is_sec   = true;
-               rec->f_sec_idcs = secondary_idcs;
-            }
+            AddNieceForSelection(el, secondary, secondary_idcs);
          }
       }
       else // Single selection with zero element --> clear selection.

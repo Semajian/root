@@ -23,9 +23,6 @@ Lightweight RooAbsFunc interface adaptor that binds an analytic integral of a
 RooAbsReal object (specified by a code) to a set of dependent variables.
 **/
 
-
-#include "RooFit.h"
-
 #include "RooRealAnalytic.h"
 #include "RooAbsReal.h"
 #include "RooAbsRealLValue.h"
@@ -41,7 +38,7 @@ ClassImp(RooRealAnalytic);
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate our analytic integral at the specified values of the dependents.
 
-Double_t RooRealAnalytic::operator()(const Double_t xvector[]) const
+double RooRealAnalytic::operator()(const double xvector[]) const
 {
   assert(isValid());
   loadValues(xvector);

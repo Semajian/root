@@ -23,7 +23,6 @@ Landau distribution p.d.f
 
 #include "RooLandau.h"
 #include "RooHelpers.h"
-#include "RooFit.h"
 #include "RooRandom.h"
 #include "RooBatchCompute.h"
 
@@ -54,22 +53,23 @@ RooLandau::RooLandau(const RooLandau& other, const char* name) :
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooLandau::evaluate() const
+double RooLandau::evaluate() const
 {
   return TMath::Landau(x, mean, sigma);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Landau distribution.
-void RooLandau::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooBatchCompute::DataMap& dataMap) const
+void RooLandau::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
-  dispatch->compute(stream, RooBatchCompute::Landau, output, nEvents, dataMap, {&*x,&*mean,&*sigma,&*_norm});
+  dispatch->compute(stream, RooBatchCompute::Landau, output, nEvents,
+          {dataMap.at(x), dataMap.at(mean), dataMap.at(sigma)});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Int_t RooLandau::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t /*staticInitOK*/) const
+Int_t RooLandau::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
 {
   if (matchArgs(directVars,generateVars,x)) return 1 ;
   return 0 ;
@@ -80,7 +80,7 @@ Int_t RooLandau::getGenerator(const RooArgSet& directVars, RooArgSet &generateVa
 void RooLandau::generateEvent(Int_t code)
 {
   assert(1 == code); (void)code;
-  Double_t xgen ;
+  double xgen ;
   while(1) {
     xgen = RooRandom::randomGenerator()->Landau(mean,sigma);
     if (xgen<x.max() && xgen>x.min()) {

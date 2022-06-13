@@ -54,30 +54,26 @@ the proposal density to maintain detailed balance.
       /// Determine whether or not the proposal density is symmetric for
       /// points x1 and x2 - that is, whether the probability of reaching x2
       /// from x1 is equal to the probability of reaching x1 from x2
-      virtual Bool_t IsSymmetric(RooArgSet& x1, RooArgSet& x2) = 0;
+      virtual bool IsSymmetric(RooArgSet& x1, RooArgSet& x2) = 0;
 
       /// Return the probability of proposing the point x1 given the starting
       /// point x2
-      virtual Double_t GetProposalDensity(RooArgSet& x1, RooArgSet& x2) = 0;
+      virtual double GetProposalDensity(RooArgSet& x1, RooArgSet& x2) = 0;
 
       /// Check the parameters for which the ProposalFunction will
       /// propose values to make sure they are all RooRealVars
       /// Return true if all objects are RooRealVars, false otherwise
       virtual bool CheckParameters(RooArgSet& params)
       {
-         TIterator* it = params.createIterator();
-         TObject* obj;
-         while ((obj = it->Next()) != NULL) {
+         for (auto *obj : params){
             if (!dynamic_cast<RooRealVar*>(obj)) {
                coutE(Eval) << "Error when checking parameters in"
                            << "ProposalFunction: "
                            << "Object \"" << obj->GetName() << "\" not of type "
                            << "RooRealVar" << std::endl;
-               delete it;
                return false;
             }
          }
-         delete it;
          // Made it here, so all parameters are RooRealVars
          return true;
       }

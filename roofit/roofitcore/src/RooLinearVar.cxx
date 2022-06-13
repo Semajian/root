@@ -36,8 +36,6 @@
 ///
 ///
 
-#include "RooFit.h"
-
 #include <cmath>
 
 #include "TClass.h"
@@ -63,7 +61,7 @@ RooLinearVar::RooLinearVar(const char *name, const char *title, RooAbsRealLValue
             const RooAbsReal& slope, const RooAbsReal& offs, const char *unit) :
   RooAbsRealLValue(name, title, unit),
   _binning(variable.getBinning(),slope.getVal(),offs.getVal()),
-  _var("var","variable",this,variable,kTRUE,kTRUE),
+  _var("var","variable",this,variable,true,true),
   _slope("slope","slope",this,(RooAbsReal&)slope),
   _offset("offset","offset",this,(RooAbsReal&)offs)
 {
@@ -112,7 +110,7 @@ RooLinearVar::~RooLinearVar()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate current value of this object
 
-Double_t RooLinearVar::evaluate() const
+double RooLinearVar::evaluate() const
 {
   return _offset + _var * _slope ;
 }
@@ -123,7 +121,7 @@ Double_t RooLinearVar::evaluate() const
 /// Assign given value to linear transformation: sets input variable to (value-offset)/slope
 /// If slope is zerom an error message is printed and no assignment is made
 
-void RooLinearVar::setVal(Double_t value)
+void RooLinearVar::setVal(double value)
 {
   //cout << "RooLinearVar::setVal(" << GetName() << "): new value = " << value << endl ;
 
@@ -144,10 +142,10 @@ void RooLinearVar::setVal(Double_t value)
 /// Returns true if Jacobian term associated with current
 /// expression tree is indeed constant.
 
-Bool_t RooLinearVar::isJacobianOK(const RooArgSet& depList) const
+bool RooLinearVar::isJacobianOK(const RooArgSet& depList) const
 {
   if (!((RooAbsRealLValue&)_var.arg()).isJacobianOK(depList)) {
-    return kFALSE ;
+    return false ;
   }
 
   // Check if jacobian has no real-valued dependents
@@ -156,13 +154,13 @@ Bool_t RooLinearVar::isJacobianOK(const RooArgSet& depList) const
   while ((arg=(RooAbsArg*)dIter.Next())) {
     if (arg->IsA()->InheritsFrom(RooAbsReal::Class())) {
       if (_slope.arg().dependsOnValue(*arg)) {
-//    cout << "RooLinearVar::isJacobianOK(" << GetName() << ") return kFALSE because slope depends on value of " << arg->GetName() << endl ;
-   return kFALSE ;
+//    cout << "RooLinearVar::isJacobianOK(" << GetName() << ") return false because slope depends on value of " << arg->GetName() << endl ;
+   return false ;
       }
     }
   }
-  //   cout << "RooLinearVar::isJacobianOK(" << GetName() << ") return kTRUE" << endl ;
-  return kTRUE ;
+  //   cout << "RooLinearVar::isJacobianOK(" << GetName() << ") return true" << endl ;
+  return true ;
 }
 
 
@@ -170,7 +168,7 @@ Bool_t RooLinearVar::isJacobianOK(const RooArgSet& depList) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return value of Jacobian associated with the transformation
 
-Double_t RooLinearVar::jacobian() const
+double RooLinearVar::jacobian() const
 {
   return _slope*((RooAbsRealLValue&)_var.arg()).jacobian() ;
 }
@@ -180,9 +178,9 @@ Double_t RooLinearVar::jacobian() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Read object contents from stream
 
-Bool_t RooLinearVar::readFromStream(istream& /*is*/, Bool_t /*compact*/, Bool_t /*verbose*/)
+bool RooLinearVar::readFromStream(istream& /*is*/, bool /*compact*/, bool /*verbose*/)
 {
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -190,7 +188,7 @@ Bool_t RooLinearVar::readFromStream(istream& /*is*/, Bool_t /*compact*/, Bool_t 
 ////////////////////////////////////////////////////////////////////////////////
 /// Write object contents to stream
 
-void RooLinearVar::writeToStream(ostream& os, Bool_t compact) const
+void RooLinearVar::writeToStream(ostream& os, bool compact) const
 {
   if (compact) {
     os << getVal() ;
@@ -207,7 +205,7 @@ void RooLinearVar::writeToStream(ostream& os, Bool_t compact) const
 /// binning exists on the input variable, it will also exist on this linear transformation,
 /// and a binning adaptor object is created on the fly.
 
- RooAbsBinning& RooLinearVar::getBinning(const char* name, Bool_t verbose, Bool_t createOnTheFly)
+ RooAbsBinning& RooLinearVar::getBinning(const char* name, bool verbose, bool createOnTheFly)
 {
   // Normalization binning
   if (name==0) {
@@ -239,7 +237,7 @@ void RooLinearVar::writeToStream(ostream& os, Bool_t compact) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Const version of getBinning()
 
-const RooAbsBinning& RooLinearVar::getBinning(const char* name, Bool_t verbose, Bool_t createOnTheFly) const
+const RooAbsBinning& RooLinearVar::getBinning(const char* name, bool verbose, bool createOnTheFly) const
 {
   return const_cast<RooLinearVar*>(this)->getBinning(name,verbose,createOnTheFly) ;
 }
@@ -267,7 +265,7 @@ std::list<std::string> RooLinearVar::getBinningNames() const
 /// exists on the input variable, it will also exists on this linear
 /// transformation.
 
-Bool_t RooLinearVar::hasBinning(const char* name) const
+bool RooLinearVar::hasBinning(const char* name) const
 {
   return ((RooAbsRealLValue&)_var.arg()).hasBinning(name) ;
 }

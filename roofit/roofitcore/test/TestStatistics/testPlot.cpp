@@ -10,7 +10,6 @@
  * listed in LICENSE (http://roofit.sourceforge.net/license.txt)
  */
 
-#include <RooFit.h>
 #include <RooWorkspace.h>
 #include <RooPlot.h>
 #include <RooDataSet.h>
@@ -32,7 +31,7 @@ class TestRooRealLPlot : public RooUnitTest {
 public:
    TestRooRealLPlot(TFile &refFile, bool writeRef, int verbose, std::string const &batchMode)
       : RooUnitTest("Plotting and minimization with RooFit::TestStatistics", &refFile, writeRef, verbose, batchMode){};
-   Bool_t testCode() override
+   bool testCode() override
    {
 
       // C r e a t e   m o d e l  a n d  d a t a

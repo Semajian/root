@@ -30,6 +30,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <shared_mutex>
 #include <unordered_set>
 #include <vector>
 
@@ -276,6 +277,53 @@ mapped into memory. The page source also gives access to the ntuple's meta-data.
 */
 // clang-format on
 class RPageSource : public RPageStorage {
+public:
+   /// An RAII wrapper used for the read-only access to RPageSource::fDescriptor. See GetExclDescriptorGuard().
+   class RSharedDescriptorGuard {
+      const RNTupleDescriptor &fDescriptor;
+      std::shared_mutex &fLock;
+
+   public:
+      RSharedDescriptorGuard(const RNTupleDescriptor &desc, std::shared_mutex &lock) : fDescriptor(desc), fLock(lock)
+      {
+         fLock.lock_shared();
+      }
+      RSharedDescriptorGuard(const RSharedDescriptorGuard &) = delete;
+      RSharedDescriptorGuard &operator=(const RSharedDescriptorGuard &) = delete;
+      RSharedDescriptorGuard(RSharedDescriptorGuard &&) = delete;
+      RSharedDescriptorGuard &operator=(RSharedDescriptorGuard &&) = delete;
+      ~RSharedDescriptorGuard() { fLock.unlock_shared(); }
+      const RNTupleDescriptor *operator->() const { return &fDescriptor; }
+      const RNTupleDescriptor &GetRef() const { return fDescriptor; }
+   };
+
+   /// An RAII wrapper used for the writable access to RPageSource::fDescriptor. See GetSharedDescriptorGuard().
+   class RExclDescriptorGuard {
+      RNTupleDescriptor &fDescriptor;
+      std::shared_mutex &fLock;
+
+   public:
+      RExclDescriptorGuard(RNTupleDescriptor &desc, std::shared_mutex &lock) : fDescriptor(desc), fLock(lock)
+      {
+         fLock.lock();
+      }
+      RExclDescriptorGuard(const RExclDescriptorGuard &) = delete;
+      RExclDescriptorGuard &operator=(const RExclDescriptorGuard &) = delete;
+      RExclDescriptorGuard(RExclDescriptorGuard &&) = delete;
+      RExclDescriptorGuard &operator=(RExclDescriptorGuard &&) = delete;
+      ~RExclDescriptorGuard()
+      {
+         fDescriptor.IncGeneration();
+         fLock.unlock();
+      }
+      RNTupleDescriptor *operator->() const { return &fDescriptor; }
+      void MoveIn(RNTupleDescriptor &&desc) { fDescriptor = std::move(desc); }
+   };
+
+private:
+   RNTupleDescriptor fDescriptor;
+   mutable std::shared_mutex fDescriptorLock;
+
 protected:
    /// Default I/O performance counters that get registered in fMetrics
    struct RCounters {
@@ -302,7 +350,6 @@ protected:
    RNTupleMetrics fMetrics;
 
    RNTupleReadOptions fOptions;
-   RNTupleDescriptor fDescriptor;
    /// The active columns are implicitly defined by the model fields or views
    RCluster::ColumnSet_t fActiveColumns;
 
@@ -330,12 +377,15 @@ protected:
    /// GetMetrics() member function.
    void EnableDefaultMetrics(const std::string &prefix);
 
+   /// Note that the underlying lock is not recursive. See GetSharedDescriptorGuard() for further information.
+   RExclDescriptorGuard GetExclDescriptorGuard() { return RExclDescriptorGuard(fDescriptor, fDescriptorLock); }
+
 public:
    RPageSource(std::string_view ntupleName, const RNTupleReadOptions &fOptions);
    RPageSource(const RPageSource&) = delete;
    RPageSource& operator=(const RPageSource&) = delete;
-   RPageSource(RPageSource&&) = default;
-   RPageSource& operator=(RPageSource&&) = default;
+   RPageSource(RPageSource &&) = delete;
+   RPageSource &operator=(RPageSource &&) = delete;
    virtual ~RPageSource();
    /// Guess the concrete derived page source from the file name (location)
    static std::unique_ptr<RPageSource> Create(std::string_view ntupleName, std::string_view location,
@@ -344,13 +394,25 @@ public:
    virtual std::unique_ptr<RPageSource> Clone() const = 0;
 
    EPageStorageType GetType() final { return EPageStorageType::kSource; }
-   const RNTupleDescriptor &GetDescriptor() const { return fDescriptor; }
    const RNTupleReadOptions &GetReadOptions() const { return fOptions; }
+
+   /// Takes the read lock for the descriptor. Multiple threads can take the lock concurrently.
+   /// The underlying std::shared_mutex, however, is neither read nor write recursive:
+   /// within one thread, only one lock (shared or exclusive) must be acquired at the same time. This requires special
+   /// care in sections protected by GetSharedDescriptorGuard() and GetExclDescriptorGuard() especially to avoid that
+   /// the locks are acquired indirectly (e.g. by a call to GetNEntries()).
+   /// As a general guideline, no other method of the page source should be called (directly or indirectly) in a
+   /// guarded section.
+   const RSharedDescriptorGuard GetSharedDescriptorGuard() const
+   {
+      return RSharedDescriptorGuard(fDescriptor, fDescriptorLock);
+   }
+
    ColumnHandle_t AddColumn(DescriptorId_t fieldId, const RColumn &column) override;
    void DropColumn(ColumnHandle_t columnHandle) override;
 
    /// Open the physical storage container for the tree
-   void Attach() { fDescriptor = AttachImpl(); }
+   void Attach() { GetExclDescriptorGuard().MoveIn(AttachImpl()); }
    NTupleSize_t GetNEntries();
    NTupleSize_t GetNElements(ColumnHandle_t columnHandle);
    ColumnId_t GetColumnId(ColumnHandle_t columnHandle);

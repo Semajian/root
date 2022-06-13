@@ -8,9 +8,10 @@ include(ExternalProject)
 
 find_package(OpenSSL REQUIRED)
 
-set(XROOTD_VERSION "5.3.1")
-set(XROOTD_VERSIONNUM 500030001 CACHE INTERNAL "" FORCE)
-set(XROOTD_SRC_URI https://github.com/xrootd/xrootd/archive/v${XROOTD_VERSION}.tar.gz)
+set(XROOTD_VERSION "5.4.2")
+set(XROOTD_VERSIONNUM 500040002 CACHE INTERNAL "" FORCE)
+set(lcgpackages http://lcgpackages.web.cern.ch/lcgpackages/tarFiles/sources)
+set(XROOTD_SRC_URI ${lcgpackages}/xrootd-${XROOTD_VERSION}.tar.gz)
 set(XROOTD_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/XROOTD-prefix)
 message(STATUS "Downloading and building XROOTD version ${XROOTD_VERSION}")
 
@@ -26,10 +27,14 @@ foreach(lib XrdUtils XrdCl)
   list(APPEND XROOTD_LIBRARIES ${XROOTD_PREFIX}/${XROOTD_LIBDIR}/${libname})
 endforeach()
 
+if(OPENSSL_VERSION VERSION_GREATER_EQUAL 3)
+   set(XROOTD_WITH_OPENSSL3 "-DWITH_OPENSSL3=TRUE")
+endif()
+
 ExternalProject_Add(
     XROOTD
     URL ${XROOTD_SRC_URI}
-    URL_HASH SHA256=0800b4c6444591a6514c5b81b2c4c79439875136ab2267ce4bed99cb94ead6e6
+    URL_HASH SHA256=84e8a9a2bcad116df479f94e985c287dd99fbac0613d4fbb61f4ccc0cef81fa3
     INSTALL_DIR ${XROOTD_PREFIX}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
                -DCMAKE_PREFIX_PATH:STRING=${OPENSSL_PREFIX}
@@ -42,6 +47,7 @@ ExternalProject_Add(
                -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
                -DENABLE_PYTHON=OFF
                -DENABLE_CEPH=OFF
+               ${XROOTD_WITH_OPENSSL3}
                -DCMAKE_INSTALL_RPATH:STRING=${XROOTD_PREFIX}/${XROOTD_LIBDIR}
     INSTALL_COMMAND ${CMAKE_COMMAND} --build . --target install
             COMMAND ${CMAKE_COMMAND} -E copy_directory <INSTALL_DIR>/include/xrootd <INSTALL_DIR>/include

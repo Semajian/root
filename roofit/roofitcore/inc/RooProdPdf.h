@@ -34,10 +34,10 @@ class RooProdPdf : public RooAbsPdf {
 public:
 
   RooProdPdf() ;
-  RooProdPdf(const char *name, const char *title, Double_t cutOff=0);
+  RooProdPdf(const char *name, const char *title, double cutOff=0);
   RooProdPdf(const char *name, const char *title,
-       RooAbsPdf& pdf1, RooAbsPdf& pdf2, Double_t cutOff=0) ;
-  RooProdPdf(const char* name, const char* title, const RooArgList& pdfList, Double_t cutOff=0) ;
+       RooAbsPdf& pdf1, RooAbsPdf& pdf2, double cutOff=0) ;
+  RooProdPdf(const char* name, const char* title, const RooArgList& pdfList, double cutOff=0) ;
   RooProdPdf(const char* name, const char* title, const RooArgSet& fullPdfSet, const RooLinkedList& cmdArgList) ;
 
   RooProdPdf(const char* name, const char* title, const RooArgSet& fullPdfSet,
@@ -56,56 +56,58 @@ public:
   TObject* clone(const char* newname) const override { return new RooProdPdf(*this,newname) ; }
   ~RooProdPdf() override ;
 
-  Bool_t checkObservables(const RooArgSet* nset) const override ;
+  bool checkObservables(const RooArgSet* nset) const override ;
 
-  Bool_t forceAnalyticalInt(const RooAbsArg& dep) const override ;
+  bool forceAnalyticalInt(const RooAbsArg& dep) const override ;
   Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& numVars, const RooArgSet* normSet, const char* rangeName=0) const override ;
-  Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
-  Bool_t selfNormalized() const override { return _selfNorm ; }
+  double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
+  bool selfNormalized() const override { return _selfNorm ; }
 
   ExtendMode extendMode() const override ;
-  Double_t expectedEvents(const RooArgSet* nset) const override ;
+  double expectedEvents(const RooArgSet* nset) const override ;
 
   const RooArgList& pdfList() const { return _pdfList ; }
 
-  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK=kTRUE) const override;
+  Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK=true) const override;
   void initGenerator(Int_t code) override ;
   void generateEvent(Int_t code) override;
-  Bool_t isDirectGenSafe(const RooAbsArg& arg) const override ;
+  bool isDirectGenSafe(const RooAbsArg& arg) const override ;
 
   // Constraint management
-  RooArgSet* getConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected) const override ;
+  RooArgSet* getConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, bool stripDisconnected) const override ;
 
-  std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const override ;
-  std::list<Double_t>* binBoundaries(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override ;
-  Bool_t isBinnedDistribution(const RooArgSet& obs) const override  ;
+  std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
+  std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
+  bool isBinnedDistribution(const RooArgSet& obs) const override  ;
 
   void printMetaArgs(std::ostream& os) const override ;
 
-  void selectNormalizationRange(const char* rangeName=0, Bool_t force=kFALSE) override ;
+  void selectNormalizationRange(const char* rangeName=0, bool force=false) override ;
   void fixRefRange(const char* rangeName) ;
 
-  void setSelfNormalized(Bool_t flag) { _selfNorm = flag ; }
+  void setSelfNormalized(bool flag) { _selfNorm = flag ; }
   void setDefNormSet(const RooArgSet& nset) { _defNormSet.removeAll() ; _defNormSet.addClone(nset) ; }
 
 
-  Bool_t redirectServersHook(const RooAbsCollection& /*newServerList*/, Bool_t /*mustReplaceAll*/, Bool_t /*nameChange*/, Bool_t /*isRecursive*/) override ;
+  bool redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/, bool /*nameChange*/, bool /*isRecursive*/) override ;
 
   RooArgSet* getConnectedParameters(const RooArgSet& observables) const ;
 
-  RooArgSet* findPdfNSet(RooAbsPdf& pdf) const ;
+  RooArgSet* findPdfNSet(RooAbsPdf const& pdf) const ;
 
   void writeCacheToStream(std::ostream& os, RooArgSet const* nset) const;
 
+  std::unique_ptr<RooArgSet> fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const override;
+
 private:
 
-  Double_t evaluate() const override ;
-  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooBatchCompute::DataMap&) const override;
+  double evaluate() const override ;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
   inline bool canComputeBatchWithCuda() const override { return true; }
 
   RooAbsReal* makeCondPdfRatioCorr(RooAbsReal& term, const RooArgSet& termNset, const RooArgSet& termImpSet, const char* normRange, const char* refRange) const ;
 
-  void getParametersHook(const RooArgSet* /*nset*/, RooArgSet* /*list*/, Bool_t stripDisconnected) const override ;
+  void getParametersHook(const RooArgSet* /*nset*/, RooArgSet* /*list*/, bool stripDisconnected) const override ;
 
   void initializeFromCmdArgList(const RooArgSet& fullPdfSet, const RooLinkedList& l) ;
 
@@ -124,7 +126,7 @@ private:
 
   std::vector<RooAbsReal*> processProductTerm(const RooArgSet* nset, const RooArgSet* iset, const char* isetRangeName,
                      const RooArgSet* term,const RooArgSet& termNSet, const RooArgSet& termISet,
-                     Bool_t& isOwned, Bool_t forceWrap=kFALSE) const ;
+                     bool& isOwned, bool forceWrap=false) const ;
 
 
   CacheMode canNodeBeCached() const override { return RooAbsArg::NotAdvised ; } ;
@@ -133,7 +135,7 @@ private:
   // The cache object
   class CacheElem final : public RooAbsCacheElement {
   public:
-    CacheElem() : _isRearranged(kFALSE) { }
+    CacheElem() : _isRearranged(false) { }
     ~CacheElem() override = default;
     // Payload
     RooArgList _partList ;
@@ -141,7 +143,7 @@ private:
     RooArgList _denList ;
     RooArgList _ownedList ;
     std::vector<std::unique_ptr<RooArgSet>> _normList;
-    Bool_t _isRearranged ;
+    bool _isRearranged ;
     std::unique_ptr<RooAbsReal> _rearrangedNum{};
     std::unique_ptr<RooAbsReal> _rearrangedDen{};
     // Cache management functions
@@ -155,27 +157,27 @@ private:
   void rearrangeProduct(CacheElem&) const;
   RooAbsReal* specializeIntegral(RooAbsReal& orig, const char* targetRangeName) const ;
   RooAbsReal* specializeRatio(RooFormulaVar& input, const char* targetRangeName) const ;
-  Double_t calculate(const RooProdPdf::CacheElem& cache, Bool_t verbose=kFALSE) const ;
+  double calculate(const RooProdPdf::CacheElem& cache, bool verbose=false) const ;
 
 
   friend class RooProdGenContext ;
   RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype=0,
-                                  const RooArgSet *auxProto=0, Bool_t verbose= kFALSE) const override ;
+                                  const RooArgSet *auxProto=0, bool verbose= false) const override ;
 
 
   mutable RooAICRegistry _genCode ; ///<! Registry of composite direct generator codes
 
-  Double_t _cutOff ;       ///<  Cutoff parameter for running product
+  double _cutOff ;       ///<  Cutoff parameter for running product
   RooListProxy _pdfList ;  ///<  List of PDF components
   std::vector<std::unique_ptr<RooArgSet>> _pdfNSetList ; ///< List of PDF component normalization sets
   Int_t _extendedIndex ;   ///<  Index of extended PDF (if any)
 
-  void useDefaultGen(Bool_t flag=kTRUE) { _useDefaultGen = flag ; }
-  Bool_t _useDefaultGen ; ///< Use default or distributed event generator
+  void useDefaultGen(bool flag=true) { _useDefaultGen = flag ; }
+  bool _useDefaultGen ; ///< Use default or distributed event generator
 
   mutable TNamed* _refRangeName ; ///< Reference range name for interpretation of conditional products
 
-  Bool_t _selfNorm ; ///< Is self-normalized
+  bool _selfNorm ; ///< Is self-normalized
   RooArgSet _defNormSet ; ///< Default normalization set
 
 private:

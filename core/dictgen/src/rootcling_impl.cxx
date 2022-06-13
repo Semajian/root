@@ -319,7 +319,6 @@ void AnnotateDecl(clang::CXXRecordDecl &CXXRD,
    llvm::StringRef comment;
 
    ASTContext &C = CXXRD.getASTContext();
-   Sema &S = interpreter.getCI()->getSema();
 
    SourceRange commentRange;
 
@@ -359,10 +358,8 @@ void AnnotateDecl(clang::CXXRecordDecl &CXXRD,
       if (!(*I)->isImplicit()
             && (isa<CXXMethodDecl>(*I) || isa<FieldDecl>(*I) || isa<VarDecl>(*I))) {
 
-
          // For now we allow only a special macro (ClassDef) to have meaningful comments
-         SourceLocation maybeMacroLoc = (*I)->getLocation();
-         bool isClassDefMacro = maybeMacroLoc.isMacroID() && S.findMacroSpelling(maybeMacroLoc, "ClassDef");
+         bool isClassDefMacro = TMetaUtils::HasClassDefMacro(*I, interpreter);
          if (isClassDefMacro) {
             while (isa<NamedDecl>(*I) && cast<NamedDecl>(*I)->getName() != "DeclFileLine") {
                ++I;
@@ -1337,12 +1334,12 @@ void WriteNamespaceInit(const clang::NamespaceDecl *cl,
 /// array data member.
 /// In case of error, or if the size is not specified, GrabIndex returns 0.
 
-llvm::StringRef GrabIndex(const clang::FieldDecl &member, int printError)
+llvm::StringRef GrabIndex(const cling::Interpreter& interp, const clang::FieldDecl &member, int printError)
 {
    int error;
    llvm::StringRef where;
 
-   llvm::StringRef index = ROOT::TMetaUtils::DataMemberInfo__ValidArrayIndex(member, &error, &where);
+   llvm::StringRef index = ROOT::TMetaUtils::DataMemberInfo__ValidArrayIndex(interp, member, &error, &where);
    if (index.size() == 0 && printError) {
       const char *errorstring;
       switch (error) {
@@ -1525,7 +1522,7 @@ void WriteStreamer(const ROOT::TMetaUtils::AnnotatedRecordDecl &cl,
                      dictStream << "         ;//R__b.WriteArray(" << field_iter->getName().str() << ", __COUNTER__);" << std::endl;
                   }
                } else if (type.getTypePtr()->isPointerType()) {
-                  llvm::StringRef indexvar = GrabIndex(**field_iter, i == 0);
+                  llvm::StringRef indexvar = GrabIndex(interp, **field_iter, i == 0);
                   if (indexvar.size() == 0) {
                      if (i == 0) {
                         ROOT::TMetaUtils::Error(nullptr, "*** Datamember %s::%s: pointer to fundamental type (need manual intervention)\n", fullname.c_str(), field_iter->getName().str().c_str());
@@ -3475,11 +3472,11 @@ public:
 
    ~TRootClingCallbacks(){};
 
-   virtual void InclusionDirective(clang::SourceLocation /*HashLoc*/, const clang::Token & /*IncludeTok*/,
-                                   llvm::StringRef FileName, bool IsAngled, clang::CharSourceRange /*FilenameRange*/,
-                                   const clang::FileEntry * /*File*/, llvm::StringRef /*SearchPath*/,
-                                   llvm::StringRef /*RelativePath*/, const clang::Module * /*Imported*/,
-                                   clang::SrcMgr::CharacteristicKind /*FileType*/)
+   void InclusionDirective(clang::SourceLocation /*HashLoc*/, const clang::Token & /*IncludeTok*/,
+                           llvm::StringRef FileName, bool IsAngled, clang::CharSourceRange /*FilenameRange*/,
+                           const clang::FileEntry * /*File*/, llvm::StringRef /*SearchPath*/,
+                           llvm::StringRef /*RelativePath*/, const clang::Module * /*Imported*/,
+                           clang::SrcMgr::CharacteristicKind /*FileType*/) override
    {
       if (isLocked) return;
       if (IsAngled) return;
@@ -3510,9 +3507,9 @@ public:
    // outside environment and pre-included files have no effect. This hook
    // informs rootcling when a new submodule is being built so that it can
    // make Core.Rtypes.h visible.
-   virtual void EnteredSubmodule(clang::Module* M,
-                                 clang::SourceLocation ImportLoc,
-                                 bool ForPragma) {
+   void EnteredSubmodule(clang::Module* M,
+                         clang::SourceLocation ImportLoc,
+                         bool ForPragma) override {
       assert(M);
       using namespace clang;
       if (llvm::StringRef(M->Name).endswith("ACLiC_dict")) {
@@ -4521,7 +4518,7 @@ int RootClingMain(int argc,
          clang::PragmaNamespace(pragma) {}
       void HandlePragma(clang::Preprocessor &PP,
                         clang::PragmaIntroducer Introducer,
-                        clang::Token &tok) {
+                        clang::Token &tok) override {
          PP.DiscardUntilEndOfDirective();
       }
    };

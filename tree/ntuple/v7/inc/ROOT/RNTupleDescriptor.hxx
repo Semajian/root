@@ -234,10 +234,11 @@ public:
       };
       struct RPageInfoExtended : RPageInfo {
          /// Index (in cluster) of the first element in page.
-         RClusterSize::ValueType fFirstInPage;
+         RClusterSize::ValueType fFirstInPage = 0;
          /// Page number in the corresponding RPageRange.
-         NTupleSize_t fPageNo;
+         NTupleSize_t fPageNo = 0;
 
+         RPageInfoExtended() = default;
          RPageInfoExtended(const RPageInfo &pi, RClusterSize::ValueType i, NTupleSize_t n)
             : RPageInfo(pi), fFirstInPage(i), fPageNo(n) {}
       };
@@ -291,6 +292,8 @@ public:
    RClusterDescriptor(RClusterDescriptor &&other) = default;
    RClusterDescriptor &operator =(RClusterDescriptor &&other) = default;
 
+   RClusterDescriptor Clone() const;
+
    bool operator==(const RClusterDescriptor &other) const;
 
    DescriptorId_t GetId() const { return fClusterId; }
@@ -343,6 +346,8 @@ public:
    RClusterGroupDescriptor(RClusterGroupDescriptor &&other) = default;
    RClusterGroupDescriptor &operator=(RClusterGroupDescriptor &&other) = default;
 
+   RClusterGroupDescriptor Clone() const;
+
    bool operator==(const RClusterGroupDescriptor &other) const;
 
    DescriptorId_t GetId() const { return fClusterGroupId; }
@@ -389,6 +394,15 @@ private:
    std::uint64_t fOnDiskFooterSize = 0; ///< Like fOnDiskHeaderSize, contains both cluster summaries and page locations
 
    std::uint64_t fNEntries = 0; ///< Updated by the descriptor builder when the cluster summaries are added
+
+   /**
+    * Once constructed by an RNTupleDescriptorBuilder, the descriptor is mostly immutable except for set of
+    * active the page locations.  During the lifetime of the descriptor, page location information for clusters
+    * can be added or removed.  When this happens, the generation should be increased, so that users of the
+    * descriptor know that the information changed.  The generation is increased, e.g., by the page source's
+    * exclusive lock guard around the descriptor.  It is used, e.g., by the descriptor cache in RNTupleReader.
+    */
+   std::uint64_t fGeneration = 0;
 
    std::unordered_map<DescriptorId_t, RFieldDescriptor> fFieldDescriptors;
    std::unordered_map<DescriptorId_t, RColumnDescriptor> fColumnDescriptors;
@@ -608,6 +622,8 @@ public:
    RNTupleDescriptor(RNTupleDescriptor &&other) = default;
    RNTupleDescriptor &operator=(RNTupleDescriptor &&other) = default;
 
+   std::unique_ptr<RNTupleDescriptor> Clone() const;
+
    bool operator ==(const RNTupleDescriptor &other) const;
 
    std::uint64_t GetOnDiskHeaderSize() const { return fOnDiskHeaderSize; }
@@ -698,6 +714,9 @@ public:
    /// Methods to load and drop cluster details
    RResult<void> AddClusterDetails(RClusterDescriptor &&clusterDesc);
    RResult<void> DropClusterDetails(DescriptorId_t clusterId);
+
+   std::uint64_t GetGeneration() const { return fGeneration; }
+   void IncGeneration() { fGeneration++; }
 
    /// Re-create the C++ model from the stored meta-data
    std::unique_ptr<RNTupleModel> GenerateModel() const;

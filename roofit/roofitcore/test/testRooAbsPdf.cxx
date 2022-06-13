@@ -52,12 +52,14 @@ TEST(RooAbsPdf, AsymptoticallyCorrectErrors)
 
   a = 1.2;
   auto result = pdf.fitTo(weightedData, RooFit::Save(), RooFit::AsymptoticError(true), RooFit::PrintLevel(-1));
-  const double aError = a.getError();
   a = 1.2;
   auto result2 = pdf.fitTo(weightedData, RooFit::Save(), RooFit::SumW2Error(false), RooFit::PrintLevel(-1));
 
-  EXPECT_TRUE(result->isIdentical(*result2)) << "Fit results should be very similar.";
-  EXPECT_GT(aError, a.getError()*2.) << "Asymptotically correct errors should be significantly larger.";
+  // Set relative tolerance for errors to large value to only check for values
+  EXPECT_TRUE(result->isIdenticalNoCov(*result2, 1e-6, 10.0)) << "Fit results should be very similar.";
+  // Set non-verbose because we expect the comparison to fail
+  EXPECT_FALSE(result->isIdenticalNoCov(*result2, 1e-6, 1e-3, false))
+      << "Asymptotically correct errors should be significantly larger.";
 }
 
 
@@ -93,8 +95,8 @@ TEST(RooAbsPdf, ConditionalFitBatchMode)
     auto d = std::make_unique<RooDataSet>("d", "d", RooArgSet(x, y));
 
     for (int i = 0; i < 10000; i++) {
-      Double_t tmpy = gRandom->Gaus(3, 2);
-      Double_t tmpx = gRandom->Poisson(tmpy);
+      double tmpy = gRandom->Gaus(3, 2);
+      double tmpx = gRandom->Poisson(tmpy);
       if (fabs(tmpy) > 1 && fabs(tmpy) < 5 && fabs(tmpx) < 10) {
         x = tmpx;
         y = tmpy;
@@ -127,6 +129,7 @@ TEST(RooAbsPdf, ConditionalFitBatchMode)
 
     for(bool batchMode : {false, true}) {
       factor.setVal(1.0);
+      factor.setError(0.0);
       fitResults.emplace_back(
         model.fitTo(
               *data,
@@ -172,6 +175,10 @@ TEST(RooAbsPdf, MultiRangeFit)
   auto resetValues = [&](){
     mean.setVal(-1);
     width.setVal(3);
+    nsig.setVal(nEvents);
+    mean.setError(0.0);
+    width.setError(0.0);
+    nsig.setError(0.0);
   };
 
   // loop over non-extended and extended fit
@@ -198,7 +205,7 @@ TEST(RooAbsPdf, MultiRangeFit)
 
       EXPECT_TRUE(fitResultPart->isIdentical(*fitResultFull))
           << "Results of fitting " << model->GetName() << " to a "
-          << data->IsA()->GetName() <<  " should be very similar.";
+          << data->ClassName() <<  " should be very similar.";
     }
   }
 }
@@ -250,6 +257,9 @@ TEST(RooAbsPdf, MultiRangeFit2D)
       mx.setVal(1.0);
       my.setVal(1.0);
       f.setVal(0.5);
+      mx.setError(0.0);
+      my.setError(0.0);
+      f.setError(0.0);
    };
 
    std::size_t nEvents = 100;
@@ -269,7 +279,7 @@ TEST(RooAbsPdf, MultiRangeFit2D)
       std::unique_ptr<RooFitResult> fitResultPart{model.fitTo(*data, Range("SB1,SB2,SIG"), Save(), PrintLevel(-1))};
 
       EXPECT_TRUE(fitResultPart->isIdentical(*fitResultFull)) << "Results of fitting " << model.GetName() << " to a "
-                                                              << data->IsA()->GetName() << " should be very similar.";
+                                                              << data->ClassName() << " should be very similar.";
    }
 }
 

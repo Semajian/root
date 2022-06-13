@@ -2633,7 +2633,7 @@ TClass *TBufferFile::ReadClass(const TClass *clReq, UInt_t *objTag)
         !(clReq->GetSchemaRules() &&
           clReq->GetSchemaRules()->HasRuleWithSourceClass(cl->GetName()) )
         ) ) {
-      Error("ReadClass", "The on-file class is \"'%s\" which is not compatible with the requested class: \"%s\"",
+      Error("ReadClass", "The on-file class is \"%s\" which is not compatible with the requested class: \"%s\"",
             cl->GetName(), clReq->GetName());
       // exception
    }
@@ -3521,6 +3521,8 @@ Int_t TBufferFile::WriteClassBuffer(const TClass *cl, void *pointer)
       //Have to be sure between the check and the taking of the lock if the current streamer has changed
       R__LOCKGUARD(gInterpreterMutex);
       sinfo = (TStreamerInfo*)const_cast<TClass*>(cl)->GetCurrentStreamerInfo();
+      if (sinfo == nullptr)
+         sinfo = (TStreamerInfo*)const_cast<TClass*>(cl)->GetStreamerInfo();
       if (sinfo == nullptr) {
          const_cast<TClass*>(cl)->BuildRealData(pointer);
          sinfo = new TStreamerInfo(const_cast<TClass*>(cl));

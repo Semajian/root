@@ -212,7 +212,7 @@ RooSpan<const double> RooBinSamplingPdf::binBoundaries() const {
 /// \param[in] xlo Beginning of range to create list of boundaries for.
 /// \param[in] xhi End of range to create to create list of boundaries for.
 /// \return Pointer to a list to be deleted by caller.
-std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const {
+std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const {
   if (obs.namePtr() != _observable->namePtr()) {
     coutE(Plotting) << "RooBinSamplingPdf::binBoundaries(" << GetName() << "): observable '" << obs.GetName()
         << "' is not the observable of this PDF ('" << _observable->GetName() << "')." << std::endl;
@@ -235,7 +235,7 @@ std::list<double>* RooBinSamplingPdf::binBoundaries(RooAbsRealLValue& obs, Doubl
 /// \param[in] xlo Beginning of range to create sampling hint for.
 /// \param[in] xhi End of range to create sampling hint for.
 /// \return Pointer to a list to be deleted by caller.
-std::list<double>* RooBinSamplingPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const {
+std::list<double>* RooBinSamplingPdf::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const {
   if (obs.namePtr() != _observable->namePtr()) {
     coutE(Plotting) << "RooBinSamplingPdf::plotSamplingHint(" << GetName() << "): observable '" << obs.GetName()
         << "' is not the observable of this PDF ('" << _observable->GetName() << "')." << std::endl;
@@ -294,16 +294,13 @@ std::unique_ptr<ROOT::Math::IntegratorOneDim>& RooBinSamplingPdf::integrator() c
 /// Binding used by the integrator to evaluate the PDF.
 double RooBinSamplingPdf::operator()(double x) const {
   _observable->setVal(x);
-  return _pdf->getVal(_normSetForIntegrator);
+  return _pdf->getVal();
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Integrate the wrapped PDF using our current integrator, with given norm set and limits.
-double RooBinSamplingPdf::integrate(const RooArgSet* normSet, double low, double high) const {
-  // Need to set this because operator() only takes one argument.
-  _normSetForIntegrator = normSet;
-
+double RooBinSamplingPdf::integrate(const RooArgSet* /*normSet*/, double low, double high) const {
   return integrator()->Integral(low, high);
 }
 

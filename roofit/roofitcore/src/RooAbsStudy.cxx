@@ -23,9 +23,6 @@ RooAbsStudy is an abstract base class for RooStudyManager modules
 
 **/
 
-
-
-#include "RooFit.h"
 #include "Riostream.h"
 
 #include "RooAbsStudy.h"
@@ -43,7 +40,7 @@ ClassImp(RooAbsStudy);
 ////////////////////////////////////////////////////////////////////////////////
 /// Constructor
 
-RooAbsStudy::RooAbsStudy(const char* name, const char* title) : TNamed(name,title), _storeDetails(0), _summaryData(0), _detailData(0), _ownDetailData(kTRUE)
+RooAbsStudy::RooAbsStudy(const char* name, const char* title) : TNamed(name,title), _storeDetails(0), _summaryData(0), _detailData(0), _ownDetailData(true)
 {
 }
 

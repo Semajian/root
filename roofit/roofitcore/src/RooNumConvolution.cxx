@@ -56,8 +56,6 @@ calls that MINUIT needs to fit your function as function of the
 convolution precision.
 **/
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include "TH2F.h"
 #include "RooNumConvolution.h"
@@ -81,16 +79,16 @@ ClassImp(RooNumConvolution);
 ////////////////////////////////////////////////////////////////////////////////
 
 RooNumConvolution::RooNumConvolution() :
-  _init(kFALSE),
+  _init(false),
   _integrand(0),
   _integrator(0),
   _cloneVar(0),
   _clonePdf(0),
   _cloneModel(0),
-  _useWindow(kFALSE),
+  _useWindow(false),
   _windowScale(1),
   _verboseThresh(2000),
-  _doProf(kFALSE),
+  _doProf(false),
   _callHist(0)
 {
 }
@@ -109,7 +107,7 @@ RooNumConvolution::RooNumConvolution() :
 
 RooNumConvolution::RooNumConvolution(const char *name, const char *title, RooRealVar& convVar, RooAbsReal& inPdf, RooAbsReal& resmodel, const RooNumConvolution* proto) :
   RooAbsReal(name,title),
-  _init(kFALSE),
+  _init(false),
   _convIntConfig(RooNumIntConfig::defaultConfig()),
   _integrand(0),
   _integrator(0),
@@ -121,11 +119,11 @@ RooNumConvolution::RooNumConvolution(const char *name, const char *title, RooRea
   _cloneVar(0),
   _clonePdf(0),
   _cloneModel(0),
-  _useWindow(kFALSE),
+  _useWindow(false),
   _windowScale(1),
-  _windowParam("windowParam","Convolution window parameter",this,kFALSE),
+  _windowParam("windowParam","Convolution window parameter",this,false),
   _verboseThresh(2000),
-  _doProf(kFALSE),
+  _doProf(false),
   _callHist(0)
 {
   // Use Adaptive Gauss-Kronrod integration by default for the convolution integral
@@ -147,7 +145,7 @@ RooNumConvolution::RooNumConvolution(const char *name, const char *title, RooRea
 
 RooNumConvolution::RooNumConvolution(const RooNumConvolution& other, const char* name) :
   RooAbsReal(other,name),
-  _init(kFALSE),
+  _init(false),
   _convIntConfig(other._convIntConfig),
   _integrand(0),
   _integrator(0),
@@ -206,9 +204,9 @@ void RooNumConvolution::initialize() const
 
   // Instantiate integrator for convolution integrand
   _integrator = RooNumIntFactory::instance().createIntegrator(*_integrand,_convIntConfig,1) ;
-  _integrator->setUseIntegrandLimits(kFALSE) ;
+  _integrator->setUseIntegrandLimits(false) ;
 
-  _init = kTRUE ;
+  _init = true ;
 }
 
 
@@ -226,21 +224,21 @@ RooNumConvolution::~RooNumConvolution()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate convolution integral
 
-Double_t RooNumConvolution::evaluate() const
+double RooNumConvolution::evaluate() const
 {
   // Check if deferred initialization has occurred
   if (!_init) initialize() ;
 
   // Retrieve current value of convolution variable
-  Double_t x = _origVar ;
+  double x = _origVar ;
 
   // Propagate current normalization set to integrand
   _integrand->setNormalizationSet(_origVar.nset()) ;
 
   // Adjust convolution integration window
   if (_useWindow) {
-    Double_t center = ((RooAbsReal*)_windowParam.at(0))->getVal() ;
-    Double_t width = _windowScale * ((RooAbsReal*)_windowParam.at(1))->getVal() ;
+    double center = ((RooAbsReal*)_windowParam.at(0))->getVal() ;
+    double width = _windowScale * ((RooAbsReal*)_windowParam.at(1))->getVal() ;
     _integrator->setLimits(x-center-width,x-center+width) ;
   } else {
     _integrator->setLimits(-RooNumber::infinity(),RooNumber::infinity()) ;
@@ -248,7 +246,7 @@ Double_t RooNumConvolution::evaluate() const
 
   // Calculate convolution for present x
   if (_doProf) _integrand->resetNumCall() ;
-  Double_t ret = _integrator->integral(&x) ;
+  double ret = _integrator->integral(&x) ;
   if (_doProf) {
     _callHist->Fill(x,_integrand->numCall()) ;
     if (_integrand->numCall()>_verboseThresh) {
@@ -265,11 +263,11 @@ Double_t RooNumConvolution::evaluate() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Intercept server redirects. Throw away cache, as figuring out redirections on the cache is an unsolvable problem.
 
-Bool_t RooNumConvolution::redirectServersHook(const RooAbsCollection& /*newServerList*/, Bool_t /*mustReplaceAll*/,
-                     Bool_t /*nameChange*/, Bool_t /*isRecursive*/)
+bool RooNumConvolution::redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/,
+                     bool /*nameChange*/, bool /*isRecursive*/)
 {
-  _init = kFALSE ;
-  return kFALSE ;
+  _init = false ;
+  return false ;
 }
 
 
@@ -279,7 +277,7 @@ Bool_t RooNumConvolution::redirectServersHook(const RooAbsCollection& /*newServe
 
 void RooNumConvolution::clearConvolutionWindow()
 {
-  _useWindow = kFALSE ;
+  _useWindow = false ;
   _windowParam.removeAll() ;
 }
 
@@ -290,9 +288,9 @@ void RooNumConvolution::clearConvolutionWindow()
 /// where x is current value of convolution variablem, C = centerParam, W=widthParam and S = widthScaleFactor
 /// Inputs centerParam and withParam can be function expressions (RooAbsReal, RooFormulaVar) etc.
 
-void RooNumConvolution::setConvolutionWindow(RooAbsReal& centerParam, RooAbsReal& widthParam, Double_t widthScaleFactor)
+void RooNumConvolution::setConvolutionWindow(RooAbsReal& centerParam, RooAbsReal& widthParam, double widthScaleFactor)
 {
-  _useWindow = kTRUE ;
+  _useWindow = true ;
   _windowParam.removeAll() ;
   _windowParam.add(centerParam) ;
   _windowParam.add(widthParam) ;
@@ -327,7 +325,7 @@ void RooNumConvolution::setCallWarning(Int_t threshold)
 ///
 /// Calling this function with flag set to false will deactivate call profiling and delete the profiling histogram
 
-void RooNumConvolution::setCallProfiling(Bool_t flag, Int_t nbinX, Int_t nbinCall, Int_t nCallHigh)
+void RooNumConvolution::setCallProfiling(bool flag, Int_t nbinX, Int_t nbinCall, Int_t nCallHigh)
 {
   if (flag) {
     if (_doProf) {
@@ -336,13 +334,13 @@ void RooNumConvolution::setCallProfiling(Bool_t flag, Int_t nbinX, Int_t nbinCal
     _callHist = new TH2F(Form("callHist_%s",GetName()),Form("Call Profiling of RooNumConvolution %s",GetTitle()),
           nbinX,_origVar.min(),_origVar.max(),
           nbinCall,0,nCallHigh) ;
-    _doProf=kTRUE ;
+    _doProf=true ;
 
   } else if (_doProf) {
 
     delete _callHist ;
     _callHist = 0 ;
-    _doProf = kFALSE ;
+    _doProf = false ;
   }
 
 }

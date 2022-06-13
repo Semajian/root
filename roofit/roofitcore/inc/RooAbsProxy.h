@@ -46,15 +46,15 @@ public:
     // Return normalization set to be used for evaluation of contents
     return _nset ;
   }
-  virtual void print(std::ostream& os, Bool_t addContents=kFALSE) const ;
+  virtual void print(std::ostream& os, bool addContents=false) const ;
 
 protected:
 
-  RooArgSet* _nset ; ///<! Normalization set to be used for evaluation of RooAbsPdf contents
+  RooArgSet* _nset = nullptr ; ///<! Normalization set to be used for evaluation of RooAbsPdf contents
 
   friend class RooAbsArg ;
   friend class RooObjectFactory ;
-  virtual Bool_t changePointer(const RooAbsCollection& newServerSet, Bool_t nameChange=kFALSE, Bool_t factoryInitMode=kFALSE) = 0 ;
+  virtual bool changePointer(const RooAbsCollection& newServerSet, bool nameChange=false, bool factoryInitMode=false) = 0 ;
 
   friend class RooAbsPdf ;
   virtual void changeNormSet(const RooArgSet* newNormSet) ;

@@ -33,7 +33,6 @@ namespace HistFactory{
     LinInterpVar(const LinInterpVar&, const char*);
 
     TObject* clone(const char* newname) const override { return new LinInterpVar(*this, newname); }
-    ~LinInterpVar() override ;
 
 
   protected:
@@ -45,7 +44,7 @@ namespace HistFactory{
 
     TIterator* _paramIter ;  ///<! do not persist
 
-    Double_t evaluate() const override;
+    double evaluate() const override;
 
     ClassDefOverride(RooStats::HistFactory::LinInterpVar,1) // Piecewise linear interpolation
   };

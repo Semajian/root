@@ -28,7 +28,7 @@ using namespace RooFit ;
 class TestBasic102 : public RooFitTestUnit
 {
 public:
-  TestBasic102(TFile* refFile, Bool_t writeRef, Int_t verbose) : RooFitTestUnit("Data import methods",refFile,writeRef,verbose) {} ;
+  TestBasic102(TFile* refFile, bool writeRef, Int_t verbose) : RooFitTestUnit("Data import methods",refFile,writeRef,verbose) {} ;
 
   TH1* makeTH1()
   {
@@ -47,8 +47,8 @@ public:
     // Create ROOT TTree filled with a Gaussian distribution in x and a uniform distribution in y
 
     TTree* tree = new TTree("tree","tree") ;
-    Double_t* px = new Double_t ;
-    Double_t* py = new Double_t ;
+    double* px = new double ;
+    double* py = new double ;
     tree->Branch("x",px,"x/D") ;
     tree->Branch("y",py,"y/D") ;
     for (int i=0 ; i<100 ; i++) {
@@ -63,7 +63,7 @@ public:
     return tree ;
   }
 
-  Bool_t testCode() {
+  bool testCode() {
 
     ////////////////////////////////////////////////////////
     // I m p o r t i n g   R O O T   h i s t o g r a m s  //
@@ -157,7 +157,7 @@ public:
     delete hh ;
     delete tree ;
 
-    return kTRUE ;
+    return true ;
   }
 } ;
 

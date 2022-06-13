@@ -58,8 +58,6 @@ calls that MINUIT needs to fit your function as function of the
 convolution precision.
 **/
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include "TH2F.h"
 #include "RooNumConvPdf.h"
@@ -84,7 +82,7 @@ ClassImp(RooNumConvPdf);
 ////////////////////////////////////////////////////////////////////////////////
 
 RooNumConvPdf::RooNumConvPdf() :
-  _init(kFALSE),
+  _init(false),
   _conv(0)
 {
 }
@@ -95,7 +93,7 @@ RooNumConvPdf::RooNumConvPdf() :
 //_____________________________________________________________________________R
 RooNumConvPdf::RooNumConvPdf(const char *name, const char *title, RooRealVar& convVar, RooAbsPdf& inPdf, RooAbsPdf& resmodel) :
   RooAbsPdf(name,title),
-  _init(kFALSE),
+  _init(false),
   _conv(0),
   _origVar("!origVar","Original Convolution variable",this,convVar),
   _origPdf("!origPdf","Original Input PDF",this,inPdf),
@@ -118,7 +116,7 @@ RooNumConvPdf::RooNumConvPdf(const char *name, const char *title, RooRealVar& co
 
 RooNumConvPdf::RooNumConvPdf(const RooNumConvPdf& other, const char* name) :
   RooAbsPdf(other,name),
-  _init(kFALSE),
+  _init(false),
   _origVar("!origVar",this,other._origVar),
   _origPdf("!origPdf",this,other._origPdf),
   _origModel("!origModel",this,other._origModel)
@@ -150,7 +148,7 @@ RooNumConvPdf::~RooNumConvPdf()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return value of p.d.f
 
-Double_t RooNumConvPdf::evaluate() const
+double RooNumConvPdf::evaluate() const
 {
   if (!_init) initialize() ;
 
@@ -176,7 +174,7 @@ void RooNumConvPdf::initialize() const
     delete protoConv ;
   }
 
-  _init = kTRUE ;
+  _init = true ;
 }
 
 
@@ -188,20 +186,20 @@ void RooNumConvPdf::initialize() const
 /// context on the convoluted shape.
 
 RooAbsGenContext* RooNumConvPdf::genContext(const RooArgSet &vars, const RooDataSet *prototype,
-                   const RooArgSet* auxProto, Bool_t verbose) const
+                   const RooArgSet* auxProto, bool verbose) const
 {
   if (!_init) initialize() ;
 
   // Check if physics PDF and resolution model can both directly generate the convolution variable
   RooArgSet* modelDep = _conv->model().getObservables(&vars) ;
-  modelDep->remove(_conv->var(),kTRUE,kTRUE) ;
+  modelDep->remove(_conv->var(),true,true) ;
   Int_t numAddDep = modelDep->getSize() ;
   delete modelDep ;
 
   RooArgSet dummy ;
-  Bool_t pdfCanDir = (((RooAbsPdf&)_conv->pdf()).getGenerator(_conv->var(),dummy) != 0 && \
+  bool pdfCanDir = (((RooAbsPdf&)_conv->pdf()).getGenerator(_conv->var(),dummy) != 0 && \
             ((RooAbsPdf&)_conv->pdf()).isDirectGenSafe(_conv->var())) ;
-  Bool_t resCanDir = (((RooAbsPdf&)_conv->model()).getGenerator(_conv->var(),dummy) !=0  &&
+  bool resCanDir = (((RooAbsPdf&)_conv->model()).getGenerator(_conv->var(),dummy) !=0  &&
             ((RooAbsPdf&)_conv->model()).isDirectGenSafe(_conv->var())) ;
 
   if (numAddDep>0 || !pdfCanDir || !resCanDir) {

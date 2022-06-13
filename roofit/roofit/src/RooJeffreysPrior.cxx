@@ -68,7 +68,7 @@ RooJeffreysPrior::RooJeffreysPrior(const char* name, const char* title,
 
   // use a different integrator by default.
   if(paramSet.getSize()==1)
-    this->specialIntegratorConfig(kTRUE)->method1D().setLabel("RooAdaptiveGaussKronrodIntegrator1D")  ;
+    this->specialIntegratorConfig(true)->method1D().setLabel("RooAdaptiveGaussKronrodIntegrator1D")  ;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,7 +95,7 @@ RooJeffreysPrior::~RooJeffreysPrior()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return current value of self
 
-Double_t RooJeffreysPrior::evaluate() const
+double RooJeffreysPrior::evaluate() const
 {
   RooHelpers::LocalChangeMsgLevel msgLvlRAII(RooFit::WARNING);
 

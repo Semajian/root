@@ -28,7 +28,7 @@ ClassImp(RooPoisson);
 RooPoisson::RooPoisson(const char *name, const char *title,
              RooAbsReal& _x,
              RooAbsReal& _mean,
-             Bool_t noRounding) :
+             bool noRounding) :
   RooAbsPdf(name,title),
   x("x","x",this,_x),
   mean("mean","mean",this,_mean),
@@ -51,9 +51,9 @@ RooPoisson::RooPoisson(const char *name, const char *title,
 ////////////////////////////////////////////////////////////////////////////////
 /// Implementation in terms of the TMath::Poisson() function.
 
-Double_t RooPoisson::evaluate() const
+double RooPoisson::evaluate() const
 {
-  Double_t k = _noRounding ? x : floor(x);
+  double k = _noRounding ? x : floor(x);
   if(_protectNegative && mean<0) {
     RooNaNPacker np;
     np.setPayload(-mean);
@@ -64,10 +64,11 @@ Double_t RooPoisson::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of the Poisson distribution.
-void RooPoisson::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooBatchCompute::DataMap& dataMap) const
+void RooPoisson::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
-  dispatch->compute(stream, RooBatchCompute::Poisson, output, nEvents, dataMap, {&*x,&*mean,&*_norm},
+  dispatch->compute(stream, RooBatchCompute::Poisson, output, nEvents,
+    {dataMap.at(x), dataMap.at(mean)},
     {static_cast<double>(_protectNegative), static_cast<double>(_noRounding)});
 }
 
@@ -82,7 +83,7 @@ Int_t RooPoisson::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
 {
   R__ASSERT(code == 1 || code == 2) ;
 
@@ -127,10 +128,10 @@ Double_t RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
   } else if(code == 2) {
 
     // the integral with respect to the mean is the integral of a gamma distribution
-    Double_t mean_min = mean.min(rangeName);
-    Double_t mean_max = mean.max(rangeName);
+    double mean_min = mean.min(rangeName);
+    double mean_max = mean.max(rangeName);
 
-    Double_t ix;
+    double ix;
     if(_noRounding) ix = x + 1;
     else ix = Int_t(TMath::Floor(x)) + 1.0; // negative ix does not need protection (gamma returns 0.0)
 
@@ -144,7 +145,7 @@ Double_t RooPoisson::analyticalIntegral(Int_t code, const char* rangeName) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Advertise internal generator in x
 
-Int_t RooPoisson::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t /*staticInitOK*/) const
+Int_t RooPoisson::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool /*staticInitOK*/) const
 {
   if (matchArgs(directVars,generateVars,x)) return 1 ;
   return 0 ;
@@ -156,7 +157,7 @@ Int_t RooPoisson::getGenerator(const RooArgSet& directVars, RooArgSet &generateV
 void RooPoisson::generateEvent(Int_t code)
 {
   R__ASSERT(code==1) ;
-  Double_t xgen ;
+  double xgen ;
   while(1) {
     xgen = RooRandom::randomGenerator()->Poisson(mean);
     if (xgen<=x.max() && xgen>=x.min()) {

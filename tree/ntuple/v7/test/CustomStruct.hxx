@@ -34,6 +34,12 @@ struct DerivedC : public DerivedA, public DerivedA2 {
    DerivedA2 c_a2;
 };
 
+struct EmptyBase {
+};
+struct alignas(std::uint64_t) TestEBO : public EmptyBase {
+   std::uint64_t u64;
+};
+
 /// The classes below are based on an excerpt provided by Marcin Nowak (EP-UAT)
 ///
 struct IAuxSetOption {};
@@ -69,6 +75,19 @@ struct ComplexStruct {
    ~ComplexStruct();
 
    int a = 0;
+};
+
+/// Classes with enum declarations (see #8901)
+struct BaseOfStructWithEnums {
+   int E1;
+};
+
+struct StructWithEnums : BaseOfStructWithEnums {
+   enum { A1, A2 };
+   enum DeclE { E1, E2, E42 = 42 };
+   enum class DeclEC { E1, E2, E42 = 137 };
+   int a = E42;
+   int b = static_cast<int>(DeclEC::E42);
 };
 
 #endif

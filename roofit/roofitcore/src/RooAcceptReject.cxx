@@ -26,8 +26,6 @@ classes to take care of generation of observables for which p.d.fs
 do not define internal methods
 **/
 
-
-#include "RooFit.h"
 #include "Riostream.h"
 
 #include "RooAcceptReject.h"
@@ -77,8 +75,8 @@ void RooAcceptReject::registerSampler(RooNumGenFactory& fact)
 /// variables to be generated, genVars. The function and its dependents are
 /// cloned and so will not be disturbed during the generation process.
 
-RooAcceptReject::RooAcceptReject(const RooAbsReal &func, const RooArgSet &genVars, const RooNumGenConfig& config, Bool_t verbose, const RooAbsReal* maxFuncVal) :
-  RooAbsNumGenerator(func,genVars,verbose,maxFuncVal), _nextCatVar(0), _nextRealVar(0)
+RooAcceptReject::RooAcceptReject(const RooAbsReal &func, const RooArgSet &genVars, const RooNumGenConfig& config, bool verbose, const RooAbsReal* maxFuncVal) :
+  RooAbsNumGenerator(func,genVars,verbose,maxFuncVal)
 {
   _minTrialsArray[0] = static_cast<Int_t>(config.getConfigSection("RooAcceptReject").getRealValue("nTrial0D")) ;
   _minTrialsArray[1] = static_cast<Int_t>(config.getConfigSection("RooAcceptReject").getRealValue("nTrial1D")) ;
@@ -86,13 +84,10 @@ RooAcceptReject::RooAcceptReject(const RooAbsReal &func, const RooArgSet &genVar
   _minTrialsArray[3] = static_cast<Int_t>(config.getConfigSection("RooAcceptReject").getRealValue("nTrial3D")) ;
 
   _realSampleDim = _realVars.getSize() ;
-  TIterator* iter = _catVars.createIterator() ;
-  RooAbsCategory* cat ;
   _catSampleMult = 1 ;
-  while((cat=(RooAbsCategory*)iter->Next())) {
+  for (auto * cat : static_range_cast<RooAbsCategory*>(_catVars)) {
     _catSampleMult *=  cat->numTypes() ;
   }
-  delete iter ;
 
 
   // calculate the minimum number of trials needed to estimate our integral and max value
@@ -145,10 +140,6 @@ RooAcceptReject::RooAcceptReject(const RooAbsReal &func, const RooArgSet &genVar
       ccoutI(Generation) << "  Will generate real vars " << _realVars << endl ;
     }
   }
-  // create iterators for the new sets
-  _nextCatVar= _catVars.createIterator();
-  _nextRealVar= _realVars.createIterator();
-  assert(0 != _nextCatVar && 0 != _nextRealVar);
 
   // initialize our statistics
   _maxFuncVal= 0;
@@ -158,24 +149,12 @@ RooAcceptReject::RooAcceptReject(const RooAbsReal &func, const RooArgSet &genVar
 }
 
 
-
-////////////////////////////////////////////////////////////////////////////////
-/// Destructor
-
-RooAcceptReject::~RooAcceptReject()
-{
-  delete _nextCatVar;
-  delete _nextRealVar;
-}
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 /// Return a pointer to a generated event. The caller does not own the event and it
 /// will be overwritten by a subsequent call. The input parameter 'remaining' should
 /// contain your best guess at the total number of subsequent events you will request.
 
-const RooArgSet *RooAcceptReject::generateEvent(UInt_t remaining, Double_t& resampleRatio)
+const RooArgSet *RooAcceptReject::generateEvent(UInt_t remaining, double& resampleRatio)
 {
   // are we actually generating anything? (the cache always contains at least our function value)
   const RooArgSet *event= _cache->get();
@@ -199,7 +178,7 @@ const RooArgSet *RooAcceptReject::generateEvent(UInt_t remaining, Double_t& resa
     }
 
     event= 0;
-    Double_t oldMax2(_maxFuncVal);
+    double oldMax2(_maxFuncVal);
     while(0 == event) {
       // Use any cached events first
       if (_maxFuncVal>oldMax2) {
@@ -220,10 +199,10 @@ const RooArgSet *RooAcceptReject::generateEvent(UInt_t remaining, Double_t& resa
    return 0;
       }
 
-      Double_t eff= _funcSum/(_totalEvents*_maxFuncVal);
+      double eff= _funcSum/(_totalEvents*_maxFuncVal);
       Long64_t extra= 1 + (Long64_t)(1.05*remaining/eff);
       cxcoutD(Generation) << "RooAcceptReject::generateEvent: adding " << extra << " events to the cache, eff = " << eff << endl;
-      Double_t oldMax(_maxFuncVal);
+      double oldMax(_maxFuncVal);
       while(extra--) {
    addEventToCache();
    if((_maxFuncVal > oldMax)) {
@@ -271,7 +250,7 @@ const RooArgSet *RooAcceptReject::nextAcceptedEvent()
   while((event= _cache->get(_eventsUsed))) {
     _eventsUsed++ ;
     // accept this cached event?
-    Double_t r= RooRandom::uniform();
+    double r= RooRandom::uniform();
     if(r*_maxFuncVal > _funcValPtr->getVal()) {
       //cout << " event number " << _eventsUsed << " has been rejected" << endl ;
       continue;
@@ -297,17 +276,13 @@ const RooArgSet *RooAcceptReject::nextAcceptedEvent()
 void RooAcceptReject::addEventToCache()
 {
   // randomize each discrete argument
-  _nextCatVar->Reset();
-  RooCategory *cat = 0;
-  while((cat= (RooCategory*)_nextCatVar->Next())) cat->randomize();
+  for(auto * cat : static_range_cast<RooCategory*>(_catVars)) cat->randomize();
 
   // randomize each real argument
-  _nextRealVar->Reset();
-  RooRealVar *real = 0;
-  while((real= (RooRealVar*)_nextRealVar->Next())) real->randomize();
+  for(auto * real : static_range_cast<RooRealVar*>(_realVars)) real->randomize();
 
   // calculate and store our function value at this new point
-  Double_t val= _funcClone->getVal();
+  double val= _funcClone->getVal();
   _funcValPtr->setVal(val);
 
   // Update the estimated integral and maximum value. Increase our
@@ -326,7 +301,7 @@ void RooAcceptReject::addEventToCache()
 
 }
 
-Double_t RooAcceptReject::getFuncMax()
+double RooAcceptReject::getFuncMax()
 {
   // Empirically determine maximum value of function by taking a large number
   // of samples. The actual number depends on the number of dimensions in which

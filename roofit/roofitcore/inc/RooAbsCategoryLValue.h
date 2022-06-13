@@ -55,8 +55,8 @@ public:
   /// If printError is set, a message will be printed if
   /// the specified state name does not represent a valid state.
   /// \return bool to signal an error.
-  virtual bool setLabel(const char* label, Bool_t printError=kTRUE) = 0;
-  /// \copydoc setLabel(const char*, Bool_t)
+  virtual bool setLabel(const char* label, bool printError=true) = 0;
+  /// \copydoc setLabel(const char*, bool)
   bool setLabel(const std::string& label, bool printError = true) {
     return setLabel(label.c_str(), printError);
   }
@@ -82,11 +82,11 @@ public:
     return getCurrentOrdinalNumber();
   }
   Int_t numBins(const char* rangeName=nullptr) const override ;
-  Double_t getBinWidth(Int_t /*i*/, const char* /*rangeName*/=0) const override {
+  double getBinWidth(Int_t /*i*/, const char* /*rangeName*/=0) const override {
     // Return volume of i-th bin (according to binning named rangeName if rangeName!=0)
     return 1.0 ;
   }
-  Double_t volume(const char* rangeName) const override {
+  double volume(const char* rangeName) const override {
     // Return span of range with given name (=number of states included in this range)
     return numTypes(rangeName) ;
   }
@@ -97,14 +97,14 @@ public:
   Int_t getBin(const RooAbsBinning* /*ptr*/) const override { return getBin((const char*)0) ; }
 
 
-  inline void setConstant(Bool_t value= kTRUE) {
+  inline void setConstant(bool value= true) {
     // Declare category constant
     setAttribute("Constant",value);
   }
 
-  inline Bool_t isLValue() const override {
+  inline bool isLValue() const override {
     // Object is an l-value
-    return kTRUE;
+    return true;
   }
 
 protected:
@@ -118,7 +118,7 @@ protected:
   }
   /// \endcond
 
-  void copyCache(const RooAbsArg* source, Bool_t valueOnly=kFALSE, Bool_t setValDirty=kTRUE) override ;
+  void copyCache(const RooAbsArg* source, bool valueOnly=false, bool setValDirty=true) override ;
 
   ClassDefOverride(RooAbsCategoryLValue,1) // Abstract modifiable index variable
 };

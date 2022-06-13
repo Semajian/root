@@ -43,8 +43,6 @@ RooParametricStepFunction  aPdf = ("aPdf","PSF",*x,
 ~~~
 */
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include "TArrayD.h"
 #include <math.h>
@@ -70,7 +68,6 @@ RooParametricStepFunction::RooParametricStepFunction(const char* name, const cha
   _coefList("coefList","List of coefficients",this),
   _nBins(nBins)
 {
-  _coefIter = _coefList.createIterator() ;
 
   // Check lowest order
   if (_nBins<0) {
@@ -79,9 +76,7 @@ RooParametricStepFunction::RooParametricStepFunction(const char* name, const cha
     _nBins=0 ;
   }
 
-  TIterator* coefIter = coefList.createIterator() ;
-  RooAbsArg* coef ;
-  while((coef = (RooAbsArg*)coefIter->Next())) {
+  for (auto *coef : coefList) {
     if (!dynamic_cast<RooAbsReal*>(coef)) {
       cout << "RooParametricStepFunction::ctor(" << GetName() << ") ERROR: coefficient " << coef->GetName()
       << " is not of type RooAbsReal" << endl ;
@@ -89,7 +84,6 @@ RooParametricStepFunction::RooParametricStepFunction(const char* name, const cha
     }
     _coefList.add(*coef) ;
   }
-  delete coefIter ;
 
   // Bin limits
   limits.Copy(_limits);
@@ -105,19 +99,8 @@ RooParametricStepFunction::RooParametricStepFunction(const RooParametricStepFunc
   _coefList("coefList",this,other._coefList),
   _nBins(other._nBins)
 {
-  _coefIter = _coefList.createIterator();
   (other._limits).Copy(_limits);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-/// Destructor
-
-RooParametricStepFunction::~RooParametricStepFunction()
-{
-  delete _coefIter ;
-}
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -129,7 +112,7 @@ Int_t RooParametricStepFunction::getAnalyticalIntegral(RooArgSet& allVars, RooAr
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooParametricStepFunction::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooParametricStepFunction::analyticalIntegral(Int_t code, const char* rangeName) const
 {
   R__ASSERT(code==1) ;
 
@@ -139,13 +122,13 @@ Double_t RooParametricStepFunction::analyticalIntegral(Int_t code, const char* r
   }
 
   // Case with ranges, calculate integral explicitly
-  Double_t xmin = _x.min(rangeName) ;
-  Double_t xmax = _x.max(rangeName) ;
+  double xmin = _x.min(rangeName) ;
+  double xmax = _x.max(rangeName) ;
 
-  Double_t sum=0 ;
+  double sum=0 ;
   Int_t i ;
   for (i=1 ; i<=_nBins ; i++) {
-    Double_t binVal = (i<_nBins) ? (static_cast<RooRealVar*>(_coefList.at(i-1))->getVal()) : lastBinValue() ;
+    double binVal = (i<_nBins) ? (static_cast<RooRealVar*>(_coefList.at(i-1))->getVal()) : lastBinValue() ;
     if (_limits[i-1]>=xmin && _limits[i]<=xmax) {
       // Bin fully in the integration domain
       sum += (_limits[i]-_limits[i-1])*binVal ;
@@ -170,10 +153,10 @@ Double_t RooParametricStepFunction::analyticalIntegral(Int_t code, const char* r
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooParametricStepFunction::lastBinValue() const
+double RooParametricStepFunction::lastBinValue() const
 {
-  Double_t sum(0.);
-  Double_t binSize(0.);
+  double sum(0.);
+  double binSize(0.);
   for (Int_t j=1;j<_nBins;j++){
     RooRealVar* tmp = (RooRealVar*) _coefList.at(j-1);
     binSize = _limits[j] - _limits[j-1];
@@ -185,9 +168,9 @@ Double_t RooParametricStepFunction::lastBinValue() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooParametricStepFunction::evaluate() const
+double RooParametricStepFunction::evaluate() const
 {
-  Double_t value(0.);
+  double value(0.);
   if (_x >= _limits[0] && _x < _limits[_nBins]){
 
     for (Int_t i=1;i<=_nBins;i++){
@@ -200,8 +183,8 @@ Double_t RooParametricStepFunction::evaluate() const
      break;
    } else {
      // in last Bin
-     Double_t sum(0.);
-     Double_t binSize(0.);
+     double sum(0.);
+     double binSize(0.);
      for (Int_t j=1;j<_nBins;j++){
        RooRealVar* tmp = (RooRealVar*) _coefList.at(j-1);
        binSize = _limits[j] - _limits[j-1];
@@ -231,7 +214,7 @@ Int_t RooParametricStepFunction::getnBins(){
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t* RooParametricStepFunction::getLimits(){
-  Double_t* limoutput = _limits.GetArray();
+double* RooParametricStepFunction::getLimits(){
+  double* limoutput = _limits.GetArray();
   return limoutput;
 }

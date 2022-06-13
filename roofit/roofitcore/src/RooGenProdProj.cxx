@@ -31,8 +31,6 @@ analytically. Remaining non-factorising observables are integrated numerically.
 **/
 
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include <math.h>
 
@@ -54,7 +52,7 @@ ClassImp(RooGenProdProj);
 RooGenProdProj::RooGenProdProj() :
   _compSetOwnedN(0),
   _compSetOwnedD(0),
-  _haveD(kFALSE)
+  _haveD(false)
 {
 }
 
@@ -64,14 +62,14 @@ RooGenProdProj::RooGenProdProj() :
 /// integrated over _intSet in range isetRangeName while normalized over _normSet
 
 RooGenProdProj::RooGenProdProj(const char *name, const char *title, const RooArgSet& _prodSet, const RooArgSet& _intSet,
-                const RooArgSet& _normSet, const char* isetRangeName, const char* normRangeName, Bool_t doFactorize) :
+                const RooArgSet& _normSet, const char* isetRangeName, const char* normRangeName, bool doFactorize) :
   RooAbsReal(name, title),
   _compSetOwnedN(0),
   _compSetOwnedD(0),
-  _compSetN("compSetN","Set of integral components owned by numerator",this,kFALSE),
-  _compSetD("compSetD","Set of integral components owned by denominator",this,kFALSE),
-  _intList("intList","List of integrals",this,kTRUE),
-  _haveD(kFALSE)
+  _compSetN("compSetN","Set of integral components owned by numerator",this,false),
+  _compSetD("compSetD","Set of integral components owned by denominator",this,false),
+  _intList("intList","List of integrals",this,true),
+  _haveD(false)
 {
   // Set expensive object cache to that of first item in prodSet
   setExpensiveObjectCache(_prodSet.first()->expensiveObjectCache()) ;
@@ -95,7 +93,7 @@ RooGenProdProj::RooGenProdProj(const char *name, const char *title, const RooArg
   _intList.add(*numerator) ;
   if (denominator) {
     _intList.add(*denominator) ;
-    _haveD = kTRUE ;
+    _haveD = true ;
   }
 }
 
@@ -116,7 +114,7 @@ RooGenProdProj::RooGenProdProj(const RooGenProdProj& other, const char* name) :
   TIterator* iter = serverIterator() ;
   RooAbsArg* server ;
   while((server=(RooAbsArg*)iter->Next())) {
-    removeServer(*server,kTRUE) ;
+    removeServer(*server,true) ;
   }
   delete iter ;
 
@@ -127,19 +125,12 @@ RooGenProdProj::RooGenProdProj(const RooGenProdProj& other, const char* name) :
   _compSetOwnedD = (RooArgSet*) other._compSetD.snapshot() ;
   _compSetD.add(*_compSetOwnedD) ;
 
-  RooAbsArg* arg ;
-  TIterator* nIter = _compSetOwnedN->createIterator() ;
-  while((arg=(RooAbsArg*)nIter->Next())) {
-//     cout << "ownedN elem " << arg->GetName() << "(" << arg << ")" << endl ;
+  for (RooAbsArg * arg : *_compSetOwnedN) {
     arg->setOperMode(_operMode) ;
   }
-  delete nIter ;
-  TIterator* dIter = _compSetOwnedD->createIterator() ;
-  while((arg=(RooAbsArg*)dIter->Next())) {
-//     cout << "ownedD elem " << arg->GetName() << "(" << arg << ")" << endl ;
+  for (RooAbsArg * arg : *_compSetOwnedD) {
     arg->setOperMode(_operMode) ;
   }
-  delete dIter ;
 
   // Fill _intList
   _haveD = other._haveD ;
@@ -176,7 +167,7 @@ RooGenProdProj::~RooGenProdProj()
 ///
 /// The integration is factorized into components as much as possible and done analytically as far as possible.
 RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& compSet, const RooArgSet& intSet,
-                RooArgSet& saveSet, const char* isetRangeName, Bool_t doFactorize)
+                RooArgSet& saveSet, const char* isetRangeName, bool doFactorize)
 {
   RooArgSet anaIntSet, numIntSet ;
 
@@ -266,13 +257,13 @@ RooAbsReal* RooGenProdProj::makeIntegral(const char* name, const RooArgSet& comp
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return value of normalization projection
 
-Double_t RooGenProdProj::evaluate() const
+double RooGenProdProj::evaluate() const
 {
-  Double_t nom = ((RooAbsReal*)_intList.at(0))->getVal() ;
+  double nom = ((RooAbsReal*)_intList.at(0))->getVal() ;
 
   if (!_haveD) return nom ;
 
-  Double_t den = ((RooAbsReal*)_intList.at(1))->getVal() ;
+  double den = ((RooAbsReal*)_intList.at(1))->getVal() ;
 
   //cout << "RooGenProdProj::eval(" << GetName() << ") nom = " << nom << " den = " << den << endl ;
 

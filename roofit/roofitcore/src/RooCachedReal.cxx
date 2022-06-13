@@ -43,8 +43,8 @@ ClassImp(RooCachedReal);
 RooCachedReal::RooCachedReal(const char *name, const char *title, RooAbsReal& _func) :
    RooAbsCachedReal(name,title),
    func("func","func",this,_func),
-   _useCdfBoundaries(kFALSE),
-   _cacheSource(kFALSE)
+   _useCdfBoundaries(false),
+   _cacheSource(false)
  {
    // Choose same expensive object cache as input function
    setExpensiveObjectCache(_func.expensiveObjectCache()) ;
@@ -69,9 +69,9 @@ RooCachedReal::RooCachedReal(const char *name, const char *title, RooAbsReal& _f
 RooCachedReal::RooCachedReal(const char *name, const char *title, RooAbsReal& _func, const RooArgSet& cacheObs) :
    RooAbsCachedReal(name,title),
    func("func","func",this,_func),
-   _cacheObs("cacheObs","cacheObs",this,kFALSE,kFALSE),
-   _useCdfBoundaries(kFALSE),
-   _cacheSource(kFALSE)
+   _cacheObs("cacheObs","cacheObs",this,false,false),
+   _useCdfBoundaries(false),
+   _cacheSource(false)
  {
    _cacheObs.add(cacheObs) ;
 
@@ -115,7 +115,7 @@ RooAbsCachedReal::FuncCacheElem* RooCachedReal::createCache(const RooArgSet* nse
 {
   FuncCacheElem* ret = RooAbsCachedReal::createCache(nset) ;
   if (_cacheSource) {
-    ret->setCacheSource(kTRUE) ;
+    ret->setCacheSource(true) ;
   }
   return ret ;
 }
@@ -150,7 +150,7 @@ void RooCachedReal::fillCacheObject(RooAbsCachedReal::FuncCacheElem& cache) cons
   // Iterator over all bins of RooDataHist and fill weights
   for (Int_t i=0 ; i<cache.hist()->numEntries() ; i++) {
     const RooArgSet* obs = cache.hist()->get(i) ;
-    Double_t binVal = cache.sourceClone()->getVal(obs) ;
+    double binVal = cache.sourceClone()->getVal(obs) ;
     cache.hist()->set(i, binVal, 0.);
   }
 

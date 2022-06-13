@@ -14,8 +14,6 @@
  * listed in LICENSE (http://roofit.sourceforge.net/license.txt)             *
  *****************************************************************************/
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include "RooAbsProxy.h"
 #include "RooArgSet.h"
@@ -71,7 +69,7 @@ void RooAbsProxy::changeNormSet(const RooArgSet* newNormSet)
 ////////////////////////////////////////////////////////////////////////////////
 /// Print proxy name
 
-void RooAbsProxy::print(ostream& os, Bool_t /*addContents*/) const
+void RooAbsProxy::print(ostream& os, bool /*addContents*/) const
 {
   os << name() << endl ;
 }

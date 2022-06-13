@@ -31,10 +31,10 @@ public:
 
   // Constructors, assignment etc
   RooXYChi2Var() ;
-  RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& data, Bool_t integrate=kFALSE) ;
-  RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& data, RooRealVar& yvar, Bool_t integrate=kFALSE) ;
-  RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& data, Bool_t integrate=kFALSE) ;
-  RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& data, RooRealVar& yvar, Bool_t integrate=kFALSE) ;
+  RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& data, bool integrate=false) ;
+  RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& data, RooRealVar& yvar, bool integrate=false) ;
+  RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& data, bool integrate=false) ;
+  RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& data, RooRealVar& yvar, bool integrate=false) ;
 
   RooXYChi2Var(const RooXYChi2Var& other, const char* name=0);
   TObject* clone(const char* newname) const override { return new RooXYChi2Var(*this,newname); }
@@ -47,7 +47,7 @@ public:
 
   ~RooXYChi2Var() override;
 
-  Double_t defaultErrorLevel() const override {
+  double defaultErrorLevel() const override {
     // The default error level for MINUIT error analysis for a chi^2 is 1.0
     return 1.0 ;
   }
@@ -57,7 +57,7 @@ public:
 
 protected:
 
-  Bool_t allowFunctionCache() override {
+  bool allowFunctionCache() override {
     // Disable function (component) caching if integration is requested as the function
     // will be evaluated at coordinates other than the points in the dataset
     return !_integrate ;
@@ -65,10 +65,10 @@ protected:
 
   RooArgSet requiredExtraObservables() const override ;
 
-  Double_t fy() const ;
+  double fy() const ;
 
-  Bool_t _extended ; ///< Is the input function and extended p.d.f.
-  Bool_t _integrate ; ///< Is integration over the bin volume requested
+  bool _extended ; ///< Is the input function and extended p.d.f.
+  bool _integrate ; ///< Is integration over the bin volume requested
 
   RooRealVar* _yvar ; ///< Y variable if so designated
   RooArgSet _rrvArgs ; ///< Set of real-valued observables
@@ -76,9 +76,9 @@ protected:
 
   void initialize() ;
   void initIntegrator() ;
-  Double_t xErrorContribution(Double_t ydata) const ;
+  double xErrorContribution(double ydata) const ;
 
-  Double_t evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const override ;
+  double evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const override ;
 
   RooNumIntConfig   _intConfig ; ///< Numeric integrator configuration for integration of function over bin
   RooAbsReal*       _funcInt ; ///<! Function integral

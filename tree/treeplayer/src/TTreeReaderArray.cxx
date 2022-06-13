@@ -197,23 +197,30 @@ namespace {
    };
 
    template <class BASE>
-   class TUIntOrIntReader: public BASE {
-   private:
-      // The index can be of type int or unsigned int.
-      std::unique_ptr<TTreeReaderValueBase> fSizeReader;
-      bool fIsUnsigned = false;
+   class TDynamicArrayReader : public BASE {
 
-   protected:
-      template <class T>
-      TTreeReaderValue<T>& GetSizeReader() {
-         return *static_cast<TTreeReaderValue<T>*>(fSizeReader.get());
-      }
+      // TVirtualSizeReaderImpl and TSizeReaderImpl type-erase the reading of the size leaf.
+      class TVirtualSizeReaderImpl {
+      public:
+         virtual ~TVirtualSizeReaderImpl() = default;
+         virtual size_t GetSize() = 0;
+      };
+
+      template <typename T>
+      class TSizeReaderImpl final : public TVirtualSizeReaderImpl {
+         TTreeReaderValue<T> fSizeReader;
+
+      public:
+         TSizeReaderImpl(TTreeReader &r, const char *leafName) : fSizeReader(r, leafName) {}
+         size_t GetSize() final { return *fSizeReader; }
+      };
+
+      std::unique_ptr<TVirtualSizeReaderImpl> fSizeReader;
 
    public:
       template <class... ARGS>
-      TUIntOrIntReader(TTreeReader *treeReader, const char *leafName,
-                       ARGS&&... args):
-         BASE(std::forward<ARGS>(args)...)
+      TDynamicArrayReader(TTreeReader *treeReader, const char *leafName, ARGS &&...args)
+         : BASE(std::forward<ARGS>(args)...)
       {
          std::string foundLeafName = leafName;
          TLeaf* sizeLeaf = treeReader->GetTree()->FindLeaf(foundLeafName.c_str());
@@ -247,29 +254,44 @@ namespace {
          }
 
          if (!sizeLeaf) {
-            Error("TUIntOrIntReader", "Cannot find leaf count for %s or any parent branch!", leafName);
+            Error("TDynamicArrayReader ", "Cannot find leaf count for %s or any parent branch!", leafName);
             return;
          }
 
-         fIsUnsigned = sizeLeaf->IsUnsigned();
-         if (fIsUnsigned) {
-            fSizeReader.reset(new TTreeReaderValue<UInt_t>(*treeReader, foundLeafName.c_str()));
+         const std::string leafType = sizeLeaf->GetTypeName();
+         if (leafType == "Int_t") {
+            fSizeReader.reset(new TSizeReaderImpl<Int_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "UInt_t") {
+            fSizeReader.reset(new TSizeReaderImpl<UInt_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "Short_t") {
+            fSizeReader.reset(new TSizeReaderImpl<Short_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "UShort_t") {
+            fSizeReader.reset(new TSizeReaderImpl<UShort_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "Long_t") {
+            fSizeReader.reset(new TSizeReaderImpl<Long_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "ULong_t") {
+            fSizeReader.reset(new TSizeReaderImpl<ULong_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "Long64_t") {
+            fSizeReader.reset(new TSizeReaderImpl<Long64_t>(*treeReader, foundLeafName.c_str()));
+         } else if (leafType == "ULong64_t") {
+            fSizeReader.reset(new TSizeReaderImpl<ULong64_t>(*treeReader, foundLeafName.c_str()));
          } else {
-            fSizeReader.reset(new TTreeReaderValue<Int_t>(*treeReader, foundLeafName.c_str()));
+            Error("TDynamicArrayReader ",
+                  "Unsupported size type for leaf %s. Supported types are int, short int, long int, long long int and "
+                  "their unsigned counterparts.",
+                  leafName);
          }
       }
 
-      size_t GetSize(ROOT::Detail::TBranchProxy* /*proxy*/) override {
-         if (fIsUnsigned)
-            return *GetSizeReader<UInt_t>();
-         return *GetSizeReader<Int_t>();
-      }
+      size_t GetSize(ROOT::Detail::TBranchProxy * /*proxy*/) override { return fSizeReader->GetSize(); }
    };
 
-   class TArrayParameterSizeReader: public TUIntOrIntReader<TObjectArrayReader> {
+   class TArrayParameterSizeReader : public TDynamicArrayReader<TObjectArrayReader> {
    public:
-      TArrayParameterSizeReader(TTreeReader *treeReader, const char *branchName):
-         TUIntOrIntReader<TObjectArrayReader>(treeReader, branchName) {}
+      TArrayParameterSizeReader(TTreeReader *treeReader, const char *branchName)
+         : TDynamicArrayReader<TObjectArrayReader>(treeReader, branchName)
+      {
+      }
    };
 
    // Reader interface for fixed size arrays
@@ -352,15 +374,16 @@ namespace {
       }
    };
 
-   class TLeafParameterSizeReader: public TUIntOrIntReader<TLeafReader> {
+   class TLeafParameterSizeReader : public TDynamicArrayReader<TLeafReader> {
    public:
-      TLeafParameterSizeReader(TTreeReader *treeReader, const char *leafName,
-                               TTreeReaderValueBase *valueReaderArg) :
-         TUIntOrIntReader<TLeafReader>(treeReader, leafName, valueReaderArg) {}
+      TLeafParameterSizeReader(TTreeReader *treeReader, const char *leafName, TTreeReaderValueBase *valueReaderArg)
+         : TDynamicArrayReader<TLeafReader>(treeReader, leafName, valueReaderArg)
+      {
+      }
 
       size_t GetSize(ROOT::Detail::TBranchProxy* proxy) override {
          ProxyRead();
-         return TUIntOrIntReader<TLeafReader>::GetSize(proxy);
+         return TDynamicArrayReader<TLeafReader>::GetSize(proxy);
       }
    };
 }

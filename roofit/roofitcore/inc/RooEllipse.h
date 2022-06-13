@@ -22,14 +22,14 @@
 class RooEllipse : public TGraph, public RooPlotable {
 public:
   RooEllipse();
-  RooEllipse(const char *name, Double_t x1, Double_t x2, Double_t s1, Double_t s2, Double_t rho= 0, Int_t points= 100);
+  RooEllipse(const char *name, double x1, double x2, double s1, double s2, double rho= 0, Int_t points= 100);
   ~RooEllipse() override;
 
 
   void printName(std::ostream& os) const override ;
   void printTitle(std::ostream& os) const override ;
   void printClassName(std::ostream& os) const override ;
-  void printMultiline(std::ostream& os, Int_t contents, Bool_t verbose=kFALSE, TString indent="") const override;
+  void printMultiline(std::ostream& os, Int_t contents, bool verbose=false, TString indent="") const override;
 
   /// Printing interface
   inline void Print(Option_t *options= 0) const override {
@@ -38,9 +38,9 @@ public:
 
   // These methods return zero to indicate that they do not support
   // this interface. See RooPlot::updateFitRangeNorm() for details.
-  inline Double_t getFitRangeNEvt() const override { return 0; }
-  inline Double_t getFitRangeNEvt(Double_t, Double_t) const override { return 0; }
-  inline Double_t getFitRangeBinW() const override { return 0; }
+  inline double getFitRangeNEvt() const override { return 0; }
+  inline double getFitRangeNEvt(double, double) const override { return 0; }
+  inline double getFitRangeBinW() const override { return 0; }
 
   ClassDefOverride(RooEllipse,1) // 2-dimensional contour
 };

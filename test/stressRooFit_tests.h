@@ -1541,7 +1541,11 @@ public:
     RooDataSet* data = lxg.generate(t,10000) ;
 
     // Fit gxlx to data
-    lxg.fitTo(*data,BatchMode(_batchMode)) ;
+    {
+      // Get rid of the caching info prints
+    RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING, 0u, RooFit::Caching, true};
+      lxg.fitTo(*data,BatchMode(_batchMode)) ;
+    }
 
     // Plot data, landau pdf, landau (X) gauss pdf
     RooPlot* frame = t.frame(Title("landau (x) gauss convolution")) ;
@@ -3395,7 +3399,6 @@ public:
 #include "RooFormulaVar.h"
 #include "RooGenericPdf.h"
 #include "RooPolynomial.h"
-#include "RooChi2Var.h"
 #include "RooMinimizer.h"
 #include "TCanvas.h"
 #include "RooPlot.h"
@@ -3501,8 +3504,8 @@ public:
   // NB: Within the usual approximations of a chi2 fit, a chi2 fit to weighted
   // data using sum-of-weights-squared errors does give correct error
   // estimates
-  RooChi2Var chi2("chi2","chi2",p2,*binnedData) ;
-  RooMinimizer m(chi2) ;
+  std::unique_ptr<RooAbsReal> chi2{p2.createChi2(*binnedData)};
+  RooMinimizer m(*chi2) ;
   m.migrad() ;
   m.hesse() ;
 
@@ -4289,7 +4292,6 @@ public:
 #include "RooProdPdf.h"
 #include "RooAddPdf.h"
 #include "RooMinimizer.h"
-#include "RooNLLVar.h"
 #include "RooFitResult.h"
 #include "RooPlot.h"
 #include "TCanvas.h"
@@ -4324,14 +4326,14 @@ public:
   RooDataSet* data = model.generate(x,1000) ;
 
   // Construct unbinned likelihood
-  RooNLLVar nll("nll","nll",model,*data) ;
+  std::unique_ptr<RooAbsReal> nll{model.createNLL(*data)};
 
 
   // I n t e r a c t i v e   m i n i m i z a t i o n ,   e r r o r   a n a l y s i s
   // -------------------------------------------------------------------------------
 
   // Create MINUIT interface object
-  RooMinimizer m(nll) ;
+  RooMinimizer m(*nll) ;
 
   // Call MIGRAD to minimize the likelihood
   m.migrad() ;
@@ -4402,7 +4404,6 @@ public:
 #include "RooGaussian.h"
 #include "RooChebychev.h"
 #include "RooAddPdf.h"
-#include "RooChi2Var.h"
 #include "RooMinimizer.h"
 #include "TCanvas.h"
 #include "RooPlot.h"
@@ -4453,10 +4454,10 @@ public:
   // Construct a chi^2 of the data and the model,
   // which is the input probability density scaled
   // by the number of events in the dataset
-  RooChi2Var chi2("chi2","chi2",model,*dh) ;
+  std::unique_ptr<RooAbsReal> chi2{model.createChi2(*dh, DataError(RooAbsData::SumW2), Verbose(false))};
 
   // Use RooMinimizer interface to minimize chi^2
-  RooMinimizer m(chi2) ;
+  RooMinimizer m(*chi2) ;
   m.migrad() ;
   m.hesse() ;
 
@@ -4588,7 +4589,6 @@ public:
 #include "RooDataSet.h"
 #include "RooGaussian.h"
 #include "RooAddPdf.h"
-#include "RooNLLVar.h"
 #include "RooProfileLL.h"
 #include "RooMinimizer.h"
 #include "TCanvas.h"
@@ -4628,18 +4628,19 @@ public:
   // ---------------------------------------------------
 
   // Construct unbinned likelihood
-  RooNLLVar nll("nll","nll",model,*data) ;
+  std::unique_ptr<RooAbsReal> nll{model.createNLL(*data)};
+  nll->SetName("nll");
 
   // Minimize likelihood w.r.t all parameters before making plots
-  RooMinimizer(nll).migrad() ;
+  RooMinimizer(*nll).migrad() ;
 
   // Plot likelihood scan frac
   RooPlot* frame1 = frac.frame(Bins(10),Range(0.01,0.95),Title("LL and profileLL in frac")) ;
-  nll.plotOn(frame1,ShiftToZero()) ;
+  nll->plotOn(frame1,ShiftToZero()) ;
 
   // Plot likelihood scan in sigma_g2
   RooPlot* frame2 = sigma_g2.frame(Bins(10),Range(3.3,5.0),Title("LL and profileLL in sigma_g2")) ;
-  nll.plotOn(frame2,ShiftToZero()) ;
+  nll->plotOn(frame2,ShiftToZero()) ;
 
 
 
@@ -4648,7 +4649,7 @@ public:
 
   // The profile likelihood estimator on nll for frac will minimize nll w.r.t
   // all floating parameters except frac for each evaluation
-  RooProfileLL pll_frac("pll_frac","pll_frac",nll,frac) ;
+  RooProfileLL pll_frac("pll_frac","pll_frac",*nll,frac) ;
 
   // Plot the profile likelihood in frac
   pll_frac.plotOn(frame1,LineColor(kRed)) ;
@@ -4664,7 +4665,7 @@ public:
 
   // The profile likelihood estimator on nll for sigma_g2 will minimize nll
   // w.r.t all floating parameters except sigma_g2 for each evaluation
-  RooProfileLL pll_sigmag2("pll_sigmag2","pll_sigmag2",nll,sigma_g2) ;
+  RooProfileLL pll_sigmag2("pll_sigmag2","pll_sigmag2",*nll,sigma_g2) ;
 
   // Plot the profile likelihood in sigma_g2
   pll_sigmag2.plotOn(frame2,LineColor(kRed)) ;
@@ -4701,7 +4702,6 @@ public:
 #include "RooRealVar.h"
 #include "RooDataSet.h"
 #include "RooArgusBG.h"
-#include "RooNLLVar.h"
 #include "TCanvas.h"
 #include "RooPlot.h"
 using namespace RooFit ;
@@ -4753,7 +4753,8 @@ public:
   // ------------------------------------------------------------------
 
   // Construct likelihood function of model and data
-  RooNLLVar nll("nll","nll",argus,*data) ;
+  std::unique_ptr<RooAbsReal> nll{argus.createNLL(*data)};
+  nll->SetName("nll");
 
   // Plot likelihood in m0 in range that includes problematic values
   // In this configuration no messages are printed for likelihood evaluation errors,
@@ -4761,7 +4762,7 @@ public:
   // on the curve will be set to the value given in EvalErrorValue().
 
   RooPlot* frame2 = m0.frame(Range(5.288,5.293),Title("-log(L) scan vs m0, problematic regions masked")) ;
-  nll.plotOn(frame2,PrintEvalErrors(-1),ShiftToZero(),EvalErrorValue(nll.getVal()+10),LineColor(kRed)) ;
+  nll->plotOn(frame2,PrintEvalErrors(-1),ShiftToZero(),EvalErrorValue(nll->getVal()+10),LineColor(kRed)) ;
 
 
   regPlot(frame1,"rf606_plot1") ;
@@ -4898,7 +4899,6 @@ public:
 #include "RooRealVar.h"
 #include "RooDataSet.h"
 #include "RooPolyVar.h"
-#include "RooChi2Var.h"
 #include "RooMinimizer.h"
 #include "TCanvas.h"
 #include "RooPlot.h"
@@ -5436,7 +5436,6 @@ public:
 #include "RooGaussian.h"
 #include "RooPolynomial.h"
 #include "RooIntegralMorph.h"
-#include "RooNLLVar.h"
 #include "TCanvas.h"
 #include "RooPlot.h"
 #include "TH1.h"
@@ -5529,7 +5528,11 @@ public:
 
   // Fit pdf to toy data
   lmorph.setCacheAlpha(kTRUE) ;
-  lmorph.fitTo(*data,BatchMode(_batchMode)) ;
+  {
+    // Get rid of the caching info prints
+    RooHelpers::LocalChangeMsgLevel chmsglvl{RooFit::WARNING, 0u, RooFit::Caching, true};
+    lmorph.fitTo(*data,BatchMode(_batchMode)) ;
+  }
 
   // Plot fitted pdf and data overlaid
   RooPlot* frame2 = x.frame(Bins(100)) ;
@@ -5544,8 +5547,9 @@ public:
   RooPlot* frame3 = alpha.frame(Bins(100),Range(0.5,0.9)) ;
 
   // Make 2D pdf of histogram
-  RooNLLVar nll("nll","nll",lmorph,*data) ;
-  nll.plotOn(frame3,ShiftToZero()) ;
+  std::unique_ptr<RooAbsReal> nll{lmorph.createNLL(*data)};
+  nll->SetName("nll");
+  nll->plotOn(frame3,ShiftToZero()) ;
 
   lmorph.setCacheAlpha(kFALSE) ;
 
@@ -6075,7 +6079,7 @@ public:
   // to speed up the study at the expemse of some precision
 
   RooMCStudy* mcstudy = new RooMCStudy(model,x,Binned(kTRUE),Silence(),Extended(),
-                                       FitOptions(Save(kTRUE),PrintEvalErrors(0))) ;
+                                       FitOptions(Save(kTRUE),PrintEvalErrors(0),BatchMode(_batchMode))) ;
 
 
   // G e n e r a t e   a n d   f i t   e v e n t s
@@ -6161,7 +6165,7 @@ public:
   // ----------------------------------------------------------------------------
 
   // Create study manager for binned likelihood fits of a Gaussian pdf in 10 bins
-  RooMCStudy* mcs = new RooMCStudy(gauss,x,Silence(),Binned()) ;
+  RooMCStudy* mcs = new RooMCStudy(gauss,x,Silence(),Binned(),FitOptions(BatchMode(_batchMode))) ;
 
   // Add chi^2 calculator module to mcs
   RooChi2MCSModule chi2mod ;
@@ -6194,7 +6198,7 @@ public:
   // Create study manager with separate generation and fit model. This configuration
   // is set up to generate bad fits as the fit and generator model have different means
   // and the mean parameter is not floating in the fit
-  RooMCStudy* mcs2 = new RooMCStudy(gauss2,x,FitModel(gauss),Silence(),Binned()) ;
+  RooMCStudy* mcs2 = new RooMCStudy(gauss2,x,FitModel(gauss),Silence(),Binned(),FitOptions(BatchMode(_batchMode))) ;
 
   // Add chi^2 calculator module to mcs
   RooChi2MCSModule chi2mod2 ;
@@ -6295,7 +6299,7 @@ public:
   // Configure manager to perform binned extended likelihood fits (Binned(),Extended()) on data generated
   // with a Poisson fluctuation on Nobs (Extended())
   RooMCStudy* mcs = new RooMCStudy(model,mjjj,Binned(),Silence(),Extended(kTRUE),
-                                   FitOptions(Extended(kTRUE),PrintEvalErrors(-1))) ;
+                                   FitOptions(Extended(kTRUE),PrintEvalErrors(-1),BatchMode(_batchMode))) ;
 
 
 
@@ -6430,7 +6434,7 @@ public:
 
   // Perform toy study with internal constraint on f
   //RooMCStudy mcs(sumc,x,Constrain(f),Silence(),Binned(),FitOptions(PrintLevel(-1))) ;
-  RooMCStudy mcs(sumc,x,Constrain(f),Binned()) ;
+  RooMCStudy mcs(sumc,x,Constrain(f),Binned(),FitOptions(BatchMode(_batchMode))) ;
 
   // Run 50 toys of 2000 events.
   // Before each toy is generated, a value for the f is sampled from the constraint pdf and

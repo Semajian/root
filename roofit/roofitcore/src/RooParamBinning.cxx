@@ -27,8 +27,6 @@ range definitions in RooFit. Objects of class RooParamBinning are made
 by the RooRealVar::setRange() that takes RooAbsReal references as arguments
 **/
 
-#include "RooFit.h"
-
 #include "RooParamBinning.h"
 #include "RooMsgService.h"
 
@@ -132,7 +130,7 @@ void RooParamBinning::insertHook(RooAbsRealLValue& owner) const
 //   cout << "_xlo = " << _xlo << " _xhi = " << _xhi << endl ;
 
   // If list proxy does not exist, create it now
-  _lp = new RooListProxy(Form("range::%s",GetName()),"lp",&owner,kFALSE,kTRUE) ;
+  _lp = new RooListProxy(Form("range::%s",GetName()),"lp",&owner,false,true) ;
   _lp->add(*_xlo) ;
   _lp->add(*_xhi) ;
   _xlo = 0 ;
@@ -166,7 +164,7 @@ void RooParamBinning::removeHook(RooAbsRealLValue& /*owner*/) const
 /// Adjust range by adjusting values of external RooAbsReal values
 /// Only functional when external representations are lvalues
 
-void RooParamBinning::setRange(Double_t newxlo, Double_t newxhi)
+void RooParamBinning::setRange(double newxlo, double newxhi)
 {
   if (newxlo>newxhi) {
     coutE(InputArguments) << "RooParamBinning::setRange: ERROR low bound > high bound" << endl ;
@@ -194,7 +192,7 @@ void RooParamBinning::setRange(Double_t newxlo, Double_t newxhi)
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the fit bin index for the current value
 
-Int_t RooParamBinning::binNumber(Double_t x) const
+Int_t RooParamBinning::binNumber(double x) const
 {
   if (x >= xhi()->getVal()) return _nbins-1 ;
   if (x < xlo()->getVal()) return 0 ;
@@ -207,7 +205,7 @@ Int_t RooParamBinning::binNumber(Double_t x) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the central value of the 'i'-th fit bin
 
-Double_t RooParamBinning::binCenter(Int_t i) const
+double RooParamBinning::binCenter(Int_t i) const
 {
   if (i<0 || i>=_nbins) {
     coutE(InputArguments) << "RooParamBinning::binCenter ERROR: bin index " << i
@@ -224,7 +222,7 @@ Double_t RooParamBinning::binCenter(Int_t i) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return average bin width
 
-Double_t RooParamBinning::binWidth(Int_t /*bin*/) const
+double RooParamBinning::binWidth(Int_t /*bin*/) const
 {
   return (xhi()->getVal()-xlo()->getVal())/_nbins ;
 }
@@ -234,7 +232,7 @@ Double_t RooParamBinning::binWidth(Int_t /*bin*/) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the low edge of the 'i'-th fit bin
 
-Double_t RooParamBinning::binLow(Int_t i) const
+double RooParamBinning::binLow(Int_t i) const
 {
   if (i<0 || i>=_nbins) {
     coutE(InputArguments) << "RooParamBinning::binLow ERROR: bin index " << i
@@ -250,7 +248,7 @@ Double_t RooParamBinning::binLow(Int_t i) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the high edge of the 'i'-th fit bin
 
-Double_t RooParamBinning::binHigh(Int_t i) const
+double RooParamBinning::binHigh(Int_t i) const
 {
   if (i<0 || i>=_nbins) {
     coutE(InputArguments) << "RooParamBinning::fitBinHigh ERROR: bin index " << i
@@ -266,10 +264,10 @@ Double_t RooParamBinning::binHigh(Int_t i) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return array of bin boundaries
 
-Double_t* RooParamBinning::array() const
+double* RooParamBinning::array() const
 {
   if (_array) delete[] _array ;
-  _array = new Double_t[_nbins+1] ;
+  _array = new double[_nbins+1] ;
 
   Int_t i ;
   for (i=0 ; i<=_nbins ; i++) {
@@ -283,7 +281,7 @@ Double_t* RooParamBinning::array() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Print details of binning
 
-void RooParamBinning::printMultiline(ostream &os, Int_t /*content*/, Bool_t /*verbose*/, TString indent) const
+void RooParamBinning::printMultiline(ostream &os, Int_t /*content*/, bool /*verbose*/, TString indent) const
 {
   os << indent << "_xlo = " << _xlo << endl ;
   os << indent << "_xhi = " << _xhi << endl ;

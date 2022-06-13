@@ -27,13 +27,13 @@ public:
   RooDataProjBinding(const RooAbsReal &real, const RooAbsData& data, const RooArgSet &vars, const RooArgSet* normSet=0) ;
   ~RooDataProjBinding() override ;
 
-  Double_t operator()(const Double_t xvector[]) const override;
+  double operator()(const double xvector[]) const override;
 
   RooSpan<const double> getValues(std::vector<RooSpan<const double>> coordinates) const override;
 
 protected:
 
-  mutable Bool_t _first   ;  ///< Bit indicating if operator() has been called yet
+  mutable bool _first   ;  ///< Bit indicating if operator() has been called yet
   const RooAbsReal* _real ;  ///< Real function to be projected
   const RooAbsData* _data ;  ///< Dataset used for projection
   const RooArgSet*  _nset ;  ///< Normalization set for real function

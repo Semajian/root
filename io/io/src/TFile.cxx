@@ -10,14 +10,6 @@
  *************************************************************************/
 
 /**
-  \defgroup IO Input/Output Library
-
-  The library collecting the ROOT classes dedicated to data input and output.
-
-  The detailed internal description of the \ref rootio is available.
-*/
-
-/**
 \file TFile.cxx
 \class TFile
 \ingroup IO
@@ -547,11 +539,9 @@ TFile::~TFile()
    SafeDelete(fInfoCache);
    SafeDelete(fOpenPhases);
 
-   {
+   if (fGlobalRegistration) {
       R__LOCKGUARD(gROOTMutex);
-      if (fGlobalRegistration) {
-         gROOT->GetListOfClosedObjects()->Remove(this);
-      }
+      gROOT->GetListOfClosedObjects()->Remove(this);
       gROOT->GetUUIDs()->RemoveUUID(GetUniqueID());
    }
 
@@ -834,11 +824,9 @@ void TFile::Init(Bool_t create)
       }
    }
 
-   {
+   if (fGlobalRegistration) {
       R__LOCKGUARD(gROOTMutex);
-      if (fGlobalRegistration) {
-         gROOT->GetListOfFiles()->Add(this);
-      }
+      gROOT->GetListOfFiles()->Add(this);
       gROOT->GetUUIDs()->AddUUID(fUUID, this);
    }
 

@@ -36,31 +36,31 @@ public:
 
   Int_t numBins() const { return _dataSet.numEntries(); } // Number of bins (called numEntries in RooDataHist)
 
-  void setParamConst( Int_t, Bool_t=kTRUE );
+  void setParamConst( Int_t, bool=true );
   void setConstant(bool constant);
 
   void setShape(TH1* shape);
 
-  RooRealVar& getParameter() const ;
-  RooRealVar& getParameter( Int_t masterIdx ) const ;
+  RooAbsReal& getParameter() const ;
+  RooAbsReal& getParameter( Int_t masterIdx ) const ;
 
   const RooArgSet* get(Int_t masterIdx) const { return _dataSet.get( masterIdx ) ; }
   const RooArgSet* get(const RooArgSet& coord) const { return _dataSet.get( coord ) ; }
 
   double binVolume() const { return _dataSet.binVolume(); }
 
-  Bool_t forceAnalyticalInt(const RooAbsArg&) const override { return kTRUE ; }
+  bool forceAnalyticalInt(const RooAbsArg&) const override { return true ; }
 
   Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, const RooArgSet* normSet,const char* rangeName=0) const override;
-  Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override;
+  double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override;
 
   static RooArgList createParamSet(RooWorkspace& w, const std::string&, const RooArgList& Vars);
-  static RooArgList createParamSet(RooWorkspace& w, const std::string&, const RooArgList& Vars, Double_t, Double_t);
-  static RooArgList createParamSet(const std::string&, Int_t, Double_t, Double_t);
+  static RooArgList createParamSet(RooWorkspace& w, const std::string&, const RooArgList& Vars, double, double);
+  static RooArgList createParamSet(const std::string&, Int_t, double, double);
 
-  std::list<Double_t>* binBoundaries(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override;
-  std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const override;
-  Bool_t isBinnedDistribution(const RooArgSet& /*obs*/) const override { return true; }
+  std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override;
+  std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override;
+  bool isBinnedDistribution(const RooArgSet& obs) const override { return _dataVars.overlaps(obs); }
 
 
 protected:
@@ -105,7 +105,7 @@ protected:
   Int_t addParamSet( const RooArgList& params );
   static Int_t GetNumBins( const RooArgSet& vars );
   double evaluate() const override;
-  RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const override;
+  void computeBatch(cudaStream_t*, double* output, size_t size, RooFit::Detail::DataMap const&) const override;
 
 private:
   static NumBins getNumBinsPerDim(RooArgSet const& vars);

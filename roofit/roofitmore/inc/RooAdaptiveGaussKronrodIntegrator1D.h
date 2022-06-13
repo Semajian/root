@@ -27,36 +27,36 @@ public:
   // Constructors, assignment etc
   RooAdaptiveGaussKronrodIntegrator1D() ;
   RooAdaptiveGaussKronrodIntegrator1D(const RooAbsFunc& function, const RooNumIntConfig& config) ;
-  RooAdaptiveGaussKronrodIntegrator1D(const RooAbsFunc& function, Double_t xmin, Double_t xmax,
+  RooAdaptiveGaussKronrodIntegrator1D(const RooAbsFunc& function, double xmin, double xmax,
                                       const RooNumIntConfig& config) ;
   RooAbsIntegrator* clone(const RooAbsFunc& function, const RooNumIntConfig& config) const override ;
   ~RooAdaptiveGaussKronrodIntegrator1D() override;
 
-  Bool_t checkLimits() const override;
-  Double_t integral(const Double_t *yvec=0) override ;
+  bool checkLimits() const override;
+  double integral(const double *yvec=0) override ;
 
   using RooAbsIntegrator::setLimits ;
-  Bool_t setLimits(Double_t* xmin, Double_t* xmax) override;
-  Bool_t setUseIntegrandLimits(Bool_t flag) override {
+  bool setLimits(double* xmin, double* xmax) override;
+  bool setUseIntegrandLimits(bool flag) override {
     // If flag is true, intergration limits are taken from definition in input function binding
-    _useIntegrandLimits = flag ; return kTRUE ;
+    _useIntegrandLimits = flag ; return true ;
   }
 
-  Bool_t canIntegrate1D() const override {
+  bool canIntegrate1D() const override {
     // We can integrate 1-dimensional functions
-    return kTRUE ;
+    return true ;
   }
-  Bool_t canIntegrate2D() const override {
+  bool canIntegrate2D() const override {
     // We can not integrate 2-dimensional functions
-    return kFALSE ;
+    return false ;
   }
-  Bool_t canIntegrateND() const override {
+  bool canIntegrateND() const override {
     // We can not integrate >2-dimensional functions
-    return kFALSE ;
+    return false ;
   }
-  Bool_t canIntegrateOpenEnded() const override {
+  bool canIntegrateOpenEnded() const override {
     // We can integrate over open-ended domains
-    return kTRUE ;
+    return true ;
   }
 
 protected:
@@ -69,24 +69,24 @@ protected:
 
   friend double RooAdaptiveGaussKronrodIntegrator1D_GSL_GlueFunction(double x, void *data) ;
 
-  Bool_t initialize();
+  bool initialize();
 
-  Bool_t _useIntegrandLimits;
+  bool _useIntegrandLimits;
 
-  Double_t* xvec(Double_t& xx) {
+  double* xvec(double& xx) {
     // Return contents of xx in internal array pointer
     _x[0] = xx ; return _x ;
   }
-  Double_t *_x ;                        //! Current coordinate
+  double *_x ;                        //! Current coordinate
 
-  Double_t _epsAbs ;                   // Absolute precision
-  Double_t _epsRel ;                   // Relative precision
+  double _epsAbs ;                   // Absolute precision
+  double _epsRel ;                   // Relative precision
   Int_t    _methodKey ;                // GSL method key
   Int_t    _maxSeg ;                   // Maximum number of segments
   void*    _workspace ;                // GSL workspace
 
-  mutable Double_t _xmin;              //! Lower integration bound
-  mutable Double_t _xmax;              //! Upper integration bound
+  mutable double _xmin;              //! Lower integration bound
+  mutable double _xmax;              //! Upper integration bound
 
   ClassDefOverride(RooAdaptiveGaussKronrodIntegrator1D,0) // 1-dimensional adaptive Gauss-Kronrod numerical integration engine
 };

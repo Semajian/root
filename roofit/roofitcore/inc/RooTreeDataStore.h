@@ -43,17 +43,19 @@ public:
   RooAbsDataStore* clone(const char* newname=0) const override { return new RooTreeDataStore(*this,newname) ; }
   RooAbsDataStore* clone(const RooArgSet& vars, const char* newname=0) const override { return new RooTreeDataStore(*this,vars,newname) ; }
 
-  // Ctors from TTree
-  RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, TTree& t, const RooFormulaVar& select, const char* wgtVarName=0) ;
+  RooAbsDataStore* reduce(RooStringView name, RooStringView title,
+                          const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
+                          std::size_t nStart, std::size_t nStop) override;
+
+  // Constructor from TTree
   RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, TTree& t, const char* selExpr=0, const char* wgtVarName=0) ;
 
-  // Ctors from DataStore
-  RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, const RooAbsDataStore& tds, const RooFormulaVar& select, const char* wgtVarName=0) ;
+  // Constructor from DataStore
   RooTreeDataStore(RooStringView name, RooStringView title, const RooArgSet& vars, const RooAbsDataStore& tds, const char* selExpr=0, const char* wgtVarName=0) ;
 
   RooTreeDataStore(RooStringView name, RooStringView title, RooAbsDataStore& tds,
                    const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-                   Int_t nStart, Int_t nStop, Bool_t /*copyCache*/, const char* wgtVarName=0) ;
+                   Int_t nStart, Int_t nStop, const char* wgtVarName=0) ;
 
   RooTreeDataStore(const RooTreeDataStore& other, const char* newname=0) ;
   RooTreeDataStore(const RooTreeDataStore& other, const RooArgSet& vars, const char* newname=0) ;
@@ -67,12 +69,12 @@ public:
   using RooAbsDataStore::get ;
   const RooArgSet* get(Int_t index) const override ;
   using RooAbsDataStore::weight ;
-  Double_t weight() const override ;
-  Double_t weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
-  void weightError(Double_t& lo, Double_t& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
-  Bool_t isWeighted() const override { return (_wgtVar!=0||_extWgtArray!=0) ; }
+  double weight() const override ;
+  double weightError(RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
+  void weightError(double& lo, double& hi, RooAbsData::ErrorType etype=RooAbsData::Poisson) const override ;
+  bool isWeighted() const override { return (_wgtVar!=0||_extWgtArray!=0) ; }
 
-  RooBatchCompute::RunContext getBatches(std::size_t first, std::size_t len) const override {
+  RooAbsData::RealSpans getBatches(std::size_t first, std::size_t len) const override {
     //TODO
     std::cerr << "This functionality is not yet implemented for tree data stores." << std::endl;
     throw std::logic_error("getBatches() not implemented in RooTreeDataStore.");
@@ -82,11 +84,10 @@ public:
   RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len) const override;
 
   // Change observable name
-  Bool_t changeObservableName(const char* from, const char* to) override ;
+  bool changeObservableName(const char* from, const char* to) override ;
 
-  // Add one or more columns
-  RooAbsArg* addColumn(RooAbsArg& var, Bool_t adjustRange=kTRUE) override ;
-  RooArgSet* addColumns(const RooArgList& varList) override ;
+  // Add one column
+  RooAbsArg* addColumn(RooAbsArg& var, bool adjustRange=true) override ;
 
   // Merge column-wise
   RooAbsDataStore* merge(const RooArgSet& allvars, std::list<RooAbsDataStore*> dstoreList) override ;
@@ -95,7 +96,7 @@ public:
   void append(RooAbsDataStore& other) override ;
 
   // General & bookkeeping methods
-  Double_t sumEntries() const override ;
+  double sumEntries() const override ;
   Int_t numEntries() const override ;
   void reset() override ;
 
@@ -117,9 +118,9 @@ public:
   void   Draw(Option_t* option = "") override ;
 
   // Constant term  optimizer interface
-  void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=0, Bool_t skipZeroWeights=kFALSE) override ;
+  void cacheArgs(const RooAbsArg* owner, RooArgSet& varSet, const RooArgSet* nset=0, bool skipZeroWeights=false) override ;
   const RooAbsArg* cacheOwner() override { return _cacheOwner ; }
-  void setArgStatus(const RooArgSet& set, Bool_t active) override ;
+  void setArgStatus(const RooArgSet& set, bool active) override ;
   void resetCache() override ;
 
   void loadValues(const TTree *t, const RooFormulaVar* select=0, const char* rangeName=0, Int_t nStart=0, Int_t nStop=2000000000)  ;
@@ -128,8 +129,8 @@ public:
 
   void checkInit() const override;
 
-  void setExternalWeightArray(const Double_t* arrayWgt, const Double_t* arrayWgtErrLo,
-      const Double_t* arrayWgtErrHi, const Double_t* arraySumW2) override {
+  void setExternalWeightArray(const double* arrayWgt, const double* arrayWgtErrLo,
+      const double* arrayWgtErrHi, const double* arraySumW2) override {
     _extWgtArray = arrayWgt ;
     _extWgtErrLoArray = arrayWgtErrLo ;
     _extWgtErrHiArray = arrayWgtErrHi ;
@@ -157,24 +158,24 @@ public:
   static Int_t _defTreeBufSize ;
 
   void createTree(RooStringView name, RooStringView title) ;
-  TTree *_tree ;           // TTree holding the data points
-  TTree *_cacheTree ;      //! TTree holding the cached function values
-  const RooAbsArg* _cacheOwner ; //! Object owning cache contents
-  mutable Bool_t _defCtor ;//! Was object constructed with default ctor?
+  TTree *_tree = nullptr;                 // TTree holding the data points
+  TTree *_cacheTree = nullptr;            //! TTree holding the cached function values
+  const RooAbsArg* _cacheOwner = nullptr; //! Object owning cache contents
+  mutable bool _defCtor = false;        //! Was object constructed with default ctor?
 
   RooArgSet _varsww ;
-  RooRealVar* _wgtVar ;     // Pointer to weight variable (if set)
+  RooRealVar* _wgtVar = nullptr;     // Pointer to weight variable (if set)
 
-  const Double_t* _extWgtArray{nullptr};         ///<! External weight array
-  const Double_t* _extWgtErrLoArray{nullptr};    ///<! External weight array - low error
-  const Double_t* _extWgtErrHiArray{nullptr};    ///<! External weight array - high error
-  const Double_t* _extSumW2Array{nullptr};       ///<! External sum of weights array
+  const double* _extWgtArray{nullptr};         ///<! External weight array
+  const double* _extWgtErrLoArray{nullptr};    ///<! External weight array - low error
+  const double* _extWgtErrHiArray{nullptr};    ///<! External weight array - high error
+  const double* _extSumW2Array{nullptr};       ///<! External sum of weights array
   mutable std::unique_ptr<std::vector<double>> _weightBuffer; //! Buffer for weights in case a batch of values is requested.
 
-  mutable Double_t  _curWgt ;      ///< Weight of current event
-  mutable Double_t  _curWgtErrLo ; ///< Weight of current event
-  mutable Double_t  _curWgtErrHi ; ///< Weight of current event
-  mutable Double_t  _curWgtErr ;   ///< Weight of current event
+  mutable double  _curWgt = 1.0;      ///< Weight of current event
+  mutable double  _curWgtErrLo = 0.0; ///< Weight of current event
+  mutable double  _curWgtErrHi = 0.0; ///< Weight of current event
+  mutable double  _curWgtErr = 0.0;   ///< Weight of current event
 
   RooArgSet _attachedBuffers ; ///<! Currently attached buffers (if different from _varsww)
 

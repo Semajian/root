@@ -25,8 +25,6 @@ index value which define the state
 
 #include "RooFitLegacy/RooCatTypeLegacy.h"
 
-#include "RooFit.h"
-
 #include "TClass.h"
 
 #include <iostream>
@@ -79,7 +77,7 @@ void RooCatType::printTitle(ostream& os) const
 
 void RooCatType::printClassName(ostream& os) const
 {
-  os << IsA()->GetName() ;
+  os << ClassName() ;
 }
 
 

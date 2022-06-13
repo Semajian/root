@@ -20,8 +20,6 @@
 
 #include "RooStats/HistFactory/PiecewiseInterpolation.h"
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include "TBuffer.h"
 
@@ -71,7 +69,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
                       const RooArgList& lowSet,
                       const RooArgList& highSet,
                       const RooArgList& paramSet,
-                      Bool_t takeOwnership) :
+                      bool takeOwnership) :
   RooAbsReal(name, title),
   _normIntMgr(this),
   _nominal("!nominal","nominal value", this, (RooAbsReal&)nominal),
@@ -87,9 +85,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
     RooErrorHandler::softAbort() ;
   }
 
-  RooFIter inputIter1 = lowSet.fwdIterator() ;
-  RooAbsArg* comp ;
-  while((comp = inputIter1.next())) {
+  for (auto *comp : lowSet) {
     if (!dynamic_cast<RooAbsReal*>(comp)) {
       coutE(InputArguments) << "PiecewiseInterpolation::ctor(" << GetName() << ") ERROR: component " << comp->GetName()
              << " in first list is not of type RooAbsReal" << endl ;
@@ -102,8 +98,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
   }
 
 
-  RooFIter inputIter2 = highSet.fwdIterator() ;
-  while((comp = inputIter2.next())) {
+  for (auto *comp : highSet) {
     if (!dynamic_cast<RooAbsReal*>(comp)) {
       coutE(InputArguments) << "PiecewiseInterpolation::ctor(" << GetName() << ") ERROR: component " << comp->GetName()
              << " in first list is not of type RooAbsReal" << endl ;
@@ -116,8 +111,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
   }
 
 
-  RooFIter inputIter3 = paramSet.fwdIterator() ;
-  while((comp = inputIter3.next())) {
+  for (auto *comp : paramSet) {
     if (!dynamic_cast<RooAbsReal*>(comp)) {
       coutE(InputArguments) << "PiecewiseInterpolation::ctor(" << GetName() << ") ERROR: component " << comp->GetName()
              << " in first list is not of type RooAbsReal" << endl ;
@@ -132,7 +126,7 @@ PiecewiseInterpolation::PiecewiseInterpolation(const char* name, const char* tit
 
 
   // Choose special integrator by default
-  specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator") ;
+  specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator") ;
   TRACE_CREATE
 }
 
@@ -171,11 +165,11 @@ PiecewiseInterpolation::~PiecewiseInterpolation()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return current value of self
 
-Double_t PiecewiseInterpolation::evaluate() const
+double PiecewiseInterpolation::evaluate() const
 {
   ///////////////////
-  Double_t nominal = _nominal;
-  Double_t sum(nominal) ;
+  double nominal = _nominal;
+  double sum(nominal) ;
 
   for (unsigned int i=0; i < _paramSet.size(); ++i) {
     auto param = static_cast<RooAbsReal*>(_paramSet.at(i));
@@ -318,15 +312,16 @@ Double_t PiecewiseInterpolation::evaluate() const
 /// Interpolate between input distributions for all values of the observable in `evalData`.
 /// \param[in,out] evalData Struct holding spans pointing to input data. The results of this function will be stored here.
 /// \param[in] normSet Arguments to normalise over.
-RooSpan<double> PiecewiseInterpolation::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  auto nominal = _nominal->getValues(evalData, normSet);
-  auto sum = evalData.makeBatch(this, nominal.size());
-  std::copy(nominal.begin(), nominal.end(), sum.begin());
+void PiecewiseInterpolation::computeBatch(cudaStream_t*, double* sum, size_t /*size*/, RooFit::Detail::DataMap const& dataMap) const {
+  auto nominal = dataMap.at(_nominal);
+  for(unsigned int j=0; j < nominal.size(); ++j) {
+    sum[j] = nominal[j];
+  }
 
   for (unsigned int i=0; i < _paramSet.size(); ++i) {
     const double param = static_cast<RooAbsReal*>(_paramSet.at(i))->getVal();
-    auto low   = static_cast<RooAbsReal*>(_lowSet.at(i) )->getValues(evalData, normSet);
-    auto high  = static_cast<RooAbsReal*>(_highSet.at(i))->getValues(evalData, normSet);
+    auto low   = dataMap.at(_lowSet.at(i));
+    auto high  = dataMap.at(_highSet.at(i));
     const int icode = _interpCode[i];
 
     switch(icode) {
@@ -436,24 +431,22 @@ RooSpan<double> PiecewiseInterpolation::evaluateSpan(RooBatchCompute::RunContext
   }
 
   if (_positiveDefinite) {
-    for (double& val : sum) {
-      if (val < 0.)
-        val = 0.;
+    for(unsigned int j=0; j < nominal.size(); ++j) {
+      if (sum[j] < 0.)
+        sum[j] = 0.;
     }
   }
-
-  return sum;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Bool_t PiecewiseInterpolation::setBinIntegrator(RooArgSet& allVars)
+bool PiecewiseInterpolation::setBinIntegrator(RooArgSet& allVars)
 {
   if(allVars.getSize()==1){
     RooAbsReal* temp = const_cast<PiecewiseInterpolation*>(this);
-    temp->specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator")  ;
+    temp->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator")  ;
     int nbins = ((RooRealVar*) allVars.first())->numBins();
-    temp->specialIntegratorConfig(kTRUE)->getConfigSection("RooBinIntegrator").setRealValue("numBins",nbins);
+    temp->specialIntegratorConfig(true)->getConfigSection("RooBinIntegrator").setRealValue("numBins",nbins);
     return true;
   }else{
     cout << "Currently BinIntegrator only knows how to deal with 1-d "<<endl;
@@ -481,7 +474,7 @@ Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArg
 
 
   // Handle trivial no-integration scenario
-  if (allVars.getSize()==0) return 0 ;
+  if (allVars.empty()) return 0 ;
   if (_forceNumInt) return 0 ;
 
 
@@ -491,23 +484,16 @@ Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArg
 
 
   // KC: check if interCode=0 for all
-  RooFIter paramIterExtra(_paramSet.fwdIterator()) ;
-  int i=0;
-  while( paramIterExtra.next() ) {
-    if(!_interpCode.empty() && _interpCode[i]!=0){
-      // can't factorize integral
-      cout <<"can't factorize integral"<<endl;
-      return 0;
-    }
-    ++i;
+  for (auto it = _paramSet.begin(); it != _paramSet.end(); ++it) { 
+    if (!_interpCode.empty() && _interpCode[it - _paramSet.begin()] != 0) {
+        // can't factorize integral
+        cout << "can't factorize integral" << endl;
+        return 0;
+     }
   }
 
   // Select subset of allVars that are actual dependents
   analVars.add(allVars) ;
-  //  RooArgSet* normSet = normSet2 ? getObservables(normSet2) : 0 ;
-  //  RooArgSet* normSet = getObservables();
-  //  RooArgSet* normSet = 0;
-
 
   // Check if this configuration was created before
   Int_t sterileIdx(-1) ;
@@ -521,29 +507,19 @@ Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArg
 
   // Make list of function projection and normalization integrals
   RooAbsReal *func ;
-  //  const RooArgSet* nset = _paramList.nset() ;
+  RooAbsReal *funcInt;
 
-  // do nominal
-  func = (RooAbsReal*)(&_nominal.arg()) ;
-  RooAbsReal* funcInt = func->createIntegral(analVars) ;
-  cache->_funcIntList.addOwned(*funcInt) ;
-
-  // do variations
-  RooFIter lowIter(_lowSet.fwdIterator()) ;
-  RooFIter highIter(_highSet.fwdIterator()) ;
-  RooFIter paramIter(_paramSet.fwdIterator()) ;
-
-  //  int i=0;
-  i=0;
-  while(paramIter.next() ) {
-    func = (RooAbsReal*)lowIter.next() ;
+  // do variations 
+  for (auto it = _paramSet.begin(); it != _paramSet.end(); ++it)
+  {
+    auto i = it - _paramSet.begin();
+    func = static_cast<RooAbsReal *>(_lowSet.at(i));
     funcInt = func->createIntegral(analVars) ;
     cache->_lowIntList.addOwned(*funcInt) ;
 
-    func = (RooAbsReal*)highIter.next() ;
+    func = static_cast<RooAbsReal *>(_highSet.at(i));
     funcInt = func->createIntegral(analVars) ;
-    cache->_highIntList.addOwned(*funcInt) ;
-    ++i;
+    cache->_highIntList.addOwned(*funcInt);
   }
 
   // Store cache element
@@ -559,28 +535,28 @@ Int_t PiecewiseInterpolation::getAnalyticalIntegralWN(RooArgSet& allVars, RooArg
 /// Implement analytical integrations by doing appropriate weighting from  component integrals
 /// functions to integrators of components
 
-Double_t PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSet* /*normSet2*/,const char* /*rangeName*/) const
+double PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSet* /*normSet2*/,const char* /*rangeName*/) const
 {
   /*
   cout <<"Enter analytic Integral"<<endl;
   printDirty(true);
-  //  _nominal.arg().setDirtyInhibit(kTRUE) ;
+  //  _nominal.arg().setDirtyInhibit(true) ;
   _nominal.arg().setShapeDirty() ;
   RooAbsReal* temp ;
   RooFIter lowIter(_lowSet.fwdIterator()) ;
   while((temp=(RooAbsReal*)lowIter.next())) {
-    //    temp->setDirtyInhibit(kTRUE) ;
+    //    temp->setDirtyInhibit(true) ;
     temp->setShapeDirty() ;
   }
   RooFIter highIter(_highSet.fwdIterator()) ;
   while((temp=(RooAbsReal*)highIter.next())) {
-    //    temp->setDirtyInhibit(kTRUE) ;
+    //    temp->setDirtyInhibit(true) ;
     temp->setShapeDirty() ;
   }
   */
 
   /*
-  RooAbsArg::setDirtyInhibit(kTRUE);
+  RooAbsArg::setDirtyInhibit(true);
   printDirty(true);
   cout <<"done setting dirty inhibit = true"<<endl;
 
@@ -611,19 +587,19 @@ Double_t PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSe
   */
 
   /*
-  _nominal.arg().setDirtyInhibit(kFALSE) ;
+  _nominal.arg().setDirtyInhibit(false) ;
   RooFIter lowIter2(_lowSet.fwdIterator()) ;
   while((temp=(RooAbsReal*)lowIter2.next())) {
-    temp->setDirtyInhibit(kFALSE) ;
+    temp->setDirtyInhibit(false) ;
   }
   RooFIter highIter2(_highSet.fwdIterator()) ;
   while((temp=(RooAbsReal*)highIter2.next())) {
-    temp->setDirtyInhibit(kFALSE) ;
+    temp->setDirtyInhibit(false) ;
   }
   */
 
   /*
-  RooAbsArg::setDirtyInhibit(kFALSE);
+  RooAbsArg::setDirtyInhibit(false);
   printDirty(true);
   cout <<"done"<<endl;
   cout << "sum = " <<sum<<endl;
@@ -632,22 +608,20 @@ Double_t PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSe
 
   // old integral, only works for linear and not positive definite
   CacheElem* cache = (CacheElem*) _normIntMgr.getObjByIndex(code-1) ;
-  if( cache==NULL ) {
-    std::cout << "Error: Cache Element is NULL" << std::endl;
+  if( cache==nullptr ) {
+    std::cout << "Error: Cache Element is nullptr" << std::endl;
     throw std::exception();
   }
 
   // old integral, only works for linear and not positive definite
-  RooFIter funcIntIter = cache->_funcIntList.fwdIterator() ;
-  RooFIter lowIntIter = cache->_lowIntList.fwdIterator() ;
-  RooFIter highIntIter = cache->_highIntList.fwdIterator() ;
-  RooAbsReal *funcInt(0), *low(0), *high(0), *param(0) ;
-  Double_t value(0) ;
-  Double_t nominal(0);
+
+  RooAbsReal *low, *high;
+  double value(0);
+  double nominal(0);
 
   // get nominal
   int i=0;
-  while(( funcInt = (RooAbsReal*)funcIntIter.next())) {
+  for (auto funcInt : static_range_cast<RooAbsReal*>(cache->_funcIntList)) {
     value += funcInt->getVal() ;
     nominal = value;
     i++;
@@ -655,16 +629,15 @@ Double_t PiecewiseInterpolation::analyticalIntegralWN(Int_t code, const RooArgSe
   if(i==0 || i>1) { cout << "problem, wrong number of nominal functions"<<endl; }
 
   // now get low/high variations
-  i = 0;
-  RooFIter paramIter(_paramSet.fwdIterator()) ;
-
   // KC: old interp code with new iterator
-  while( (param=(RooAbsReal*)paramIter.next()) ) {
-    low = (RooAbsReal*)lowIntIter.next() ;
-    high = (RooAbsReal*)highIntIter.next() ;
-
-    if(param->getVal()>0) {
-      value += param->getVal()*(high->getVal() - nominal );
+ 
+  i = 0;
+  for (auto const *param : static_range_cast<RooAbsReal *>(_paramSet)) {
+    low = static_cast<RooAbsReal *>(cache->_lowIntList.at(i));
+    high = static_cast<RooAbsReal *>(cache->_highIntList.at(i));
+  
+    if(param->getVal() > 0) {
+      value += param->getVal()*(high->getVal() - nominal);
     } else {
       value += param->getVal()*(nominal - low->getVal());
     }
@@ -778,7 +751,7 @@ void PiecewiseInterpolation::printAllInterpCodes(){
 ////////////////////////////////////////////////////////////////////////////////
 /// WVE note: assumes nominal and alternates have identical structure, must add explicit check
 
-std::list<Double_t>* PiecewiseInterpolation::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* PiecewiseInterpolation::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   return _nominal.arg().binBoundaries(obs,xlo,xhi) ;
 }
@@ -787,7 +760,7 @@ std::list<Double_t>* PiecewiseInterpolation::binBoundaries(RooAbsRealLValue& obs
 ////////////////////////////////////////////////////////////////////////////////
 /// WVE note: assumes nominal and alternates have identical structure, must add explicit check
 
-Bool_t PiecewiseInterpolation::isBinnedDistribution(const RooArgSet& obs) const
+bool PiecewiseInterpolation::isBinnedDistribution(const RooArgSet& obs) const
 {
   return _nominal.arg().isBinnedDistribution(obs) ;
 }
@@ -796,7 +769,7 @@ Bool_t PiecewiseInterpolation::isBinnedDistribution(const RooArgSet& obs) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<Double_t>* PiecewiseInterpolation::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* PiecewiseInterpolation::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   return _nominal.arg().plotSamplingHint(obs,xlo,xhi) ;
 }
@@ -808,7 +781,7 @@ void PiecewiseInterpolation::Streamer(TBuffer &R__b)
 {
    if (R__b.IsReading()) {
       R__b.ReadClassBuffer(PiecewiseInterpolation::Class(),this);
-      specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator") ;
+      specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator") ;
       if (_interpCode.empty()) _interpCode.resize(_paramSet.getSize());
    } else {
       R__b.WriteClassBuffer(PiecewiseInterpolation::Class(),this);
@@ -828,7 +801,7 @@ void PiecewiseInterpolation::printMetaArgs(ostream& os) const
     _highIter->Reset() ;
   }
 
-  Bool_t first(kTRUE) ;
+  bool first(true) ;
 
   RooAbsArg* arg1, *arg2 ;
   if (_highSet.getSize()!=0) {
@@ -837,7 +810,7 @@ void PiecewiseInterpolation::printMetaArgs(ostream& os) const
       if (!first) {
    os << " + " ;
       } else {
-   first = kFALSE ;
+   first = false ;
       }
       arg2=(RooAbsArg*)_highIter->Next() ;
       os << arg1->GetName() << " * " << arg2->GetName() ;
@@ -849,7 +822,7 @@ void PiecewiseInterpolation::printMetaArgs(ostream& os) const
       if (!first) {
    os << " + " ;
       } else {
-   first = kFALSE ;
+   first = false ;
       }
       os << arg1->GetName() ;
     }

@@ -1,6 +1,5 @@
 #include "ntuple_test.hxx"
 
-#if __cplusplus >= 201703L
 TEST(RNTuple, ReconstructModel)
 {
    FileRaii fileGuard("test_ntuple_reconstruct.root");
@@ -21,7 +20,7 @@ TEST(RNTuple, ReconstructModel)
    RPageSourceFile source("myNTuple", fileGuard.GetPath(), RNTupleReadOptions());
    source.Attach();
 
-   auto modelReconstructed = source.GetDescriptor().GenerateModel();
+   auto modelReconstructed = source.GetSharedDescriptorGuard()->GenerateModel();
    try {
       modelReconstructed->GetDefaultEntry()->Get<float>("xyz");
       FAIL() << "invalid field name should throw";
@@ -38,7 +37,6 @@ TEST(RNTuple, ReconstructModel)
       std::variant<double, std::variant<std::string, double>>>("variant");
    EXPECT_TRUE(variant != nullptr);
 }
-#endif // __cplusplus >= 201703L
 
 TEST(RNTuple, MultipleInFile)
 {
@@ -141,6 +139,44 @@ TEST(RNTuple, WriteRead)
    EXPECT_STREQ("abc", rdKlass->s.c_str());
 }
 
+TEST(RNTuple, FileAnchor)
+{
+   FileRaii fileGuard("test_ntuple_file_anchor.root");
+
+   {
+      auto model = RNTupleModel::Create();
+      model->MakeField<int>("a", 42);
+      auto writer = RNTupleWriter::Recreate(std::move(model), "A", fileGuard.GetPath());
+      writer->Fill();
+   }
+
+   {
+      auto model = RNTupleModel::Create();
+      model->MakeField<int>("b", 137);
+      auto f = std::unique_ptr<TFile>(TFile::Open(fileGuard.GetPath().c_str(), "UPDATE"));
+      {
+         auto writer = RNTupleWriter::Append(std::move(model), "B", *f);
+         writer->Fill();
+      }
+      f->Close();
+   }
+
+   auto readerB = RNTupleReader::Open("B", fileGuard.GetPath());
+
+   auto f = std::unique_ptr<TFile>(TFile::Open(fileGuard.GetPath().c_str()));
+   auto readerA = RNTupleReader::Open(f->Get<RNTuple>("A"));
+
+   EXPECT_EQ(1U, readerA->GetNEntries());
+   EXPECT_EQ(1U, readerB->GetNEntries());
+
+   auto a = readerA->GetModel()->Get<int>("a");
+   auto b = readerB->GetModel()->Get<int>("b");
+   readerA->LoadEntry(0);
+   readerB->LoadEntry(0);
+   EXPECT_EQ(42, *a);
+   EXPECT_EQ(137, *b);
+}
+
 TEST(RNTuple, Clusters)
 {
    FileRaii fileGuard("test_ntuple_clusters.root");
@@ -236,7 +272,7 @@ TEST(RNTuple, ClusterEntries)
 
    auto ntuple = RNTupleReader::Open("ntuple", fileGuard.GetPath());
    // 100 entries / 5 entries per cluster
-   EXPECT_EQ(20, ntuple->GetDescriptor().GetNClusters());
+   EXPECT_EQ(20, ntuple->GetDescriptor()->GetNClusters());
 }
 
 TEST(RNTuple, PageSize)
@@ -257,7 +293,7 @@ TEST(RNTuple, PageSize)
    }
 
    auto ntuple = RNTupleReader::Open("ntuple", fileGuard.GetPath());
-   const auto &col0_pages = ntuple->GetDescriptor().GetClusterDescriptor(0).GetPageRange(0);
+   const auto &col0_pages = ntuple->GetDescriptor()->GetClusterDescriptor(0).GetPageRange(0);
    // 1000 column elements / 50 elements per page
    EXPECT_EQ(20, col0_pages.fPageInfos.size());
 }
@@ -338,7 +374,7 @@ TEST(RNTupleModel, FieldDescriptions)
 
    auto ntuple = RNTupleReader::Open("ntuple", fileGuard.GetPath());
    std::vector<std::string> fieldDescriptions;
-   for (auto& f: ntuple->GetDescriptor().GetTopLevelFields()) {
+   for (auto &f : ntuple->GetDescriptor()->GetTopLevelFields()) {
       fieldDescriptions.push_back(f.GetFieldDescription());
    }
    ASSERT_EQ(3, fieldDescriptions.size());
@@ -360,7 +396,7 @@ TEST(RNTupleModel, CollectionFieldDescriptions)
    }
 
    auto ntuple = RNTupleReader::Open("ntuple", fileGuard.GetPath());
-   const auto& muon_desc = *ntuple->GetDescriptor().GetTopLevelFields().begin();
+   const auto &muon_desc = *ntuple->GetDescriptor()->GetTopLevelFields().begin();
    EXPECT_EQ(std::string("muons after basic selection"), muon_desc.GetFieldDescription());
 }
 

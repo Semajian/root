@@ -1,6 +1,6 @@
 # Source this script to set up the ROOT build that this script is part of.
 #
-# Conveniently an alias like this can be defined in .bashrc:
+# Conveniently an alias like this can be defined in .bashrc or .zshrc:
 #   alias thisroot=". bin/thisroot.sh"
 #
 # This script if for the bash like shells, see thisroot.csh for csh like shells.
@@ -154,6 +154,24 @@ set_environment()
    fi
 }
 
+getTrueShellExeName() { # mklement0 https://stackoverflow.com/a/23011530/7471760
+  local trueExe nextTarget 2>/dev/null # ignore error in shells without `local`
+  # Determine the shell executable filename.
+  if [ -r "/proc/$$/cmdline" ]; then
+    trueExe=$(cut -d '' -f1 /proc/$$/cmdline) || return 1
+  else
+    trueExe=$(ps -p $$ -o comm=) || return 1
+  fi
+  # Strip a leading "-", as added e.g. by macOS for login shells.
+  [ "${trueExe#-}" = "$trueExe" ] || trueExe=${trueExe#-}
+  # Determine full executable path.
+  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] && which -p "$trueExe" || which "$trueExe")
+  # If the executable is a symlink, resolve it to its *ultimate*
+  # target.
+  while nextTarget=$(readlink "$trueExe"); do trueExe=$nextTarget; done
+  # Output the executable name only.
+  printf '%s' "$(basename "$trueExe")"
+}
 
 ### main ###
 
@@ -163,9 +181,17 @@ if [ -n "${ROOTSYS}" ] ; then
 fi
 
 
-SOURCE=${BASH_ARGV[0]}
-if [ "x$SOURCE" = "x" ]; then
-   SOURCE=${(%):-%N} # for zsh
+SHELLNAME=$(getTrueShellExeName)
+if [ "$SHELLNAME" = "bash" ]; then
+   SOURCE=${BASH_ARGV[0]}
+elif [ "x${SHELLNAME}" = "x" ]; then # in case getTrueShellExeName does not work, fall back to default
+   echo "WARNING: shell name was not found. Assuming 'bash'."
+   SOURCE=${BASH_ARGV[0]}
+elif [ "$SHELLNAME" = "zsh" ]; then
+   SOURCE=${(%):-%N}
+else # dash or ksh
+   x=$(lsof -p $$ -Fn0 2>/dev/null | tail -1); # Paul Brannan https://stackoverflow.com/a/42815001/7471760
+   SOURCE=${x#*n}
 fi
 
 
@@ -175,7 +201,7 @@ if [ "x${SOURCE}" = "x" ]; then
    elif [ -f ./thisroot.sh ]; then
       ROOTSYS=$(cd ..  > /dev/null; pwd); export ROOTSYS
    else
-      echo ERROR: must "cd where/root/is" before calling ". bin/thisroot.sh" for this version of bash!
+      echo ERROR: must "cd where/root/is" before calling ". bin/thisroot.sh" for this version of "$SHELLNAME"!
       ROOTSYS=; export ROOTSYS
       return 1
    fi

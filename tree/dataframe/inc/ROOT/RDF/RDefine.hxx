@@ -108,10 +108,12 @@ public:
       : RDefineBase(name, type, colRegister, lm, columns, variationName), fExpression(std::move(expression)),
         fLastResults(lm.GetNSlots() * RDFInternal::CacheLineStep<ret_type>()), fValues(lm.GetNSlots())
    {
+      fLoopManager->Register(this);
    }
 
    RDefine(const RDefine &) = delete;
    RDefine &operator=(const RDefine &) = delete;
+   ~RDefine() { fLoopManager->Deregister(this); }
 
    void InitSlot(TTreeReader *r, unsigned int slot) final
    {
@@ -142,7 +144,7 @@ public:
 
    void Update(unsigned int /*slot*/, const ROOT::RDF::RSampleInfo &/*id*/) final {}
 
-   const std::type_info &GetTypeId() const { return typeid(ret_type); }
+   const std::type_info &GetTypeId() const final { return typeid(ret_type); }
 
    /// Clean-up operations to be performed at the end of a task.
    void FinalizeSlot(unsigned int slot) final
@@ -157,12 +159,16 @@ public:
    /// Create clones of this Define that work with values in varied "universes".
    void MakeVariations(const std::vector<std::string> &variations) final
    {
-      // the varied defines get a copy of the callable object.
-      // TODO document this
       for (const auto &variation : variations) {
+         if (std::find(fVariationDeps.begin(), fVariationDeps.end(), variation) == fVariationDeps.end()) {
+            // this Defined quantity does not depend on this variation, so no need to create a varied RDefine
+            continue;
+         }
          if (fVariedDefines.find(variation) != fVariedDefines.end())
             continue; // we already have this variation stored
 
+         // the varied defines get a copy of the callable object.
+         // TODO document this
          auto variedDefine = std::unique_ptr<RDefineBase>(
             new RDefine(fName, fType, fExpression, fColumnNames, fColRegister, *fLoopManager, variation));
          // TODO switch to fVariedDefines.insert({variationName, std::move(variedDefine)}) when we drop gcc 5
@@ -171,7 +177,18 @@ public:
    }
 
    /// Return a clone of this Define that works with values in the variationName "universe".
-   RDefineBase &GetVariedDefine(const std::string &variationName) final { return *fVariedDefines.at(variationName); }
+   RDefineBase &GetVariedDefine(const std::string &variationName) final
+   {
+      auto it = fVariedDefines.find(variationName);
+      if (it == fVariedDefines.end()) {
+         // We don't have a varied RDefine for this variation.
+         // This means we don't depend on it and we can return ourselves, i.e. the RDefine for the nominal universe.
+         assert(std::find(fVariationDeps.begin(), fVariationDeps.end(), variationName) == fVariationDeps.end());
+         return *this;
+      }
+
+      return *(it->second);
+   }
 };
 
 } // ns RDF

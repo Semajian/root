@@ -29,7 +29,6 @@ input.
 
 #include "Riostream.h"
 
-#include "RooFit.h"
 #include "RooAbsSelfCachedPdf.h"
 #include "RooAbsReal.h"
 #include "RooMsgService.h"
@@ -79,19 +78,19 @@ void RooAbsSelfCachedPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) 
   RooDataHist& cacheHist = *cache.hist() ;
 
   // Make deep clone of self in non-caching mde and attach to dataset observables
-  RooArgSet* cloneSet = (RooArgSet*) RooArgSet(*this).snapshot(kTRUE) ;
+  RooArgSet* cloneSet = (RooArgSet*) RooArgSet(*this).snapshot(true) ;
   RooAbsSelfCachedPdf* clone2 = (RooAbsSelfCachedPdf*) cloneSet->find(GetName()) ;
-  clone2->disableCache(kTRUE) ;
+  clone2->disableCache(true) ;
   clone2->attachDataSet(cacheHist) ;
 
   // Iterator over all bins of RooDataHist and fill weights
   for (Int_t i=0 ; i<cacheHist.numEntries() ; i++) {
     const RooArgSet* obs = cacheHist.get(i) ;
-    Double_t wgt = clone2->getVal(obs) ;
+    double wgt = clone2->getVal(obs) ;
     cacheHist.set(i, wgt, 0.);
   }
 
-  cache.pdf()->setUnitNorm(kTRUE) ;
+  cache.pdf()->setUnitNorm(true) ;
 
   delete cloneSet ;
 }
@@ -131,7 +130,7 @@ RooArgSet* RooAbsSelfCachedPdf::actualParameters(const RooArgSet& nset) const
   }
 
   // Remove all given observables from server list
-  serverSet->remove(nset,kTRUE,kTRUE);
+  serverSet->remove(nset,true,true);
 
   return serverSet;
 }

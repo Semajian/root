@@ -29,10 +29,10 @@
 #include "TRootSnifferStore.h"
 #include "THttpCallArg.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <memory>
 #include <vector>
-#include <string.h>
+#include <cstring>
 
 const char *item_prop_kind = "_kind";
 const char *item_prop_more = "_more";
@@ -978,7 +978,8 @@ void TRootSniffer::ScanRoot(TRootSnifferScanRec &rec)
          chld.SetField(item_prop_kind, "ROOT.TStreamerInfoList");
          chld.SetField(item_prop_title, "List of streamer infos for binary I/O");
          chld.SetField(item_prop_hidden, "true", kFALSE);
-         chld.SetField("_after_request", "JSROOT.markAsStreamerInfo");
+         chld.SetField("_module", "hierarchy");
+         chld.SetField("_after_request", "markAsStreamerInfo");
       }
    }
 
@@ -1230,7 +1231,7 @@ Bool_t TRootSniffer::ExecuteCmd(const std::string &path, const std::string &opti
    }
 
    if (item_obj) {
-      method.Form("((%s*)%zu)->%s", item_obj->ClassName(), (size_t)item_obj, method.Data() + separ + 3);
+      method = TString::Format("((%s*)%zu)->%s", item_obj->ClassName(), (size_t)item_obj, method.Data() + separ + 3);
       if (gDebug > 2)
          Info("ExecuteCmd", "Executing %s", method.Data());
    }

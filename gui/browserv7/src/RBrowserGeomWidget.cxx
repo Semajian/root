@@ -74,7 +74,7 @@ public:
       return "../"s + fViewer.GetWindowAddr() + "/"s;
    }
 
-   bool DrawElement(std::shared_ptr<Browsable::RElement> &elem, const std::string &) override
+   bool DrawElement(std::shared_ptr<Browsable::RElement> &elem, const std::string &, bool) override
    {
       if (!elem->IsCapable(Browsable::RElement::kActGeom))
          return false;
@@ -86,6 +86,12 @@ public:
       auto vol = fObject->Get<TGeoVolume>();
       if (vol) {
          fViewer.SetGeometry(vol->GetGeoManager(), vol->GetName());
+         return true;
+      }
+
+      auto node = fObject->Get<TGeoNode>();
+      if (node) {
+         fViewer.SetGeometry(node->GetVolume()->GetGeoManager(), node->GetVolume()->GetName());
          return true;
       }
 

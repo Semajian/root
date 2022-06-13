@@ -12,6 +12,9 @@ TEST(RNTuple, TypeName) {
 
    auto field = RField<DerivedB>("derived");
    EXPECT_EQ(sizeof(DerivedB), field.GetValueSize());
+
+   EXPECT_STREQ("std::pair<std::pair<float,CustomStruct>,std::int32_t>", (ROOT::Experimental::RField<
+                 std::pair<std::pair<float,CustomStruct>,int>>::TypeName().c_str()));
 }
 
 
@@ -21,6 +24,55 @@ TEST(RNTuple, CreateField)
    EXPECT_STREQ("std::vector<std::uint32_t>", field->GetType().c_str());
    auto value = field->GenerateValue();
    field->DestroyValue(value);
+}
+
+TEST(RNTuple, StdPair)
+{
+   auto field = RField<std::pair<int64_t, float>>("pairField");
+   EXPECT_STREQ("std::pair<std::int64_t,float>", field.GetType().c_str());
+   auto otherField = RFieldBase::Create("test", "std::pair<int64_t, float>").Unwrap();
+   EXPECT_STREQ(field.GetType().c_str(), otherField->GetType().c_str());
+   EXPECT_EQ((sizeof(std::pair<int64_t, float>)), field.GetValueSize());
+   EXPECT_EQ((sizeof(std::pair<int64_t, float>)), otherField->GetValueSize());
+   EXPECT_EQ((alignof(std::pair<int64_t, float>)), field.GetAlignment());
+   EXPECT_EQ((alignof(std::pair<int64_t, float>)), otherField->GetAlignment());
+
+   auto pairPairField = RField<std::pair<std::pair<int64_t, float>,
+      std::vector<std::pair<CustomStruct, double>>>>("pairPairField");
+   EXPECT_STREQ(
+      "std::pair<std::pair<std::int64_t,float>,std::vector<std::pair<CustomStruct,double>>>",
+      pairPairField.GetType().c_str());
+
+   FileRaii fileGuard("test_ntuple_rfield_stdpair.root");
+   {
+      auto model = RNTupleModel::Create();
+      auto pair_field = model->MakeField<std::pair<double, std::string>>(
+         {"myPair", "a very cool field"}
+      );
+      auto myPair2 = RFieldBase::Create("myPair2", "std::pair<double, std::string>").Unwrap();
+      model->AddField(std::move(myPair2));
+
+      auto ntuple = RNTupleWriter::Recreate(std::move(model), "pair_ntuple", fileGuard.GetPath());
+      auto pair_field2 = ntuple->GetModel()->GetDefaultEntry()->Get<std::pair<double, std::string>>("myPair2");
+      for (int i = 0; i < 2; i++) {
+         *pair_field = {static_cast<double>(i), std::to_string(i)};
+         *pair_field2 = {static_cast<double>(i + 1), std::to_string(i + 1)};
+         ntuple->Fill();
+      }
+   }
+
+   auto ntuple = RNTupleReader::Open("pair_ntuple", fileGuard.GetPath());
+   EXPECT_EQ(2, ntuple->GetNEntries());
+
+   auto viewPair = ntuple->GetView<std::pair<double, std::string>>("myPair");
+   auto viewPair2 = ntuple->GetView<std::pair<double, std::string>>("myPair2");
+   for (auto i : ntuple->GetEntryRange()) {
+      EXPECT_EQ(static_cast<double>(i), viewPair(i).first);
+      EXPECT_EQ(std::to_string(i), viewPair(i).second);
+
+      EXPECT_EQ(static_cast<double>(i + 1), viewPair2(i).first);
+      EXPECT_EQ(std::to_string(i + 1), viewPair2(i).second);
+   }
 }
 
 TEST(RNTuple, Int64_t)
@@ -61,18 +113,6 @@ TEST(RNTuple, UInt16_t)
 
 TEST(RNTuple, UnsupportedStdTypes)
 {
-   try {
-      auto field = RFieldBase::Create("pair_field", "std::pair<int, float>").Unwrap();
-      FAIL() << "should not be able to make a std::pair field";
-   } catch (const RException& err) {
-      EXPECT_THAT(err.what(), testing::HasSubstr("pair<int,float> is not supported"));
-   }
-   try {
-      auto field = RField<std::pair<int, float>>("pair_field");
-      FAIL() << "should not be able to make a std::pair field";
-   } catch (const RException& err) {
-      EXPECT_THAT(err.what(), testing::HasSubstr("pair<int,float> is not supported"));
-   }
    try {
       auto field = RField<std::weak_ptr<int>>("myWeakPtr");
       FAIL() << "should not be able to make a std::weak_ptr field";
@@ -170,7 +210,7 @@ TEST(RNTuple, TClass)
 
 TEST(RNTuple, TClassMultipleInheritance)
 {
-   FileRaii fileGuard("test_ntuple_tclass.ntuple");
+   FileRaii fileGuard("test_ntuple_tclass_multinheritance.ntuple");
    {
       auto model = RNTupleModel::Create();
       auto fieldKlass = model->MakeField<DerivedC>("klass");
@@ -213,12 +253,39 @@ TEST(RNTuple, TClassMultipleInheritance)
    }
 }
 
+TEST(RNTuple, TClassEBO)
+{
+   // Empty base optimization is required for standard layout types (since C++11)
+   EXPECT_EQ(sizeof(TestEBO), sizeof(std::uint64_t));
+   auto field = RField<TestEBO>("klass");
+   EXPECT_EQ(sizeof(TestEBO), field.GetValueSize());
+
+   FileRaii fileGuard("test_ntuple_tclassebo.ntuple");
+   {
+      auto model = RNTupleModel::Create();
+      auto fieldKlass = model->MakeField<TestEBO>("klass");
+      RNTupleWriteOptions options;
+      auto ntuple = RNTupleWriter::Recreate(std::move(model), "f", fileGuard.GetPath(), options);
+      (*fieldKlass).u64 = 42;
+      ntuple->Fill();
+   }
+
+   {
+      auto ntuple = RNTupleReader::Open("f", fileGuard.GetPath());
+      EXPECT_EQ(1U, ntuple->GetNEntries());
+      auto idEmptyBase = ntuple->GetDescriptor()->FindFieldId("klass.:_0");
+      EXPECT_NE(idEmptyBase, ROOT::Experimental::kInvalidDescriptorId);
+      auto viewKlass = ntuple->GetView<TestEBO>("klass");
+      EXPECT_EQ(42, viewKlass(0).u64);
+   }
+}
+
 TEST(RNTuple, TClassTemplatedBase)
 {
    // For non-cxxmodules builds, cling needs to parse the header for the `SG::sgkey_t` type to be known
    gInterpreter->ProcessLine("#include \"CustomStruct.hxx\"");
 
-   FileRaii fileGuard("test_ntuple_tclass.ntuple");
+   FileRaii fileGuard("test_ntuple_tclass_templatebase.ntuple");
    {
       auto model = RNTupleModel::Create();
       auto fieldKlass = model->MakeField<PackedContainer<int>>("klass");
@@ -251,4 +318,22 @@ TEST(RNTuple, TClassTemplatedBase)
       EXPECT_EQ((std::vector<int>{static_cast<int>(i + 2),
                                   static_cast<int>(i + 3)}), viewKlass(i));
    }
+}
+
+TEST(RNTuple, Enums)
+{
+   FileRaii fileGuard("test_ntuple_enums.ntuple");
+
+   {
+      auto model = RNTupleModel::Create();
+      auto fieldKlass = model->MakeField<StructWithEnums>("klass");
+      auto ntuple = RNTupleWriter::Recreate(std::move(model), "f", fileGuard.GetPath());
+      ntuple->Fill();
+   }
+
+   auto ntuple = RNTupleReader::Open("f", fileGuard.GetPath());
+   ASSERT_EQ(1U, ntuple->GetNEntries());
+   auto viewKlass = ntuple->GetView<StructWithEnums>("klass");
+   EXPECT_EQ(42, viewKlass(0).a);
+   EXPECT_EQ(137, viewKlass(0).b);
 }

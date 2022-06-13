@@ -23,9 +23,6 @@ RooBinnedGenContext is an efficient implementation of the
 generator context specific for binned pdfs.
 **/
 
-
-#include "RooFit.h"
-
 #include "Riostream.h"
 
 
@@ -48,7 +45,7 @@ ClassImp(RooBinnedGenContext);
 
 RooBinnedGenContext::RooBinnedGenContext(const RooAbsPdf &model, const RooArgSet &vars,
                const RooDataSet *prototype, const RooArgSet* auxProto,
-               Bool_t verbose) :
+               bool verbose) :
   RooAbsGenContext(model,vars,prototype,auxProto,verbose)
 {
   cxcoutI(Generation) << "RooBinnedGenContext::ctor() setting up event special generator context for sum p.d.f. " << model.GetName()
@@ -58,9 +55,9 @@ RooBinnedGenContext::RooBinnedGenContext(const RooAbsPdf &model, const RooArgSet
   ccxcoutI(Generation) << endl ;
 
   // Constructor. Build an array of generator contexts for each product component PDF
-  _pdfSet = (RooArgSet*) RooArgSet(model).snapshot(kTRUE) ;
+  _pdfSet = (RooArgSet*) RooArgSet(model).snapshot(true) ;
   _pdf = (RooAbsPdf*) _pdfSet->find(model.GetName()) ;
-  _pdf->setOperMode(RooAbsArg::ADirty,kTRUE) ;
+  _pdf->setOperMode(RooAbsArg::ADirty,true) ;
 
   // Fix normalization set of this RooAddPdf
   if (prototype)
@@ -79,7 +76,7 @@ RooBinnedGenContext::RooBinnedGenContext(const RooAbsPdf &model, const RooArgSet
   while((var=viter.next())) {
     RooRealVar* rvar = dynamic_cast<RooRealVar*>(var) ;
     if (rvar) {
-      list<Double_t>* binb = model.binBoundaries(*rvar,rvar->getMin(),rvar->getMax()) ;
+      list<double>* binb = model.binBoundaries(*rvar,rvar->getMin(),rvar->getMax()) ;
       delete binb ;
     }
   }
@@ -88,7 +85,7 @@ RooBinnedGenContext::RooBinnedGenContext(const RooAbsPdf &model, const RooArgSet
   // Create empty RooDataHist
   _hist = new RooDataHist("genData","genData",*_vars) ;
 
-  _expectedData = kFALSE ;
+  _expectedData = false ;
 }
 
 
@@ -128,7 +125,7 @@ void RooBinnedGenContext::initGenerator(const RooArgSet &theEvent)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooBinnedGenContext::setExpectedData(Bool_t flag)
+void RooBinnedGenContext::setExpectedData(bool flag)
 {
   _expectedData = flag ;
 }
@@ -136,12 +133,12 @@ void RooBinnedGenContext::setExpectedData(Bool_t flag)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooDataSet *RooBinnedGenContext::generate(Double_t nEvt, Bool_t /*skipInit*/, Bool_t extended)
+RooDataSet *RooBinnedGenContext::generate(double nEvt, bool /*skipInit*/, bool extended)
 {
   // Scale to number of events and introduce Poisson fluctuations
   _hist->reset() ;
 
-  Double_t nEvents = nEvt ;
+  double nEvents = nEvt ;
 
   if (nEvents<=0) {
     if (!_pdf->canBeExtended()) {
@@ -159,7 +156,7 @@ RooDataSet *RooBinnedGenContext::generate(Double_t nEvt, Bool_t /*skipInit*/, Bo
   }
 
   // Sample p.d.f. distribution
-  _pdf->fillDataHist(_hist,_vars,1,kTRUE) ;
+  _pdf->fillDataHist(_hist,_vars,1,true) ;
 
   // Output container
   RooRealVar weight("weight","weight",0,1e9) ;
@@ -168,20 +165,20 @@ RooDataSet *RooBinnedGenContext::generate(Double_t nEvt, Bool_t /*skipInit*/, Bo
   RooDataSet* wudata = new RooDataSet("wu","wu",tmp,RooFit::WeightVar("weight")) ;
 
   vector<int> histOut(_hist->numEntries()) ;
-  Double_t histMax(-1) ;
+  double histMax(-1) ;
   Int_t histOutSum(0) ;
   for (int i=0 ; i<_hist->numEntries() ; i++) {
     _hist->get(i) ;
     if (_expectedData) {
 
       // Expected data, multiply p.d.f by nEvents
-      Double_t w=_hist->weight()*nEvents ;
+      double w=_hist->weight()*nEvents ;
       wudata->add(*_hist->get(),w) ;
 
     } else if (extended) {
 
       // Extended mode, set contents to Poisson(pdf*nEvents)
-      Double_t w = RooRandom::randomGenerator()->Poisson(_hist->weight()*nEvents) ;
+      double w = RooRandom::randomGenerator()->Poisson(_hist->weight()*nEvents) ;
       wudata->add(*_hist->get(),w) ;
 
     } else {
@@ -210,7 +207,7 @@ RooDataSet *RooBinnedGenContext::generate(Double_t nEvt, Bool_t /*skipInit*/, Bo
 
       Int_t ibinRand = RooRandom::randomGenerator()->Integer(_hist->numEntries()) ;
       _hist->get(ibinRand) ;
-      Double_t ranY = RooRandom::randomGenerator()->Uniform(histMax) ;
+      double ranY = RooRandom::randomGenerator()->Uniform(histMax) ;
 
       if (ranY<_hist->weight()) {
    if (wgt==1) {
@@ -254,7 +251,7 @@ void RooBinnedGenContext::generateEvent(RooArgSet&, Int_t)
 ////////////////////////////////////////////////////////////////////////////////
 /// Print the details of the context
 
-void RooBinnedGenContext::printMultiline(ostream &os, Int_t content, Bool_t verbose, TString indent) const
+void RooBinnedGenContext::printMultiline(ostream &os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsGenContext::printMultiline(os,content,verbose,indent) ;
   os << indent << "--- RooBinnedGenContext ---" << endl ;

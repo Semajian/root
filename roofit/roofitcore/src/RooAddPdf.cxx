@@ -701,8 +701,7 @@ void RooAddPdf::updateCoefficients(CacheElem& cache, const RooArgSet* nset) cons
 /// Look up projection cache and per-PDF norm sets. If a PDF doesn't have a special
 /// norm set, use the `defaultNorm`. If `defaultNorm == nullptr`, use the member
 /// _normSet.
-std::pair<const RooArgSet*, RooAddPdf::CacheElem*> RooAddPdf::getNormAndCache(const RooArgSet* defaultNorm) const {
-  const RooArgSet* nset = defaultNorm ? defaultNorm : _normSet;
+std::pair<const RooArgSet*, RooAddPdf::CacheElem*> RooAddPdf::getNormAndCache(const RooArgSet* nset) const {
 
   // Treat empty normalization set and nullptr the same way.
   if(nset && nset->empty()) nset = nullptr;
@@ -738,7 +737,7 @@ std::pair<const RooArgSet*, RooAddPdf::CacheElem*> RooAddPdf::getNormAndCache(co
 
     // If nset is STILL nullptr, print a warning.
     if (nset == nullptr) {
-       oocoutW(this, Eval) << "Evaluating RooAddPdf without a defined normalization set. This can lead to ambiguos "
+       coutW(Eval) << "Evaluating RooAddPdf without a defined normalization set. This can lead to ambiguos "
           "coefficients definition and incorrect results."
                            << " Use RooAddPdf::fixCoefNormalization(nset) to provide a normalization set for "
           "defining uniquely RooAddPdf coefficients!"
@@ -757,9 +756,9 @@ std::pair<const RooArgSet*, RooAddPdf::CacheElem*> RooAddPdf::getNormAndCache(co
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return the current value
 
-Double_t RooAddPdf::evaluate() const
+double RooAddPdf::getValV(const RooArgSet* normSet) const
 {
-  auto normAndCache = getNormAndCache();
+  auto normAndCache = getNormAndCache(normSet);
   const RooArgSet* nset = normAndCache.first;
   CacheElem* cache = normAndCache.second;
 
@@ -785,23 +784,23 @@ Double_t RooAddPdf::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute addition of PDFs in batches.
-void RooAddPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooBatchCompute::DataMap& dataMap) const
+void RooAddPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   RooBatchCompute::VarVector pdfs;
   RooBatchCompute::ArgVector coefs;
-  CacheElem* cache = getNormAndCache().second;
+  CacheElem* cache = getNormAndCache(nullptr).second;
   for (unsigned int pdfNo = 0; pdfNo < _pdfList.size(); ++pdfNo)
   {
     auto pdf = static_cast<RooAbsPdf*>(&_pdfList[pdfNo]);
     if (pdf->isSelectedComp())
     {
-      pdfs.push_back(pdf);
+      pdfs.push_back(dataMap.at(pdf));
       coefs.push_back(_coefCache[pdfNo] / (cache->_needSupNorm ?
         static_cast<RooAbsReal*>(cache->_suppNormList.at(pdfNo))->getVal() : 1) );
     }
   }
   auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
-  dispatch->compute(stream, RooBatchCompute::AddPdf, output, nEvents, dataMap, pdfs, coefs);
+  dispatch->compute(stream, RooBatchCompute::AddPdf, output, nEvents, pdfs, coefs);
 }
 
 
@@ -917,7 +916,7 @@ Int_t RooAddPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars
 ////////////////////////////////////////////////////////////////////////////////
 /// Return analytical integral defined by given scenario code
 
-Double_t RooAddPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
+double RooAddPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
 {
   // WVE needs adaptation to handle new rangeName feature
   if (code==0) {
@@ -974,7 +973,7 @@ Double_t RooAddPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, c
 /// or the sum of the components extended terms, multiplied with the fraction that
 /// is in the current range w.r.t the reference range
 
-Double_t RooAddPdf::expectedEvents(const RooArgSet* nset) const
+double RooAddPdf::expectedEvents(const RooArgSet* nset) const
 {
   double expectedTotal{0.0};
 
@@ -1078,16 +1077,16 @@ RooArgList RooAddPdf::CacheElem::containedArgs(Action)
 ////////////////////////////////////////////////////////////////////////////////
 /// Loop over components for plot sampling hints and merge them if there are multiple
 
-std::list<Double_t>* RooAddPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooAddPdf::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
-  std::unique_ptr<std::list<Double_t>> sumHint = nullptr ;
+  std::unique_ptr<std::list<double>> sumHint = nullptr ;
   bool needClean = false;
 
   // Loop over components pdf
   for (const auto arg : _pdfList) {
     auto pdf = static_cast<const RooAbsPdf*>(arg);
 
-    std::unique_ptr<std::list<Double_t>> pdfHint{pdf->plotSamplingHint(obs,xlo,xhi)} ;
+    std::unique_ptr<std::list<double>> pdfHint{pdf->plotSamplingHint(obs,xlo,xhi)} ;
 
     // Process hint
     if (pdfHint) {
@@ -1098,7 +1097,7 @@ std::list<Double_t>* RooAddPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t
 
       } else {
 
-   auto newSumHint = std::make_unique<std::list<Double_t>>(sumHint->size()+pdfHint->size());
+   auto newSumHint = std::make_unique<std::list<double>>(sumHint->size()+pdfHint->size());
 
    // Merge hints into temporary array
    merge(pdfHint->begin(),pdfHint->end(),sumHint->begin(),sumHint->end(),newSumHint->begin()) ;
@@ -1121,15 +1120,15 @@ std::list<Double_t>* RooAddPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t
 ////////////////////////////////////////////////////////////////////////////////
 /// Loop over components for plot sampling hints and merge them if there are multiple
 
-std::list<Double_t>* RooAddPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooAddPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
-  std::unique_ptr<list<Double_t>> sumBinB = nullptr ;
+  std::unique_ptr<list<double>> sumBinB = nullptr ;
   bool needClean = false;
 
   // Loop over components pdf
   for (auto arg : _pdfList) {
     auto pdf = static_cast<const RooAbsPdf *>(arg);
-    std::unique_ptr<list<Double_t>> pdfBinB{pdf->binBoundaries(obs,xlo,xhi)};
+    std::unique_ptr<list<double>> pdfBinB{pdf->binBoundaries(obs,xlo,xhi)};
 
     // Process hint
     if (pdfBinB) {
@@ -1140,7 +1139,7 @@ std::list<Double_t>* RooAddPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xl
 
       } else {
 
-   auto newSumBinB = std::make_unique<list<Double_t>>(sumBinB->size()+pdfBinB->size()) ;
+   auto newSumBinB = std::make_unique<list<double>>(sumBinB->size()+pdfBinB->size()) ;
 
    // Merge hints into temporary array
    merge(pdfBinB->begin(),pdfBinB->end(),sumBinB->begin(),sumBinB->end(),newSumBinB->begin()) ;
@@ -1186,7 +1185,7 @@ void RooAddPdf::setCacheAndTrackHints(RooArgSet& trackNodes)
   while ((aarg=aiter.next())) {
     if (aarg->canNodeBeCached()==Always) {
       trackNodes.add(*aarg) ;
-      //cout << "tracking node RooAddPdf component " << aarg->IsA()->GetName() << "::" << aarg->GetName() << endl ;
+      //cout << "tracking node RooAddPdf component " << aarg->ClassName() << "::" << aarg->GetName() << endl ;
     }
   }
 }

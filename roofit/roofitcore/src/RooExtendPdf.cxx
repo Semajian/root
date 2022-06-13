@@ -35,7 +35,6 @@ is the set of remaining dependents.
 the nominal integration range \f$ \mathrm{normRegion}[x] \f$.
 */
 
-#include "RooFit.h"
 #include "Riostream.h"
 
 #include "RooExtendPdf.h"
@@ -113,16 +112,16 @@ RooExtendPdf::~RooExtendPdf()
 /// \f$ x \f$ over the full range. `norm` is the number of events given as parameter to the constructor.
 ///
 /// If the nested PDF can be extended, \f$ N \f$ is further scaled by its expected number of events.
-Double_t RooExtendPdf::expectedEvents(const RooArgSet* nset) const
+double RooExtendPdf::expectedEvents(const RooArgSet* nset) const
 {
   const RooAbsPdf& pdf = *_pdf;
 
-  if (_rangeName && (!nset || nset->getSize()==0)) {
+  if (_rangeName && (!nset || nset->empty())) {
     coutW(InputArguments) << "RooExtendPdf::expectedEvents(" << GetName() << ") WARNING: RooExtendPdf needs non-null normalization set to calculate fraction in range "
            << _rangeName << ".  Results may be nonsensical" << endl ;
   }
 
-  Double_t nExp = _n ;
+  double nExp = _n ;
 
   // Optionally multiply with fractional normalization
   if (_rangeName) {

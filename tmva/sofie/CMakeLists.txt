@@ -21,6 +21,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTTMVASofie
    TMVA/ROperator_Conv.hxx
    TMVA/ROperator_Gemm.hxx
    TMVA/ROperator_Relu.hxx
+   TMVA/ROperator_LeakyRelu.hxx
    TMVA/ROperator_Reshape.hxx
    TMVA/ROperator_Selu.hxx
    TMVA/ROperator_Sigmoid.hxx
@@ -28,6 +29,7 @@ ROOT_STANDARD_LIBRARY_PACKAGE(ROOTTMVASofie
    TMVA/ROperator_Transpose.hxx
    TMVA/ROperator_Pool.hxx
    TMVA/SOFIE_common.hxx
+   TMVA/SOFIEHelpers.hxx
   SOURCES
     src/RModel.cxx
     src/SOFIE_common.cxx

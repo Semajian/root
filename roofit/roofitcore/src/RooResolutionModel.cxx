@@ -41,7 +41,7 @@
  *  ```
  *  function indicating which basis functions this resolution model supports, and
  *  ```
- *    Double_t evaluate(),
+ *    double evaluate(),
  *  ```
  *  which should implement the resolution model (optionally convoluted with one of the
  *  supported basis functions). RooResolutionModel objects can be used as regular
@@ -61,8 +61,6 @@
  *  during the lifetime of a RooResolutionModel object.
  *
  */
-
-#include "RooFit.h"
 
 #include "TClass.h"
 #include "TMath.h"
@@ -84,7 +82,7 @@ RooResolutionModel::RooResolutionModel(const char *name, const char *title, RooA
   RooAbsPdf(name,title),
   x("x","Dependent or convolution variable",this,_x),
   _basisCode(0), _basis(0),
-  _ownBasis(kFALSE)
+  _ownBasis(false)
 {
 
 }
@@ -98,11 +96,11 @@ RooResolutionModel::RooResolutionModel(const RooResolutionModel& other, const ch
   RooAbsPdf(other,name),
   x("x",this,other.x),
   _basisCode(other._basisCode), _basis(0),
-  _ownBasis(kFALSE)
+  _ownBasis(false)
 {
   if (other._basis) {
     _basis = (RooFormulaVar*) other._basis->Clone() ;
-    _ownBasis = kTRUE ;
+    _ownBasis = true ;
     //_basis = other._basis ;
   }
 
@@ -110,7 +108,7 @@ RooResolutionModel::RooResolutionModel(const RooResolutionModel& other, const ch
     TIterator* bsIter = _basis->serverIterator() ;
     RooAbsArg* basisServer ;
     while((basisServer = (RooAbsArg*)bsIter->Next())) {
-      addServer(*basisServer,kTRUE,kFALSE) ;
+      addServer(*basisServer,true,false) ;
     }
     delete bsIter ;
   }
@@ -208,7 +206,7 @@ void RooResolutionModel::changeBasis(RooFormulaVar* inBasis)
       delete _basis ;
     }
   }
-  _ownBasis = kFALSE ;
+  _ownBasis = false ;
 
   // Change basis pointer and update client-server link
   _basis = inBasis ;
@@ -216,7 +214,7 @@ void RooResolutionModel::changeBasis(RooFormulaVar* inBasis)
     TIterator* bsIter = _basis->serverIterator() ;
     RooAbsArg* basisServer ;
     while((basisServer = (RooAbsArg*)bsIter->Next())) {
-      addServer(*basisServer,kTRUE,kFALSE) ;
+      addServer(*basisServer,true,false) ;
     }
     delete bsIter ;
   }
@@ -246,7 +244,7 @@ const RooRealVar& RooResolutionModel::basisConvVar() const
 /// call RooAbsPdf::getValF(), otherwise return unnormalized value
 /// regardless of specified normalization set
 
-Double_t RooResolutionModel::getValV(const RooArgSet* nset) const
+double RooResolutionModel::getValV(const RooArgSet* nset) const
 {
   if (!_basis) return RooAbsPdf::getValV(nset) ;
 
@@ -270,11 +268,11 @@ Double_t RooResolutionModel::getValV(const RooArgSet* nset) const
 /// Forward redirectServers call to our basis function, which is not connected to either resolution
 /// model or the physics model.
 
-Bool_t RooResolutionModel::redirectServersHook(const RooAbsCollection& newServerList, Bool_t mustReplaceAll, Bool_t nameChange, Bool_t /*isRecursive*/)
+bool RooResolutionModel::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool /*isRecursive*/)
 {
   if (!_basis) {
     _norm = 0 ;
-    return kFALSE ;
+    return false ;
   }
 
   RooFormulaVar* newBasis = (RooFormulaVar*) newServerList.find(_basis->GetName()) ;
@@ -285,7 +283,7 @@ Bool_t RooResolutionModel::redirectServersHook(const RooAbsCollection& newServer
     }
 
     _basis = newBasis ;
-    _ownBasis = kFALSE ;
+    _ownBasis = false ;
   }
 
   _basis->redirectServers(newServerList,mustReplaceAll,nameChange) ;
@@ -298,7 +296,7 @@ Bool_t RooResolutionModel::redirectServersHook(const RooAbsCollection& newServer
 ////////////////////////////////////////////////////////////////////////////////
 /// Floating point error checking and tracing for given float value
 
-//Bool_t RooResolutionModel::traceEvalHook(Double_t value) const
+//bool RooResolutionModel::traceEvalHook(double value) const
 //{
 //  // check for a math error or negative value
 //   return TMath::IsNaN(value) ;
@@ -319,17 +317,17 @@ void RooResolutionModel::normLeafServerList(RooArgSet& list) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Return the integral of this PDF over all elements of 'nset'.
 
-Double_t RooResolutionModel::getNorm(const RooArgSet* nset) const
+double RooResolutionModel::getNorm(const RooArgSet* nset) const
 {
   if (!nset) {
     return getVal() ;
   }
 
-  syncNormalization(nset,kFALSE) ;
-  if (_verboseEval>1) cxcoutD(Tracing) << IsA()->GetName() << "::getNorm(" << GetName()
+  syncNormalization(nset,false) ;
+  if (_verboseEval>1) cxcoutD(Tracing) << ClassName() << "::getNorm(" << GetName()
                    << "): norm(" << _norm << ") = " << _norm->getVal() << endl ;
 
-  Double_t ret = _norm->getVal() ;
+  double ret = _norm->getVal() ;
   return ret ;
 }
 
@@ -342,7 +340,7 @@ Double_t RooResolutionModel::getNorm(const RooArgSet* nset) const
 ///     Shape : value, units, plot range
 ///   Verbose : default binning and print label
 
-void RooResolutionModel::printMultiline(ostream& os, Int_t content, Bool_t verbose, TString indent) const
+void RooResolutionModel::printMultiline(ostream& os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsPdf::printMultiline(os,content,verbose,indent) ;
 

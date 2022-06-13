@@ -33,29 +33,29 @@ public:
   RooAbsIntegrator* clone(const RooAbsFunc& function, const RooNumIntConfig& config) const override ;
   ~RooAdaptiveIntegratorND() override;
 
-  Bool_t checkLimits() const override;
-  Double_t integral(const Double_t *yvec=0) override ;
+  bool checkLimits() const override;
+  double integral(const double *yvec=0) override ;
 
   using RooAbsIntegrator::setLimits ;
-  Bool_t setLimits(Double_t* xmin, Double_t* xmax) override;
+  bool setLimits(double* xmin, double* xmax) override;
 
-  Bool_t canIntegrate1D() const override { return kFALSE ; }
-  Bool_t canIntegrate2D() const override { return kTRUE ; }
-  Bool_t canIntegrateND() const override { return kTRUE ; }
-  Bool_t canIntegrateOpenEnded() const override { return kFALSE ; }
+  bool canIntegrate1D() const override { return false ; }
+  bool canIntegrate2D() const override { return true ; }
+  bool canIntegrateND() const override { return true ; }
+  bool canIntegrateOpenEnded() const override { return false ; }
 
-  Bool_t setUseIntegrandLimits(Bool_t flag) override {_useIntegrandLimits = flag ; return kTRUE ; }
+  bool setUseIntegrandLimits(bool flag) override {_useIntegrandLimits = flag ; return true ; }
 
 protected:
 
   RooAdaptiveIntegratorND(const RooAdaptiveIntegratorND&) ;
 
-  Bool_t _useIntegrandLimits;  ///< If true limits of function binding are used
+  bool _useIntegrandLimits;  ///< If true limits of function binding are used
 
-  mutable Double_t* _xmin ;    ///< Lower bound in each dimension
-  mutable Double_t* _xmax ;    ///< Upper bound in each dimension
-  Double_t _epsRel ;           ///< Relative precision
-  Double_t _epsAbs ;           ///< Absolute precision
+  mutable double* _xmin ;    ///< Lower bound in each dimension
+  mutable double* _xmax ;    ///< Upper bound in each dimension
+  double _epsRel ;           ///< Relative precision
+  double _epsAbs ;           ///< Absolute precision
   Int_t    _nmax ;             ///< Max number of divisions
   Int_t    _nError ;           ///< Number of error occurrences
   Int_t    _nWarn ;            ///< Max number of warnings to be issued ;

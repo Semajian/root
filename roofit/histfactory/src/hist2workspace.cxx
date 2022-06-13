@@ -18,21 +18,14 @@
 
 #include <TROOT.h>
 
-//void topDriver(string input); // in MakeModelAndMeasurements
-//void fastDriver(string input); // in MakeModelAndMeasurementsFast
-
-//#include "RooStats/HistFactory/MakeModelAndMeasurements.h"
 #include "RooStats/HistFactory/ConfigParser.h"
 #include "RooStats/HistFactory/MakeModelAndMeasurementsFast.h"
 #include "HFMsgService.h"
 #include "hist2workspaceCommandLineOptionsHelp.h"
 
-//_____________________________batch only_____________________
-#ifndef __CINT__
-
 namespace RooStats {
   namespace HistFactory {
-    void fastDriver(std::string input) {
+    void fastDriver(std::string const& input, HistoToWorkspaceFactoryFast::Configuration const& cfg) {
 
       // Create the initial list of measurements and channels
       std::vector< HistFactory::Measurement > measurement_list;
@@ -49,7 +42,7 @@ namespace RooStats {
       for(unsigned int i = 0; i < measurement_list.size(); ++i) {
    HistFactory::Measurement measurement = measurement_list.at(i);
    measurement.CollectHistograms();
-   MakeModelAndMeasurementFast( measurement );
+   MakeModelAndMeasurementFast(measurement, cfg);
       }
 
       return;
@@ -67,10 +60,9 @@ namespace RooStats {
  * \param[in] argv pointer to arguments
  *
  * -h Help
- * -standard_form Standard xml model definitions. See MakeModelAndMeasurementFast()
- * -number_counting_form Deprecated
  * -v Switch HistFactory message stream to INFO level.
  * -vv Switch HistFactory message stream to DEBUG level.
+ * -disable_binned_fit_optimization Disable the binned fit optimization used in HistFactory since ROOT 6.28.
  */
 int main(int argc, char** argv) {
 
@@ -88,6 +80,7 @@ int main(int argc, char** argv) {
   RooMsgService::instance().getStream(2).addTopic(RooFit::HistFactory);
 
   std::string driverArg;
+  RooStats::HistFactory::HistoToWorkspaceFactoryFast::Configuration cfg{};
 
   for (int i=1; i < argc; ++i) {
     std::string input = argv[i];
@@ -109,13 +102,8 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    if (input == "-number_counting_form") {
-      std::cout << "ERROR: 'number_counting_form' is now deprecated." << std::endl;
-      return 255;
-    }
-
-    if(input == "-standard_form") {
-      driverArg = argv[++i];
+    if(input == "-disable_binned_fit_optimization") {
+      cfg.binnedFitOptimization = false;
       continue;
     }
 
@@ -123,7 +111,7 @@ int main(int argc, char** argv) {
   }
 
   try {
-    RooStats::HistFactory::fastDriver(driverArg);
+    RooStats::HistFactory::fastDriver(driverArg, cfg);
   }
   catch(const std::string &str) {
     std::cerr << "hist2workspace - Caught exception: " << str << std::endl ;
@@ -141,5 +129,3 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-
-#endif

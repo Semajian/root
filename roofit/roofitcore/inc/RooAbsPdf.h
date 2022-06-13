@@ -46,7 +46,7 @@ public:
   // Constructors, assignment etc
   RooAbsPdf() ;
   RooAbsPdf(const char *name, const char *title=0) ;
-  RooAbsPdf(const char *name, const char *title, Double_t minVal, Double_t maxVal) ;
+  RooAbsPdf(const char *name, const char *title, double minVal, double maxVal) ;
   // RooAbsPdf(const RooAbsPdf& other, const char* name=0);
   ~RooAbsPdf() override;
 
@@ -66,19 +66,19 @@ public:
                        const RooCmdArg& arg1=RooCmdArg::none(),const RooCmdArg& arg2=RooCmdArg::none(),
                        const RooCmdArg& arg3=RooCmdArg::none(),const RooCmdArg& arg4=RooCmdArg::none(),
                        const RooCmdArg& arg5=RooCmdArg::none(),const RooCmdArg& arg6=RooCmdArg::none()) ;
-  RooDataSet *generate(const RooArgSet &whatVars, Double_t nEvents = 0, Bool_t verbose=kFALSE, Bool_t autoBinned=kTRUE,
-             const char* binnedTag="", Bool_t expectedData=kFALSE, Bool_t extended = kFALSE) const;
+  RooDataSet *generate(const RooArgSet &whatVars, double nEvents = 0, bool verbose=false, bool autoBinned=true,
+             const char* binnedTag="", bool expectedData=false, bool extended = false) const;
   RooDataSet *generate(const RooArgSet &whatVars, const RooDataSet &prototype, Int_t nEvents= 0,
-             Bool_t verbose=kFALSE, Bool_t randProtoOrder=kFALSE, Bool_t resampleProto=kFALSE) const;
+             bool verbose=false, bool randProtoOrder=false, bool resampleProto=false) const;
 
 
   class GenSpec {
   public:
     virtual ~GenSpec() ;
-    GenSpec() { _genContext = 0 ; _protoData = 0 ; _init = kFALSE ; _extended=kFALSE, _nGen=0 ; _randProto = kFALSE ; _resampleProto=kFALSE ; }
+    GenSpec() { _genContext = 0 ; _protoData = 0 ; _init = false ; _extended=false, _nGen=0 ; _randProto = false ; _resampleProto=false ; }
   private:
-    GenSpec(RooAbsGenContext* context, const RooArgSet& whatVars, RooDataSet* protoData, Int_t nGen, Bool_t extended,
-       Bool_t randProto, Bool_t resampleProto, TString dsetName, Bool_t init=kFALSE) ;
+    GenSpec(RooAbsGenContext* context, const RooArgSet& whatVars, RooDataSet* protoData, Int_t nGen, bool extended,
+       bool randProto, bool resampleProto, TString dsetName, bool init=false) ;
     GenSpec(const GenSpec& other) ;
 
     friend class RooAbsPdf ;
@@ -86,11 +86,11 @@ public:
     RooArgSet _whatVars ;
     RooDataSet* _protoData ;
     Int_t _nGen ;
-    Bool_t _extended ;
-    Bool_t _randProto ;
-    Bool_t _resampleProto ;
+    bool _extended ;
+    bool _randProto ;
+    bool _resampleProto ;
     TString _dsetName ;
-    Bool_t _init ;
+    bool _init ;
 
     ClassDef(GenSpec,0) // Generation specification
   } ;
@@ -109,7 +109,7 @@ public:
   /// \param[in] whatVars set
   /// \param[in] nEvents How many events to generate
   /// \param arg1,arg2,arg3,arg4,arg5 ordered arguments
-  virtual RooDataHist *generateBinned(const RooArgSet &whatVars, Double_t nEvents, const RooCmdArg& arg1,
+  virtual RooDataHist *generateBinned(const RooArgSet &whatVars, double nEvents, const RooCmdArg& arg1,
                const RooCmdArg& arg2=RooCmdArg::none(), const RooCmdArg& arg3=RooCmdArg::none(),
                const RooCmdArg& arg4=RooCmdArg::none(), const RooCmdArg& arg5=RooCmdArg::none()) const {
     return generateBinned(whatVars,RooFit::NumEvents(nEvents),arg1,arg2,arg3,arg4,arg5);
@@ -118,7 +118,7 @@ public:
                const RooCmdArg& arg1=RooCmdArg::none(),const RooCmdArg& arg2=RooCmdArg::none(),
                const RooCmdArg& arg3=RooCmdArg::none(),const RooCmdArg& arg4=RooCmdArg::none(),
                const RooCmdArg& arg5=RooCmdArg::none(),const RooCmdArg& arg6=RooCmdArg::none()) const;
-  virtual RooDataHist *generateBinned(const RooArgSet &whatVars, Double_t nEvents, Bool_t expectedData=kFALSE, Bool_t extended=kFALSE) const;
+  virtual RooDataHist *generateBinned(const RooArgSet &whatVars, double nEvents, bool expectedData=false, bool extended=false) const;
 
   virtual RooDataSet* generateSimGlobal(const RooArgSet& whatVars, Int_t nEvents) ;
 
@@ -142,20 +142,20 @@ public:
                            const RooCmdArg& arg7=RooCmdArg::none(), const RooCmdArg& arg8=RooCmdArg::none()) ;
 
   virtual RooPlot* paramOn(RooPlot* frame, const RooAbsData* data, const char *label= "", Int_t sigDigits = 2,
-            Option_t *options = "NELU", Double_t xmin=0.65,
-            Double_t xmax = 0.9, Double_t ymax = 0.9) ;
+            Option_t *options = "NELU", double xmin=0.65,
+            double xmax = 0.9, double ymax = 0.9) ;
 
   // Built-in generator support
-  virtual Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK=kTRUE) const;
+  virtual Int_t getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK=true) const;
   virtual void initGenerator(Int_t code) ;
   virtual void generateEvent(Int_t code);
-  virtual Bool_t isDirectGenSafe(const RooAbsArg& arg) const ;
+  virtual bool isDirectGenSafe(const RooAbsArg& arg) const ;
 
   // Configuration of MC generators used for this pdf
   const RooNumGenConfig* getGeneratorConfig() const ;
   static RooNumGenConfig* defaultGeneratorConfig()  ;
   RooNumGenConfig* specialGeneratorConfig() const ;
-  RooNumGenConfig* specialGeneratorConfig(Bool_t createOnTheFly) ;
+  RooNumGenConfig* specialGeneratorConfig(bool createOnTheFly) ;
   void setGeneratorConfig() ;
   void setGeneratorConfig(const RooNumGenConfig& config) ;
 
@@ -208,11 +208,11 @@ public:
 
 
   // Constraint management
-  virtual RooArgSet* getConstraints(const RooArgSet& /*observables*/, RooArgSet& /*constrainedParams*/, Bool_t /*stripDisconnected*/) const {
+  virtual RooArgSet* getConstraints(const RooArgSet& /*observables*/, RooArgSet& /*constrainedParams*/, bool /*stripDisconnected*/) const {
     // Interface to retrieve constraint terms on this pdf. Default implementation returns null
     return 0 ;
   }
-  virtual RooArgSet* getAllConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected=kTRUE) const ;
+  virtual RooArgSet* getAllConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, bool stripDisconnected=true) const ;
 
   // Project p.d.f into lower dimensional p.d.f
   virtual RooAbsPdf* createProjection(const RooArgSet& iset) ;
@@ -226,8 +226,8 @@ public:
   RooAbsReal* createScanCdf(const RooArgSet& iset, const RooArgSet& nset, Int_t numScanBins, Int_t intOrder) ;
 
   // Function evaluation support
-  Double_t getValV(const RooArgSet* set=0) const override ;
-  virtual Double_t getLogVal(const RooArgSet* set=0) const ;
+  double getValV(const RooArgSet* set=0) const override ;
+  virtual double getLogVal(const RooArgSet* set=0) const ;
 
   RooSpan<const double> getValues(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const override;
   using RooAbsReal::getValues;
@@ -236,33 +236,21 @@ public:
   RooSpan<const double> getLogProbabilities(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet = nullptr) const;
   void getLogProbabilities(RooSpan<const double> pdfValues, double * output) const;
 
-  void computeBatch(cudaStream_t*, double* output, size_t size, RooBatchCompute::DataMap&) const override;
-
   /// \copydoc getNorm(const RooArgSet*) const
-  Double_t getNorm(const RooArgSet& nset) const {
+  double getNorm(const RooArgSet& nset) const {
     return getNorm(&nset) ;
   }
-  virtual Double_t getNorm(const RooArgSet* set=0) const ;
-  inline RooAbsReal* getIntegral(RooArgSet const& set) const {
-    syncNormalization(&set,true) ;
-    getVal(set);
-    assert(_norm != nullptr);
-    return _norm;
-  }
-  const RooAbsReal* getCachedLastIntegral() const {
-    return _norm;
-  }
-
+  virtual double getNorm(const RooArgSet* set=0) const ;
 
   virtual void resetErrorCounters(Int_t resetValue=10) ;
-  void setTraceCounter(Int_t value, Bool_t allNodes=kFALSE) ;
+  void setTraceCounter(Int_t value, bool allNodes=false) ;
 
-  Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
+  double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
 
   /// Shows if a PDF is self-normalized, which means that no attempt is made to add a normalization term.
   /// Always returns false, unless a PDF overrides this function.
-  virtual Bool_t selfNormalized() const {
-    return kFALSE ;
+  virtual bool selfNormalized() const {
+    return false ;
   }
 
   // Support for extended maximum likelihood, switched off by default
@@ -272,16 +260,16 @@ public:
   /// This default implementation always returns CanNotBeExtended.
   virtual ExtendMode extendMode() const { return CanNotBeExtended; }
   /// If true, PDF can provide extended likelihood term.
-  inline Bool_t canBeExtended() const {
+  inline bool canBeExtended() const {
     return (extendMode() != CanNotBeExtended) ;
   }
   /// If true PDF must provide extended likelihood term.
-  inline Bool_t mustBeExtended() const {
+  inline bool mustBeExtended() const {
     return (extendMode() == MustBeExtended) ;
   }
   /// Return expected number of events to be used in calculation of extended
   /// likelihood.
-  virtual Double_t expectedEvents(const RooArgSet* nset) const ;
+  virtual double expectedEvents(const RooArgSet* nset) const ;
   /// Return expected number of events to be used in calculation of extended
   /// likelihood. This function should not be overridden, as it just redirects
   /// to the actual virtual function but takes a RooArgSet reference instead of
@@ -292,12 +280,13 @@ public:
 
   // Printing interface (human readable)
   void printValue(std::ostream& os) const override ;
-  void printMultiline(std::ostream& os, Int_t contents, Bool_t verbose=kFALSE, TString indent="") const override ;
+  void printMultiline(std::ostream& os, Int_t contents, bool verbose=false, TString indent="") const override ;
 
   static void verboseEval(Int_t stat) ;
   static int verboseEval() ;
 
-  double extendedTerm(double observedEvents, const RooArgSet* nset=0) const;
+  double extendedTerm(double sumEntries, double expected, double sumEntriesW2=0.0) const;
+  double extendedTerm(double sumEntries, RooArgSet const* nset, double sumEntriesW2=0.0) const;
   double extendedTerm(RooAbsData const& data, bool weightSquared) const;
 
   void setNormRange(const char* rangeName) ;
@@ -310,27 +299,27 @@ public:
 
   virtual const RooAbsReal* getNormObj(const RooArgSet* set, const RooArgSet* iset, const TNamed* rangeName=0) const ;
 
-  virtual RooAbsGenContext* binnedGenContext(const RooArgSet &vars, Bool_t verbose= kFALSE) const ;
+  virtual RooAbsGenContext* binnedGenContext(const RooArgSet &vars, bool verbose= false) const ;
 
   virtual RooAbsGenContext* genContext(const RooArgSet &vars, const RooDataSet *prototype=0,
-                                  const RooArgSet* auxProto=0, Bool_t verbose= kFALSE) const ;
+                                  const RooArgSet* auxProto=0, bool verbose= false) const ;
 
   virtual RooAbsGenContext* autoGenContext(const RooArgSet &vars, const RooDataSet* prototype=0, const RooArgSet* auxProto=0,
-                  Bool_t verbose=kFALSE, Bool_t autoBinned=kTRUE, const char* binnedTag="") const ;
+                  bool verbose=false, bool autoBinned=true, const char* binnedTag="") const ;
 
 private:
 
   RooDataSet *generate(RooAbsGenContext& context, const RooArgSet& whatVars, const RooDataSet* prototype,
-             Double_t nEvents, Bool_t verbose, Bool_t randProtoOrder, Bool_t resampleProto, Bool_t skipInit=kFALSE,
-             Bool_t extended=kFALSE) const ;
+             double nEvents, bool verbose, bool randProtoOrder, bool resampleProto, bool skipInit=false,
+             bool extended=false) const ;
 
   // Implementation version
-  virtual RooPlot* paramOn(RooPlot* frame, const RooArgSet& params, Bool_t showConstants=kFALSE,
-                           const char *label= "", Int_t sigDigits = 2, Option_t *options = "NELU", Double_t xmin=0.65,
-            Double_t xmax= 0.99,Double_t ymax=0.95, const RooCmdArg* formatCmd=0) ;
+  virtual RooPlot* paramOn(RooPlot* frame, const RooArgSet& params, bool showConstants=false,
+                           const char *label= "", Int_t sigDigits = 2, Option_t *options = "NELU", double xmin=0.65,
+            double xmax= 0.99,double ymax=0.95, const RooCmdArg* formatCmd=0) ;
 
   void logBatchComputationErrors(RooSpan<const double>& outputs, std::size_t begin) const;
-  Bool_t traceEvalPdf(Double_t value) const;
+  bool traceEvalPdf(double value) const;
 
 
 protected:
@@ -349,7 +338,7 @@ protected:
   friend class RooProdPdf ;
   friend class RooMCStudy ;
 
-  Int_t* randomizeProtoOrder(Int_t nProto,Int_t nGen,Bool_t resample=kFALSE) const ;
+  Int_t* randomizeProtoOrder(Int_t nProto,Int_t nGen,bool resample=false) const ;
 
   friend class RooExtendPdf ;
   // This also forces the definition of a copy ctor in derived classes
@@ -358,10 +347,10 @@ protected:
   friend class RooRealIntegral ;
   static Int_t _verboseEval ;
 
-  virtual Bool_t syncNormalization(const RooArgSet* dset, Bool_t adjustProxies=kTRUE) const ;
+  virtual bool syncNormalization(const RooArgSet* dset, bool adjustProxies=true) const ;
 
   friend class RooAbsAnaConvPdf ;
-  mutable Double_t _rawValue ;
+  mutable double _rawValue ;
   mutable RooAbsReal* _norm = nullptr; //! Normalization integral (owned by _normMgr)
   mutable RooArgSet const* _normSet = nullptr; //! Normalization set with for above integral
   inline const RooArgSet* getNormSet() { return _normSet; }
@@ -377,7 +366,7 @@ protected:
 
   friend class CacheElem ; // Cache needs to be able to clear _norm pointer
 
-  Bool_t redirectServersHook(const RooAbsCollection&, Bool_t, Bool_t, Bool_t) override {
+  bool redirectServersHook(const RooAbsCollection&, bool, bool, bool) override {
     // Hook function intercepting redirectServer calls. Discard current normalization
     // object if any server is redirected
 
@@ -397,7 +386,7 @@ protected:
   mutable Int_t _traceCount ;        ///< Number of traces remaining to print
   mutable Int_t _negCount ;          ///< Number of negative probablities remaining to print
 
-  Bool_t _selectComp ;               ///< Component selection flag for RooAbsPdf::plotCompOn
+  bool _selectComp ;               ///< Component selection flag for RooAbsPdf::plotCompOn
 
   RooNumGenConfig* _specGeneratorConfig ; ///<! MC generator configuration specific for this object
 
@@ -406,7 +395,7 @@ protected:
 
 private:
   int calcAsymptoticCorrectedCovariance(RooMinimizer& minimizer, RooAbsData const& data);
-  int calcSumW2CorrectedCovariance(RooMinimizer& minimizer, RooAbsReal const& nll) const;
+  int calcSumW2CorrectedCovariance(RooMinimizer& minimizer, RooAbsReal & nll) const;
 
   ClassDefOverride(RooAbsPdf,5) // Abstract PDF with normalization support
 };

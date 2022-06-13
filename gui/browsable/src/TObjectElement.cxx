@@ -299,12 +299,27 @@ TObjectElement::TObjectElement(std::unique_ptr<RHolder> &obj, const std::string 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Check if object still exists
+
+bool TObjectElement::CheckObject() const
+{
+   if (!fObj) return false;
+   if (fObj->IsZombie()) {
+      auto self = const_cast<TObjectElement *>(this);
+      self->fObj = nullptr;
+      return false;
+   }
+   return true;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 /// Returns name of the TObject
 
 std::string TObjectElement::GetName() const
 {
    if (!fName.empty()) return fName;
-   return fObj ? fObj->GetName() : "";
+   return CheckObject() ? fObj->GetName() : "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -312,7 +327,7 @@ std::string TObjectElement::GetName() const
 
 std::string TObjectElement::GetTitle() const
 {
-   return fObj ? fObj->GetTitle() : "";
+   return CheckObject() ? fObj->GetTitle() : "";
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -320,7 +335,7 @@ std::string TObjectElement::GetTitle() const
 
 bool TObjectElement::IsFolder() const
 {
-   return fObj ? fObj->IsFolder() : false;
+   return CheckObject() ? fObj->IsFolder() : false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -341,7 +356,7 @@ std::unique_ptr<RLevelIter> TObjectElement::GetChildsIter()
 
    auto dupl = imp->IsDuplicated();
 
-   delete br; // also will destroy implementaion
+   delete br; // also will destroy implementation
 
    if (dupl || (iter->NumElements() == 0)) return nullptr;
 
@@ -360,13 +375,20 @@ std::unique_ptr<RHolder> TObjectElement::GetObject()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns true if holding specified object
+
+bool TObjectElement::IsObject(void *obj)
+{
+   return fObject && (fObject->get_object<TObject>() == obj);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Returns class for contained object
 
 const TClass *TObjectElement::GetClass() const
 {
-   return fObj ? fObj->IsA() : nullptr;
+   return CheckObject() ? fObj->IsA() : nullptr;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Provides default action which can be performed with the object
@@ -375,8 +397,9 @@ RElement::EActionKind TObjectElement::GetDefaultAction() const
 {
    auto cl = GetClass();
    if (!cl) return kActNone;
-   if ("TCanvas"s == cl->GetName()) return kActCanvas;
-   if (("TGeoManager"s == cl->GetName()) || ("TGeoVolume"s == cl->GetName())) return kActGeom;
+   std::string clname = cl->GetName();
+   if ("TCanvas"s == clname) return kActCanvas;
+   if (("TGeoManager"s == cl->GetName()) || ("TGeoVolume"s == cl->GetName()) || (clname.compare(0, 8, "TGeoNode"s) == 0)) return kActGeom;
    if (RProvider::CanDraw6(cl)) return kActDraw6;
    if (RProvider::CanDraw7(cl)) return kActDraw7;
    if (RProvider::CanHaveChilds(cl)) return kActBrowse;
@@ -391,14 +414,16 @@ bool TObjectElement::IsCapable(RElement::EActionKind action) const
    auto cl = GetClass();
    if (!cl) return false;
 
+   std::string clname = cl->GetName();
+
    switch(action) {
       case kActBrowse: return RProvider::CanHaveChilds(cl);
       case kActEdit: return true;
       case kActImage:
       case kActDraw6: return RProvider::CanDraw6(cl); // if can draw in TCanvas, can produce image
       case kActDraw7: return RProvider::CanDraw7(cl);
-      case kActCanvas: return "TCanvas"s == cl->GetName();
-      case kActGeom: return ("TGeoManager"s == cl->GetName()) || ("TGeoVolume"s == cl->GetName());
+      case kActCanvas: return "TCanvas"s == clname;
+      case kActGeom: return ("TGeoManager"s == clname) || ("TGeoVolume"s == clname) || (clname.compare(0, 8, "TGeoNode"s) == 0);
       default: return false;
    }
 

@@ -18,10 +18,9 @@
 #include <RooFit/TestStatistics/RooAbsL.h>
 #include <RooFit/TestStatistics/LikelihoodWrapper.h>
 #include <RooFit/TestStatistics/LikelihoodGradientWrapper.h>
-#include "RooAbsMinimizerFcn.h"
+#include "../RooAbsMinimizerFcn.h"
 
 #include <Fit/ParameterSettings.h>
-#include <Fit/Fitter.h>
 #include "Math/IFunction.h" // ROOT::Math::IMultiGradFunction
 
 // forward declaration
@@ -40,16 +39,19 @@ public:
    inline ROOT::Math::IMultiGradFunction *Clone() const override { return new MinuitFcnGrad(*this); }
 
    /// Overridden from RooAbsMinimizerFcn to include gradient strategy synchronization.
-   Bool_t Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameter_settings, Bool_t optConst,
-                      Bool_t verbose = kFALSE) override;
+   bool Synchronize(std::vector<ROOT::Fit::ParameterSettings> &parameter_settings, bool optConst,
+                      bool verbose = false) override;
 
    // used inside Minuit:
    inline bool returnsInMinuit2ParameterSpace() const override { return gradient->usesMinuitInternalValues(); }
 
-   inline void setOptimizeConstOnFunction(RooAbsArg::ConstOpCode opcode, Bool_t doAlsoTrackingOpt) override
+   inline void setOptimizeConstOnFunction(RooAbsArg::ConstOpCode opcode, bool doAlsoTrackingOpt) override
    {
       likelihood->constOptimizeTestStatistic(opcode, doAlsoTrackingOpt);
    }
+
+   bool fit(ROOT::Fit::Fitter& fitter) const override { return fitter.FitFCN(*this); };
+   ROOT::Math::IMultiGenFunction* getMultiGenFcn() override { return this; };
 
 private:
    /// IMultiGradFunction override necessary for Minuit
@@ -68,7 +70,7 @@ public:
 
    inline std::string getFunctionTitle() const override { return likelihood->GetTitle(); }
 
-   inline void setOffsetting(Bool_t flag) override { likelihood->enableOffsetting(flag); }
+   inline void setOffsetting(bool flag) override { likelihood->enableOffsetting(flag); }
 
 private:
    /// This override should not be used in this class, so it throws.

@@ -457,8 +457,9 @@ public:
    TGLBFrameElement(TGFrame *f, TGLayoutHints *l) : TGFrameElement(f, l) {}
    virtual ~TGLBFrameElement() {}
 
-   Bool_t IsSortable() const { return kTRUE; }
-   Int_t  Compare(const TObject *obj) const {
+   Bool_t IsSortable() const override { return kTRUE; }
+   Int_t  Compare(const TObject *obj) const override
+   {
       if (!fFrame->InheritsFrom(TGTextLBEntry::Class())) {
          return 0;
       }
@@ -1608,7 +1609,7 @@ Bool_t TGListBox::ProcessMessage(Longptr_t msg, Longptr_t parm1, Longptr_t)
 
 void TGListBox::Selected(Int_t widgetId, Int_t id)
 {
-   Long_t args[2];
+   Longptr_t args[2];
 
    args[0] = widgetId;
    args[1] = id;
@@ -1621,7 +1622,7 @@ void TGListBox::Selected(Int_t widgetId, Int_t id)
 
 void TGListBox::DoubleClicked(Int_t widgetId, Int_t id)
 {
-   Long_t args[2];
+   Longptr_t args[2];
 
    args[0] = widgetId;
    args[1] = id;

@@ -41,7 +41,7 @@ RooHistConstraint::RooHistConstraint(const char *name, const char *title,
   RooAbsPdf(name,title),
   _gamma("gamma","gamma",this),
   _nominal("nominal","nominal",this),
-  _relParam(kTRUE)
+  _relParam(true)
 {
   // Implementing constraint on sum of RooParamHists
   //
@@ -127,7 +127,7 @@ RooHistConstraint::RooHistConstraint(const char *name, const char *title,
   RooArgSet allVars ;
   for (Int_t i=0 ; i<nbins ; i++) {
 
-    Double_t sumVal(0) ;
+    double sumVal(0) ;
     for (const auto phfunc : phvec) {
       sumVal += phfunc->getNominal(i);
     }
@@ -137,28 +137,28 @@ RooHistConstraint::RooHistConstraint(const char *name, const char *title,
       const char* vname = Form("%s_nominal_bin_%i",GetName(),i) ;
       RooRealVar* var = new RooRealVar(vname,vname,0,1000) ;
 
-      Double_t sumVal2(0) ;
+      double sumVal2(0) ;
       for (vector<RooParamHistFunc*>::iterator iter = phvec.begin() ; iter != phvec.end() ; ++iter) {
         sumVal2 += (*iter)->getNominal(i) ;
       }
       var->setVal(sumVal2) ;
-      var->setConstant(kTRUE) ;
+      var->setConstant(true) ;
 
       vname = Form("%s_nominal_error_bin_%i",GetName(),i) ;
       RooRealVar* vare = new RooRealVar(vname,vname,0,1000) ;
 
-      Double_t sumErr2(0) ;
+      double sumErr2(0) ;
       for (vector<RooParamHistFunc*>::iterator iter = phvec.begin() ; iter != phvec.end() ; ++iter) {
         sumErr2 += pow((*iter)->getNominalError(i),2) ;
       }
       vare->setVal(sqrt(sumErr2)) ;
-      vare->setConstant(kTRUE) ;
+      vare->setConstant(true) ;
 
       allVars.add(RooArgSet(*var,*vare)) ;
       _nominal.add(*var) ;
       //      _nominalErr.add(*vare) ;
 
-      ((RooRealVar*)_gamma.at(i))->setConstant(kFALSE) ;
+      ((RooRealVar*)_gamma.at(i))->setConstant(false) ;
 
     }
   }
@@ -177,7 +177,7 @@ RooHistConstraint::RooHistConstraint(const char *name, const char *title,
 
 ////////////////////////////////////////////////////////////////////////////////
 
- Double_t RooHistConstraint::evaluate() const
+ double RooHistConstraint::evaluate() const
  {
    double prod(1);
 
@@ -198,7 +198,7 @@ RooHistConstraint::RooHistConstraint(const char *name, const char *title,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Double_t RooHistConstraint::getLogVal(const RooArgSet* /*set*/) const
+double RooHistConstraint::getLogVal(const RooArgSet* /*set*/) const
 {
    double sum = 0.;
    for (unsigned int i=0; i < _nominal.size(); ++i) {

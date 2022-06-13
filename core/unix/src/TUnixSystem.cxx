@@ -328,7 +328,7 @@ struct TUtmpContent {
          fclose(utmp);
 
       free(fUtmpContents);
-      fUtmpContents = 0;
+      fUtmpContents = nullptr;
       return 0;
    }
 
@@ -649,17 +649,13 @@ void TUnixSystem::SetDisplay()
          STRUCT_UTMP *utmp_entry = utmp.SearchUtmpEntry(tty);
          if (utmp_entry) {
             if (utmp_entry->ut_host[0]) {
-               if (strchr(utmp_entry->ut_host, ':')) {
-                  Setenv("DISPLAY", utmp_entry->ut_host);
-                  Warning("SetDisplay", "DISPLAY not set, setting it to %s",
-                          utmp_entry->ut_host);
-               } else {
-                  char disp[260];
-                  snprintf(disp, sizeof(disp), "%s:0.0", utmp_entry->ut_host);
-                  Setenv("DISPLAY", disp);
-                  Warning("SetDisplay", "DISPLAY not set, setting it to %s",
-                          disp);
-               }
+               TString disp;
+               for (unsigned n = 0; (n < sizeof(utmp_entry->ut_host)) && utmp_entry->ut_host[n]; n++)
+                  disp.Append(utmp_entry->ut_host[n]);
+               if (disp.First(':') == kNPOS)
+                  disp.Append(":0.0");
+               Setenv("DISPLAY", disp.Data());
+               Warning("SetDisplay", "DISPLAY not set, setting it to %s", disp.Data());
             }
 #ifndef UTMP_NO_ADDR
             else if (utmp_entry->ut_addr) {
@@ -1162,7 +1158,7 @@ Int_t TUnixSystem::Select(TList *act, Long_t to)
    TFdSet rd, wr;
    Int_t mxfd = -1;
    TIter next(act);
-   TFileHandler *h = 0;
+   TFileHandler *h = nullptr;
    while ((h = (TFileHandler *) next())) {
       Int_t fd = h->GetFd();
       if (fd > -1) {
@@ -1768,15 +1764,15 @@ needshell:
             *q++ = *p++;
          *q = '\0';
          hd = UnixHomedirectory(name);
-         if (hd == 0)
+         if (!hd)
             cmd += stuffedPat;
          else {
             cmd += hd;
             cmd += p;
          }
       } else {
-         hd = UnixHomedirectory(0);
-         if (hd == 0) {
+         hd = UnixHomedirectory(nullptr);
+         if (!hd) {
             GetLastErrorString() = GetError();
             return kTRUE;
          }
@@ -4545,10 +4541,39 @@ int TUnixSystem::UnixSend(int sock, const void *buffer, int length, int flag)
 ////////////////////////////////////////////////////////////////////////////////
 /// Get shared library search path. Static utility function.
 
-static const char *DynamicPath(const char *newpath = 0, Bool_t reset = kFALSE)
+static const char *DynamicPath(const char *newpath = nullptr, Bool_t reset = kFALSE)
 {
-   static TString dynpath;
-   static Bool_t initialized = kFALSE;
+   static TString dynpath_full;
+   static std::atomic<bool> initialized(kFALSE);
+   static std::atomic<bool> seenCling(kFALSE);
+
+   // If we have not seen Cling but the result has been initialized and gCling
+   // is still nullptr, the result won't change.
+   if (newpath == nullptr && !reset && (seenCling || (initialized && gCling == nullptr)))
+      return dynpath_full;
+
+   R__LOCKGUARD2(gSystemMutex);
+
+   if (newpath) {
+      dynpath_full = newpath;
+      // Don't erase the user given path at the next call.
+      initialized = kTRUE;
+      // We do not (otherwise) record whether the path was set automatically or
+      // whether it was set explicitly by the user. If the user set the path
+      // explicitly, we should never automatically over-ride the value; if
+      // seenCling stayed false, it would tell this routine that at the next
+      // call it should update the value (to insert the Cling provided parts)
+      // back to the default.
+      seenCling = kTRUE;
+      return dynpath_full;
+   }
+
+   // Another thread might have updated this. Even-though this is executed at the
+   // start of the process, we might get there if the user is explicitly
+   // 'resetting' the value.
+   if (!reset && (seenCling || (initialized && gCling == nullptr)))
+      return dynpath_full;
+
    if (!initialized) {
       // force one time initialization of gROOT before we start
       // (otherwise it might be done as a side effect of gEnv->GetValue and
@@ -4556,20 +4581,21 @@ static const char *DynamicPath(const char *newpath = 0, Bool_t reset = kFALSE)
       gROOT;
    }
 
-   if (newpath) {
-      dynpath = newpath;
-   } else if (reset || !initialized) {
-      initialized = kTRUE;
-      dynpath = gSystem->Getenv("ROOT_LIBRARY_PATH");
+   static TString dynpath_envpart;
+   static TString dynpath_syspart;
+
+   if (reset || !initialized) {
+
+      dynpath_envpart = gSystem->Getenv("ROOT_LIBRARY_PATH");
       TString rdynpath = gEnv->GetValue("Root.DynamicPath", (char*)0);
       rdynpath.ReplaceAll(": ", ":");  // in case DynamicPath was extended
       if (rdynpath.IsNull()) {
          rdynpath = ".:"; rdynpath += TROOT::GetLibDir();
       }
       TString ldpath;
-#if defined (R__AIX)
+   #if defined (R__AIX)
       ldpath = gSystem->Getenv("LIBPATH");
-#elif defined(R__MACOSX)
+   #elif defined(R__MACOSX)
       ldpath = gSystem->Getenv("DYLD_LIBRARY_PATH");
       if (!ldpath.IsNull())
          ldpath += ":";
@@ -4577,32 +4603,28 @@ static const char *DynamicPath(const char *newpath = 0, Bool_t reset = kFALSE)
       if (!ldpath.IsNull())
          ldpath += ":";
       ldpath += gSystem->Getenv("DYLD_FALLBACK_LIBRARY_PATH");
-#else
+   #else
       ldpath = gSystem->Getenv("LD_LIBRARY_PATH");
-#endif
+   #endif
       if (!ldpath.IsNull()) {
-         if (!dynpath.IsNull())
-            dynpath += ":";
-         dynpath += ldpath;
+         if (!dynpath_envpart.IsNull())
+            dynpath_envpart += ":";
+         dynpath_envpart += ldpath;
       }
       if (!rdynpath.IsNull()) {
-         if (!dynpath.IsNull())
-            dynpath += ":";
-         dynpath += rdynpath;
+         if (!dynpath_envpart.IsNull())
+            dynpath_envpart += ":";
+         dynpath_envpart += rdynpath;
       }
-      if (!dynpath.Contains(TROOT::GetLibDir())) {
-         dynpath += ":"; dynpath += TROOT::GetLibDir();
+      if (!dynpath_envpart.Contains(TROOT::GetLibDir())) {
+         dynpath_envpart += ":"; dynpath_envpart += TROOT::GetLibDir();
       }
-      if (gCling) {
-         dynpath += ":"; dynpath += gCling->GetSTLIncludePath();
-      } else
-         initialized = kFALSE;
 
-#if defined(R__WINGCC) || defined(R__MACOSX)
-      if (!dynpath.EndsWith(":")) dynpath += ":";
-      dynpath += "/usr/local/lib:/usr/X11R6/lib:/usr/lib:/lib:";
-      dynpath += "/lib/x86_64-linux-gnu:/usr/local/lib64:/usr/lib64:/lib64:";
-#else
+   #if defined(R__WINGCC) || defined(R__MACOSX)
+      // if (!dynpath.EndsWith(":")) dynpath += ":";
+      dynpath_syspart = "/usr/local/lib:/usr/X11R6/lib:/usr/lib:/lib:";
+      dynpath_syspart += "/lib/x86_64-linux-gnu:/usr/local/lib64:/usr/lib64:/lib64:";
+   #else
       // trick to get the system search path
       std::string cmd("LD_DEBUG=libs LD_PRELOAD=DOESNOTEXIST ls 2>&1");
       FILE *pf = popen(cmd.c_str (), "r");
@@ -4619,14 +4641,29 @@ static const char *DynamicPath(const char *newpath = 0, Bool_t reset = kFALSE)
          from += 12;
          std::string sys_path = result.substr(from, to-from);
          sys_path.erase(std::remove_if(sys_path.begin(), sys_path.end(), isspace), sys_path.end());
-         if (!dynpath.EndsWith(":")) dynpath += ":";
-         dynpath += sys_path.c_str();
+         dynpath_syspart = sys_path.c_str();
       }
-      dynpath.ReplaceAll("::", ":");
-#endif
-      if (gDebug > 0) std::cout << "dynpath = " << dynpath.Data() << std::endl;
+      dynpath_envpart.ReplaceAll("::", ":");
+      dynpath_syspart.ReplaceAll("::", ":");
+   #endif
    }
-   return dynpath;
+
+   if (!initialized || (!seenCling && gCling)) {
+      dynpath_full = dynpath_envpart;
+      if (!dynpath_full.EndsWith(":")) dynpath_full += ":";
+      if (gCling) {
+         dynpath_full += gCling->GetSTLIncludePath();
+         if (!dynpath_full.EndsWith(":")) dynpath_full += ":";
+
+         seenCling = kTRUE;
+      }
+      dynpath_full += dynpath_syspart;
+      initialized = kTRUE;
+
+      if (gDebug > 0) std::cout << "dynpath = " << dynpath_full.Data() << std::endl;
+   }
+
+   return dynpath_full;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4882,7 +4919,7 @@ static void GetDarwinMemInfo(MemInfo_t *meminfo)
 /// http://www.opensource.apple.com/source/top/top-15/libtop.c
 /// The virtual memory usage is slightly over estimated as we don't
 /// subtract shared regions, but the value makes more sense
-/// then pure vsize, which is useless on 64-bit machines.
+/// than using `virtual_size`, which is useless on 64-bit machines.
 
 static void GetDarwinProcInfo(ProcInfo_t *procinfo)
 {
@@ -4923,9 +4960,8 @@ static void GetDarwinProcInfo(ProcInfo_t *procinfo)
       mach_port_t object_name;
       vm_address_t address;
       vm_region_top_info_data_t info;
-      vm_size_t vsize, vprvt, rsize, size;
+      vm_size_t vprvt, rsize, size;
       rsize = ti.resident_size;
-      vsize = ti.virtual_size;
       vprvt = 0;
       for (address = 0; ; address += size) {
          // get memory region
@@ -4951,11 +4987,6 @@ static void GetDarwinProcInfo(ProcInfo_t *procinfo)
                                 (vm_region_info_t)&b_info, &count,
                                 &object_name) != KERN_SUCCESS) {
                   break;
-               }
-
-               if (b_info.reserved) {
-                  vsize -= (SHARED_TEXT_REGION_SIZE + SHARED_DATA_REGION_SIZE);
-                  //break;  // only for vsize
                }
             }
             // Short circuit the loop if this isn't a shared
@@ -4984,7 +5015,6 @@ static void GetDarwinProcInfo(ProcInfo_t *procinfo)
       }
 
       procinfo->fMemResident = (Long_t)(rsize / 1024);
-      //procinfo->fMemVirtual  = (Long_t)(vsize / 1024);
       procinfo->fMemVirtual  = (Long_t)(vprvt / 1024);
    }
 }

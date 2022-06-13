@@ -33,7 +33,6 @@ that create and fill these generic containers
 #include "RooCmdArg.h"
 #include "Riostream.h"
 #include "RooArgSet.h"
-#include "RooFit.h"
 
 #include <string>
 #include <iostream>
@@ -60,8 +59,8 @@ const RooCmdArg& RooCmdArg::none()
 
 RooCmdArg::RooCmdArg() : TNamed("","")
 {
-  _procSubArgs = kFALSE ;
-  _prefixSubArgs = kTRUE ;
+  _procSubArgs = false ;
+  _prefixSubArgs = true ;
   _c = 0 ;
   _o[0] = 0 ;
   _o[1] = 0 ;
@@ -76,7 +75,7 @@ RooCmdArg::RooCmdArg() : TNamed("","")
 /// Constructor with full specification of payload: two integers, two doubles,
 /// three string poiners, two object pointers and one RooCmdArg pointer
 
-RooCmdArg::RooCmdArg(const char* name, Int_t i1, Int_t i2, Double_t d1, Double_t d2,
+RooCmdArg::RooCmdArg(const char* name, Int_t i1, Int_t i2, double d1, double d2,
            const char* s1, const char* s2, const TObject* o1, const TObject* o2,
            const RooCmdArg* ca, const char* s3, const RooArgSet* c1, const RooArgSet* c2) :
   TNamed(name,name)
@@ -96,8 +95,8 @@ RooCmdArg::RooCmdArg(const char* name, Int_t i1, Int_t i2, Double_t d1, Double_t
   if (c1) _c[0].add(*c1) ;
   if (c2) _c[1].add(*c2) ;
 
-  _procSubArgs = kTRUE ;
-  _prefixSubArgs = kTRUE ;
+  _procSubArgs = true ;
+  _prefixSubArgs = true ;
   if (ca) {
     _argList.Add(new RooCmdArg(*ca)) ;
   }

@@ -32,8 +32,6 @@ in defaultPrintStyle and defaultPrintContents to determine what is printed
 given a Print() option string.
 **/
 
-#include "RooFit.h"
-
 #include "RooPrintable.h"
 
 #include "Riostream.h"
@@ -168,7 +166,7 @@ void RooPrintable::printExtras(ostream& /*os*/) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Interface for detailed printing of object
 
-void RooPrintable::printMultiline(ostream& /*os*/, Int_t /*contents*/, Bool_t /*verbose*/, TString /*indent*/) const
+void RooPrintable::printMultiline(ostream& /*os*/, Int_t /*contents*/, bool /*verbose*/, TString /*indent*/) const
 {
 }
 

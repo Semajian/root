@@ -33,6 +33,7 @@ set(py_sources
   ROOT/_pythonization/_cppinstance.py
   ROOT/_pythonization/_drawables.py
   ROOT/_pythonization/_generic.py
+  ROOT/_pythonization/_pyz_utils.py
   ROOT/_pythonization/_rbdt.py
   ROOT/_pythonization/_rvec.py
   ROOT/_pythonization/_stl_vector.py
@@ -41,6 +42,7 @@ set(py_sources
   ROOT/_pythonization/_tclonesarray.py
   ROOT/_pythonization/_tcollection.py
   ROOT/_pythonization/_tcomplex.py
+  ROOT/_pythonization/_tcontext.py
   ROOT/_pythonization/_tdirectory.py
   ROOT/_pythonization/_tdirectoryfile.py
   ROOT/_pythonization/_tfile.py

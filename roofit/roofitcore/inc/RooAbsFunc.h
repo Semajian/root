@@ -26,22 +26,22 @@ class RooAbsRealLValue ;
 
 class RooAbsFunc {
 public:
-  inline RooAbsFunc(UInt_t dimension) : _ncall(0), _dimension(dimension), _valid(kTRUE) { }
-  inline RooAbsFunc(const RooAbsFunc& other) : _ncall(0), _dimension(other._dimension), _valid(kTRUE) { }
+  inline RooAbsFunc(UInt_t dimension) : _ncall(0), _dimension(dimension), _valid(true) { }
+  inline RooAbsFunc(const RooAbsFunc& other) : _ncall(0), _dimension(other._dimension), _valid(true) { }
 
   inline virtual ~RooAbsFunc() { }
   inline UInt_t getDimension() const {
     // Dimension of function
     return _dimension;
   }
-  inline Bool_t isValid() const {
+  inline bool isValid() const {
     // Is function in valid state
     return _valid;
   }
 
-  virtual Double_t operator()(const Double_t xvector[]) const = 0;
-  virtual Double_t getMinLimit(UInt_t dimension) const = 0;
-  virtual Double_t getMaxLimit(UInt_t dimension) const = 0;
+  virtual double operator()(const double xvector[]) const = 0;
+  virtual double getMinLimit(UInt_t dimension) const = 0;
+  virtual double getMaxLimit(UInt_t dimension) const = 0;
 
   /// Return number of function calls since last reset
   Int_t numCall() const {
@@ -66,18 +66,18 @@ public:
     return "(unnamed)" ;
   }
 
-  virtual std::list<Double_t>* binBoundaries(Int_t) const { return nullptr; }
+  virtual std::list<double>* binBoundaries(Int_t) const { return nullptr; }
 
   /// Interface for returning an optional hint for initial sampling points when constructing a curve
   /// projected on observable.
-  virtual std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const {
+  virtual std::list<double>* plotSamplingHint(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const {
     return nullptr;
   }
 
 protected:
   mutable Int_t _ncall ;  ///< Function call counter
   UInt_t _dimension;      ///< Number of observables
-  Bool_t _valid;          ///< Is binding in valid state?
+  bool _valid;          ///< Is binding in valid state?
    ClassDef(RooAbsFunc,0) ///< Abstract real-valued function interface
 };
 

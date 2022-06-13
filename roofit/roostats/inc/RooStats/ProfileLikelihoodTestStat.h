@@ -20,8 +20,6 @@
 
 #include "RooRealVar.h"
 
-#include "RooNLLVar.h"
-
 #include "Math/MinimizerOptions.h"
 
 #include "RooStats/RooStatsUtils.h"
@@ -44,7 +42,7 @@ namespace RooStats {
    fSigned = false;
         fDetailedOutputWithErrorsAndPulls = false;
         fDetailedOutputEnabled = false;
-        fDetailedOutput = NULL;
+        fDetailedOutput = nullptr;
    fLOffset = RooStats::IsNLLOffset() ;
 
         fVarName = "Profile Likelihood Ratio";
@@ -64,7 +62,7 @@ namespace RooStats {
        fSigned = false;
        fDetailedOutputWithErrorsAndPulls = false;
        fDetailedOutputEnabled = false;
-       fDetailedOutput = NULL;
+       fDetailedOutput = nullptr;
        fLOffset = RooStats::IsNLLOffset() ;
 
        fVarName = "Profile Likelihood Ratio";
@@ -82,17 +80,17 @@ namespace RooStats {
        if(fDetailedOutput) delete fDetailedOutput;
      }
 
-     void SetOneSided(Bool_t flag=true) {fLimitType = (flag ? oneSided : twoSided);}
-     void SetOneSidedDiscovery(Bool_t flag=true) {fLimitType = (flag ? oneSidedDiscovery : twoSided);}
-     void SetSigned(Bool_t flag=true) {fSigned = flag;}  // +/- t_mu instead of t_mu>0 with one-sided settings
+     void SetOneSided(bool flag=true) {fLimitType = (flag ? oneSided : twoSided);}
+     void SetOneSidedDiscovery(bool flag=true) {fLimitType = (flag ? oneSidedDiscovery : twoSided);}
+     void SetSigned(bool flag=true) {fSigned = flag;}  // +/- t_mu instead of t_mu>0 with one-sided settings
 
      bool IsTwoSided() const { return fLimitType == twoSided; }
      bool IsOneSidedDiscovery() const { return fLimitType == oneSidedDiscovery; }
 
-     static void SetAlwaysReuseNLL(Bool_t flag);
+     static void SetAlwaysReuseNLL(bool flag);
 
-     void SetReuseNLL(Bool_t flag) { fReuseNll = flag ; }
-     void SetLOffset(Bool_t flag=kTRUE) { fLOffset = flag ; }
+     void SetReuseNLL(bool flag) { fReuseNll = flag ; }
+     void SetLOffset(bool flag=true) { fLOffset = flag ; }
 
      void SetMinimizer(const char* minimizer){ fMinimizer=minimizer;}
      void SetStrategy(Int_t strategy){fStrategy=strategy;}
@@ -100,18 +98,18 @@ namespace RooStats {
      void SetPrintLevel(Int_t printlevel){fPrintLevel=printlevel;}
 
      /// Main interface to evaluate the test statistic on a dataset
-     Double_t Evaluate(RooAbsData& data, RooArgSet& paramsOfInterest) override {
+     double Evaluate(RooAbsData& data, RooArgSet& paramsOfInterest) override {
         return EvaluateProfileLikelihood(0, data, paramsOfInterest);
      }
 
      /// evaluate  the profile likelihood ratio (type = 0) or the minimum of likelihood (type=1) or the conditional LL (type = 2)
-     virtual Double_t EvaluateProfileLikelihood(int type, RooAbsData &data, RooArgSet & paramsOfInterest);
+     virtual double EvaluateProfileLikelihood(int type, RooAbsData &data, RooArgSet & paramsOfInterest);
 
      virtual void EnableDetailedOutput( bool e=true, bool withErrorsAndPulls=false ) {
         fDetailedOutputEnabled = e;
         fDetailedOutputWithErrorsAndPulls = withErrorsAndPulls;
         delete fDetailedOutput;
-        fDetailedOutput = NULL;
+        fDetailedOutput = nullptr;
      }
      /// Returns detailed output. The value returned by this function is updated after each call to Evaluate().
      /// The returned RooArgSet contains the following:
@@ -146,9 +144,9 @@ namespace RooStats {
       RooAbsReal* fNll; //!
       const RooArgSet* fCachedBestFitParams;
       RooAbsData* fLastData;
-      //      Double_t fLastMLE;
+      //      double fLastMLE;
       LimitType fLimitType;
-      Bool_t fSigned;
+      bool fSigned;
 
       /// this will store a snapshot of the unconditional nuisance
       /// parameter fit.
@@ -160,13 +158,13 @@ namespace RooStats {
 
       TString fVarName;
 
-      static Bool_t fgAlwaysReuseNll ;
-      Bool_t fReuseNll ;
+      static bool fgAlwaysReuseNll ;
+      bool fReuseNll ;
       TString fMinimizer;
       Int_t fStrategy;
-      Double_t fTolerance;
+      double fTolerance;
       Int_t fPrintLevel;
-      Bool_t fLOffset ;
+      bool fLOffset ;
 
    protected:
 

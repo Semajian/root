@@ -40,13 +40,13 @@ automatic PDF optimization.
 
 #include "RooMinimizer.h"
 
-#include "RooFit.h"
+#include "RooAbsMinimizerFcn.h"
 #include "RooArgSet.h"
 #include "RooArgList.h"
 #include "RooAbsReal.h"
 #include "RooAbsRealLValue.h"
+#include "RooDataSet.h"
 #include "RooRealVar.h"
-#include "RooAbsPdf.h"
 #include "RooSentinel.h"
 #include "RooMsgService.h"
 #include "RooPlot.h"
@@ -61,11 +61,10 @@ automatic PDF optimization.
 #include "TMarker.h"
 #include "TGraph.h"
 #include "Fit/FitConfig.h"
-#include "TStopwatch.h"
-#include "TMatrixDSym.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <stdexcept> // logic_error
 
 using namespace std;
 
@@ -290,27 +289,7 @@ const ROOT::Fit::Fitter* RooMinimizer::fitter() const
 
 
 bool RooMinimizer::fitFcn() const {
-   bool ret;
-
-   switch (_fcnMode) {
-   case FcnMode::classic: {
-      ret = _theFitter->FitFCN(*dynamic_cast<RooMinimizerFcn *>(_fcn));
-      break;
-   }
-   case FcnMode::gradient: {
-      ret = _theFitter->FitFCN(*dynamic_cast<RooGradMinimizerFcn *>(_fcn));
-      break;
-   }
-   case FcnMode::generic_wrapper: {
-      ret = _theFitter->FitFCN(*dynamic_cast<RooFit::TestStatistics::MinuitFcnGrad *>(_fcn));
-      break;
-   }
-   default: {
-      throw std::logic_error("In RooMinimizer::fitFcn: _fcnMode has an unsupported value!");
-   }
-   }
-
-   return ret;
+   return _fcn->fit(*_theFitter);
 }
 
 
@@ -653,7 +632,7 @@ RooFitResult* RooMinimizer::save(const char* userName, const char* userTitle)
   fitRes->setInitParList(saveFloatInitList) ;
 
   // The fitter often clones the function. We therefore have to ask it for its copy.
-  const auto fitFcn = dynamic_cast<const RooMinimizerFcn*>(_theFitter->GetFCN());
+  const auto fitFcn = dynamic_cast<const RooAbsMinimizerFcn*>(_theFitter->GetFCN());
   double removeOffset = 0.;
   if (fitFcn) {
     fitRes->setNumInvalidNLL(fitFcn->GetNumInvalidNLL());
@@ -783,7 +762,7 @@ RooPlot* RooMinimizer::contour(RooRealVar& var1, RooRealVar& var2,
 
 
   // restore the original ERRDEF
-  _theFitter->Config().MinimizerOptions().SetErrorDef(errdef);
+  _theFitter->GetMinimizer()->SetErrorDef(errdef);
 
   // restore parameter values
   params->assign(*paramSave) ;
@@ -820,61 +799,10 @@ void RooMinimizer::profileStop()
 }
 
 
-ROOT::Math::IMultiGenFunction* RooMinimizer::getFitterMultiGenFcn() const
-{
-   return fitter()->GetFCN();
-}
-
-
 ROOT::Math::IMultiGenFunction* RooMinimizer::getMultiGenFcn() const
 {
-   if (getFitterMultiGenFcn()) {
-      return getFitterMultiGenFcn();
-   } else {
-      switch (_fcnMode) {
-      case FcnMode::classic: {
-         return static_cast<ROOT::Math::IMultiGenFunction *>(dynamic_cast<RooMinimizerFcn *>(_fcn));
-      }
-      case FcnMode::gradient: {
-         return static_cast<ROOT::Math::IMultiGenFunction *>(dynamic_cast<RooGradMinimizerFcn *>(_fcn));
-      }
-      case FcnMode::generic_wrapper: {
-         return static_cast<ROOT::Math::IMultiGenFunction *>(dynamic_cast<RooFit::TestStatistics::MinuitFcnGrad *>(_fcn));
-      }
-      default: {
-         throw std::logic_error("In RooMinimizer::getMultiGenFcn: _fcnMode has an unsupported value!");
-      }
-      }
-   }
-}
-
-
-const RooAbsMinimizerFcn *RooMinimizer::fitterFcn() const
-{
-   if (getFitterMultiGenFcn()) {
-      switch (_fcnMode) {
-      case FcnMode::classic: {
-         return static_cast<RooAbsMinimizerFcn *>(dynamic_cast<RooMinimizerFcn *>(getFitterMultiGenFcn()));
-      }
-      case FcnMode::gradient: {
-         return static_cast<RooAbsMinimizerFcn *>(dynamic_cast<RooGradMinimizerFcn *>(getFitterMultiGenFcn()));
-      }
-      case FcnMode::generic_wrapper: {
-         return static_cast<RooAbsMinimizerFcn *>(dynamic_cast<RooFit::TestStatistics::MinuitFcnGrad *>(getFitterMultiGenFcn()));
-      }
-      default: {
-         throw std::logic_error("In RooMinimizer::fitterFcn: _fcnMode has an unsupported value!");
-      }
-      }
-   } else {
-      return _fcn;
-   }
-}
-
-RooAbsMinimizerFcn *RooMinimizer::fitterFcn()
-{
-   // to avoid code duplication, we just reuse the const function and cast constness away
-   return const_cast<RooAbsMinimizerFcn *>( static_cast<const RooMinimizer&>(*this).fitterFcn() );
+   auto * fitterFcn = fitter()->GetFCN();
+   return fitterFcn ? fitterFcn : _fcn->getMultiGenFcn();
 }
 
 
@@ -883,11 +811,10 @@ RooAbsMinimizerFcn *RooMinimizer::fitterFcn()
 /// to all RRV parameter representations and give this matrix instead of the
 /// HESSE matrix at the next save() call
 
-void RooMinimizer::applyCovarianceMatrix(TMatrixDSym& V)
+void RooMinimizer::applyCovarianceMatrix(TMatrixDSym const& V)
 {
   _extV.reset(static_cast<TMatrixDSym*>(V.Clone()));
   _fcn->ApplyCovarianceMatrix(*_extV);
-
 }
 
 
@@ -900,14 +827,14 @@ RooFitResult* RooMinimizer::lastMinuitFit(const RooArgList& varList)
   // the fit parameters as the given varList of parameters.
 
   if (_theFitter==0 || _theFitter->GetMinimizer()==0) {
-    oocoutE((TObject*)0,InputArguments) << "RooMinimizer::save: Error, run minimization before!"
+    oocoutE(nullptr,InputArguments) << "RooMinimizer::save: Error, run minimization before!"
                << endl ;
     return nullptr;
   }
 
   // Verify length of supplied varList
   if (!varList.empty() && varList.size() != _theFitter->Result().NTotalParameters()) {
-    oocoutE((TObject*)0,InputArguments)
+    oocoutE(nullptr,InputArguments)
       << "RooMinimizer::lastMinuitFit: ERROR: supplied variable list must be either empty " << endl
       << "                             or match the number of variables of the last fit ("
       << _theFitter->Result().NTotalParameters() << ")" << endl ;
@@ -918,7 +845,7 @@ RooFitResult* RooMinimizer::lastMinuitFit(const RooArgList& varList)
   // Verify that all members of varList are of type RooRealVar
   for (RooAbsArg * arg : varList) {
     if (!dynamic_cast<RooRealVar*>(arg)) {
-      oocoutE((TObject*)0,InputArguments) << "RooMinimizer::lastMinuitFit: ERROR: variable '"
+      oocoutE(nullptr,InputArguments) << "RooMinimizer::lastMinuitFit: ERROR: variable '"
                  << arg->GetName() << "' is not of type RooRealVar" << endl ;
       return nullptr;
     }
@@ -961,7 +888,7 @@ RooFitResult* RooMinimizer::lastMinuitFit(const RooArgList& varList)
       }
 
       if (varName.CompareTo(var->GetName())) {
-   oocoutI((TObject*)0,Eval)  << "RooMinimizer::lastMinuitFit: fit parameter '" << varName
+   oocoutI(nullptr,Eval)  << "RooMinimizer::lastMinuitFit: fit parameter '" << varName
                << "' stored in variable '" << var->GetName() << "'" << endl ;
       }
 
@@ -997,3 +924,19 @@ RooFitResult* RooMinimizer::lastMinuitFit(const RooArgList& varList)
   return res;
 
 }
+
+void RooMinimizer::setEvalErrorWall(bool flag) { _fcn->SetEvalErrorWall(flag); }
+
+/// \copydoc RooMinimizerFcn::SetRecoverFromNaNStrength()
+void RooMinimizer::setRecoverFromNaNStrength(double strength) { _fcn->SetRecoverFromNaNStrength(strength); }
+void RooMinimizer::setPrintEvalErrors(Int_t numEvalErrors) { _fcn->SetPrintEvalErrors(numEvalErrors); }
+void RooMinimizer::setVerbose(bool flag) { _verbose = flag ; _fcn->SetVerbose(flag); }
+bool RooMinimizer::setLogFile(const char* logf) { return _fcn->SetLogFile(logf); }
+
+int RooMinimizer::evalCounter() const { return _fcn->evalCounter() ; }
+void RooMinimizer::zeroEvalCount() { _fcn->zeroEvalCount() ; }
+
+int RooMinimizer::getNPar() const { return _fcn->getNDim() ; }
+
+std::ofstream* RooMinimizer::logfile() { return _fcn->GetLogFile(); }
+double& RooMinimizer::maxFCN() { return _fcn->GetMaxFCN() ; }

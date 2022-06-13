@@ -34,11 +34,11 @@ class ToyMCStudy: public RooAbsStudy {
       ToyMCStudy(const char *name = "ToyMCStudy", const char *title = "ToyMCStudy") :
          RooAbsStudy(name, title),
          fRandomSeed(0),
-         fToyMCSampler(NULL)
+         fToyMCSampler(nullptr)
       {
          // In this case, this is the normal output. The SamplingDistribution
          // instances are stored as detailed output.
-         storeDetailedOutput(kTRUE);
+         storeDetailedOutput(true);
       }
 
       RooAbsStudy* clone(const char* /*newname*/="") const override { return new ToyMCStudy(*this) ; }
@@ -46,9 +46,9 @@ class ToyMCStudy: public RooAbsStudy {
       ~ToyMCStudy() override {}
 
       // RooAbsStudy interfaces
-      Bool_t initialize(void) override;
-      Bool_t execute(void) override;
-      Bool_t finalize(void) override;
+      bool initialize(void) override;
+      bool execute(void) override;
+      bool finalize(void) override;
 
       RooDataSet* merge();
 
@@ -75,7 +75,7 @@ class ToyMCPayload : public TNamed {
 
       ToyMCPayload() {
          // proof constructor, do not use
-    fDataSet = NULL;
+    fDataSet = nullptr;
       }
 
       ToyMCPayload(RooDataSet* sd)

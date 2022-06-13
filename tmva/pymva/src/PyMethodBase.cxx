@@ -19,6 +19,9 @@
 #include "TMVA/MsgLogger.h"
 #include "TMVA/Results.h"
 #include "TMVA/Timer.h"
+#include "TMVA/Tools.h"
+
+#include "TSystem.h"
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
@@ -37,6 +40,30 @@ public:
    ~PyGILRAII() { PyGILState_Release(m_GILState); }
 };
 } // namespace Internal
+
+/// get current Python executable used by ROOT
+TString Python_Executable() {
+   TString python_version = gSystem->GetFromPipe("root-config --python-version");
+   if (python_version.IsNull()) {
+      TMVA::gTools().Log() << kFATAL << "Can't find a valid Python version used to build ROOT" << Endl;
+      return nullptr;
+   }
+#ifdef _MSC_VER
+   // on Windows there is a space before the version and the executable is python.exe
+   // for both versions of Python
+   python_version.ReplaceAll(" ", "");
+   if (python_version[0] == '2' || python_version[0] == '3')
+      return "python";
+#endif
+   if (python_version[0] == '2')
+      return "python";
+   else if (python_version[0] == '3')
+      return "python3";
+
+   TMVA::gTools().Log() << kFATAL << "Invalid Python version used to build ROOT : " << python_version << Endl;
+   return nullptr;
+}
+
 } // namespace TMVA
 
 ClassImp(PyMethodBase);
@@ -381,8 +408,12 @@ const char* PyMethodBase::PyStringAsString(PyObject* string){
 std::vector<size_t> PyMethodBase::GetDataFromTuple(PyObject* tupleObject){
    std::vector<size_t>tupleVec;
    for(Py_ssize_t tupleIter=0;tupleIter<PyTuple_Size(tupleObject);++tupleIter){
-               tupleVec.push_back((size_t)PyLong_AsLong(PyTuple_GetItem(tupleObject,tupleIter)));
-         }
+      auto itemObj = PyTuple_GetItem(tupleObject,tupleIter);
+      if (itemObj == Py_None)
+         tupleVec.push_back(0);  // case shape is for example (None,2,3)
+      else
+         tupleVec.push_back((size_t)PyLong_AsLong(itemObj));
+   }
    return tupleVec;
 }
 

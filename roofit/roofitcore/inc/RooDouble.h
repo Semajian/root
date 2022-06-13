@@ -25,33 +25,33 @@ public:
   /// Default constructor
   RooDouble() : _value(0) {
   } ;
-  RooDouble(Double_t value) ;
+  RooDouble(double value) ;
   RooDouble(const RooDouble& other) : TNamed(other), _value(other._value) {}
   /// Destructor
   ~RooDouble() override {
   } ;
 
-  // Double_t cast operator
+  // double cast operator
   /// Return value of contained double
-  inline operator Double_t() const {
+  inline operator double() const {
     return _value ;
   }
   /// Return true if contained double equals value
-  RooDouble& operator=(Double_t value) {
+  RooDouble& operator=(double value) {
     _value = value ; return *this ;
   }
 
   // Sorting interface ;
   Int_t Compare(const TObject* other) const override ;
   /// We are a sortable object
-  Bool_t IsSortable() const override {
-    return kTRUE ;
+  bool IsSortable() const override {
+    return true ;
   }
 
 protected:
 
-  Double_t _value ; ///< Value payload
-  ClassDefOverride(RooDouble,1) // Container class for Double_t
+  double _value ; ///< Value payload
+  ClassDefOverride(RooDouble,1) // Container class for double
 };
 
 #endif

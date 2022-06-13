@@ -30,25 +30,24 @@ class RooStepFunction : public RooAbsReal {
 
   RooStepFunction() ;
   RooStepFunction(const char *name, const char *title,
-        RooAbsReal& x, const RooArgList& coefList, const RooArgList& limits, Bool_t interpolate=kFALSE) ;
+        RooAbsReal& x, const RooArgList& coefList, const RooArgList& limits, bool interpolate=false) ;
 
   RooStepFunction(const RooStepFunction& other, const char* name = 0);
   TObject* clone(const char* newname) const override { return new RooStepFunction(*this, newname); }
-  ~RooStepFunction() override ;
 
   const RooArgList& coefficients() { return _coefList; }
   const RooArgList& boundaries() { return _boundaryList; }
 
  protected:
 
-  Double_t evaluate() const override;
+  double evaluate() const override;
 
  private:
 
   RooRealProxy _x;
   RooListProxy _coefList ;
   RooListProxy _boundaryList ;
-  Bool_t       _interpolate ;
+  bool       _interpolate ;
   TIterator* _coefIter ;  //! do not persist
   TIterator* _boundIter ;  //! do not persist
 

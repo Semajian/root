@@ -28,6 +28,8 @@ RJittedAction::RJittedAction(RLoopManager &lm, const ROOT::RDF::ColumnNames_t &c
 {
 }
 
+RJittedAction::~RJittedAction() {}
+
 void RJittedAction::Run(unsigned int slot, Long64_t entry)
 {
    assert(fConcreteAction != nullptr);

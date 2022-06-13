@@ -24,15 +24,15 @@ public:
   TObject* clone(const char* newname) const override { return new RooHistConstraint(*this,newname); }
   inline ~RooHistConstraint() override { }
 
-  Double_t getLogVal(const RooArgSet* set=0) const override ;
+  double getLogVal(const RooArgSet* set=0) const override ;
 
 protected:
 
   RooListProxy _gamma ;
   RooListProxy _nominal ;
-  Bool_t _relParam ;
+  bool _relParam ;
 
-  Double_t evaluate() const override ;
+  double evaluate() const override ;
 
 private:
 

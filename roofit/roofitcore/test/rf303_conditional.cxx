@@ -39,8 +39,8 @@ RooDataSet* makeFakeDataXY()
   RooDataSet* d = new RooDataSet("d","d",RooArgSet(x,y)) ;
 
   for (int i=0 ; i<10000 ; i++) {
-    Double_t tmpy = gRandom->Gaus(0,10) ;
-    Double_t tmpx = gRandom->Gaus(0.5*tmpy,1) ;
+    double tmpy = gRandom->Gaus(0,10) ;
+    double tmpx = gRandom->Gaus(0.5*tmpy,1) ;
     if (fabs(tmpy)<10 && fabs(tmpx)<10) {
       x = tmpx ;
       y = tmpy ;
@@ -54,8 +54,8 @@ RooDataSet* makeFakeDataXY()
 
 
 
-  TestBasic303(TFile* refFile, Bool_t writeRef, Int_t verbose) : RooFitTestUnit("Conditional use of F(x|y)",refFile,writeRef,verbose) {} ;
-  Bool_t testCode() {
+  TestBasic303(TFile* refFile, bool writeRef, Int_t verbose) : RooFitTestUnit("Conditional use of F(x|y)",refFile,writeRef,verbose) {} ;
+  bool testCode() {
 
   // S e t u p   c o m p o s e d   m o d e l   g a u s s ( x , m ( y ) , s )
   // -----------------------------------------------------------------------
@@ -125,7 +125,7 @@ RooDataSet* makeFakeDataXY()
   delete expDataY ;
   delete data ;
 
-  return kTRUE ;
+  return true ;
   }
 } ;
 

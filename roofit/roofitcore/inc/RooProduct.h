@@ -37,11 +37,11 @@ public:
   void addTerm(RooAbsArg* term);
 
   TObject* clone(const char* newname) const override { return new RooProduct(*this, newname); }
-  Bool_t forceAnalyticalInt(const RooAbsArg& dep) const override ;
+  bool forceAnalyticalInt(const RooAbsArg& dep) const override ;
   Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars,
                                                    const RooArgSet* normSet,
                                                    const char* rangeName=0) const override ;
-  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const override;
+  double analyticalIntegral(Int_t code, const char* rangeName=0) const override;
 
 
   RooArgList components() { RooArgList tmp(_compRSet) ; tmp.add(_compCSet) ; return tmp ; }
@@ -52,9 +52,9 @@ public:
 
   void printMetaArgs(std::ostream& os) const override ;
 
-  std::list<Double_t>* binBoundaries(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override ;
-  std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override ;
-  Bool_t isBinnedDistribution(const RooArgSet& obs) const override ;
+  std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
+  std::list<double>* plotSamplingHint(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
+  bool isBinnedDistribution(const RooArgSet& obs) const override ;
 
   CacheMode canNodeBeCached() const override { return RooAbsArg::NotAdvised ; } ;
   void setCacheAndTrackHints(RooArgSet&) override ;
@@ -75,9 +75,9 @@ protected:
   mutable RooObjCacheManager _cacheMgr ; //! The cache manager
 
 
-  Double_t calculate(const RooArgList& partIntList) const;
-  Double_t evaluate() const override;
-  RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const override;
+  double calculate(const RooArgList& partIntList) const;
+  double evaluate() const override;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
 
   const char* makeFPName(const char *pfx,const RooArgSet& terms) const ;
   ProdMap* groupProductTerms(const RooArgSet&) const;

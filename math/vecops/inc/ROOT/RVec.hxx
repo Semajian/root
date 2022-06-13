@@ -902,6 +902,23 @@ void RVecImpl<T>::swap(RVecImpl<T> &RHS)
       std::swap(this->fCapacity, RHS.fCapacity);
       return;
    }
+
+   // This block handles the swap of a small and a non-owning vector
+   // It is more efficient to first move the non-owning vector, hence the 2 cases
+   if (this->isSmall() && !RHS.Owns()) { // the right vector is non-owning
+      RVecImpl<T> temp(0);
+      temp = std::move(RHS);
+      RHS = std::move(*this);
+      *this = std::move(temp);
+      return;
+   } else if (RHS.isSmall() && !this->Owns()) { // the left vector is non-owning
+      RVecImpl<T> temp(0);
+      temp = std::move(*this);
+      *this = std::move(RHS);
+      RHS = std::move(temp);
+      return;
+   }
+
    if (RHS.size() > this->capacity())
       this->grow(RHS.size());
    if (this->size() > RHS.capacity())
@@ -1054,6 +1071,19 @@ RVecImpl<T> &RVecImpl<T>::operator=(RVecImpl<T> &&RHS)
    RHS.clear();
    return *this;
 }
+
+template <typename T>
+bool IsSmall(const ROOT::VecOps::RVec<T> &v)
+{
+   return v.isSmall();
+}
+
+template <typename T>
+bool IsAdopting(const ROOT::VecOps::RVec<T> &v)
+{
+   return !v.Owns();
+}
+
 } // namespace VecOps
 } // namespace Detail
 
@@ -1244,8 +1274,9 @@ public:
 
 A RVec is a container designed to make analysis of values' collections fast and easy.
 Its storage is contiguous in memory and its interface is designed such to resemble to the one
-of the stl vector. In addition the interface features methods and external functions to ease
-the manipulation and analysis of the data in the RVec.
+of the stl vector. In addition the interface features methods and
+[external functions](https://root.cern/doc/master/namespaceROOT_1_1VecOps.html) to ease the manipulation and analysis
+of the data in the RVec.
 
 \note ROOT::VecOps::RVec can also be spelled simply ROOT::RVec. Shorthand aliases such as ROOT::RVecI or ROOT::RVecD
 are also available as template instantiations of RVec of fundamental types. The full list of available aliases:
@@ -1276,8 +1307,7 @@ to make RVec a drop-in replacement for `std::vector`.
 - [Sorting and manipulation of indices](\ref sorting)
 - [Usage in combination with RDataFrame](\ref usagetdataframe)
 - [Reference for the RVec class](\ref RVecdoxyref)
-
-Also see the [reference for RVec helper functions](https://root.cern/doc/master/namespaceROOT_1_1VecOps.html).
+- [Reference for RVec helper functions](https://root.cern/doc/master/namespaceROOT_1_1VecOps.html)
 
 \anchor example
 ## Example
@@ -1475,6 +1505,10 @@ public:
    }
 
    using SuperClass::at;
+
+   friend bool ROOT::Detail::VecOps::IsSmall<T>(const RVec<T> &v);
+
+   friend bool ROOT::Detail::VecOps::IsAdopting<T>(const RVec<T> &v);
 };
 
 template <typename T, unsigned N>

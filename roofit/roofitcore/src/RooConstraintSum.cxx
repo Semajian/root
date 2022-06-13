@@ -81,15 +81,33 @@ RooConstraintSum::RooConstraintSum(const RooConstraintSum& other, const char* na
 ////////////////////////////////////////////////////////////////////////////////
 /// Return sum of -log of constraint p.d.f.s.
 
-Double_t RooConstraintSum::evaluate() const
+double RooConstraintSum::evaluate() const
 {
-  Double_t sum(0);
+  double sum(0);
 
   for (const auto comp : _set1) {
     sum -= static_cast<RooAbsPdf*>(comp)->getLogVal(&_paramSet);
   }
 
   return sum;
+}
+
+
+void RooConstraintSum::computeBatch(cudaStream_t *, double *output, size_t /*size*/,
+                                    RooFit::Detail::DataMap const &dataMap) const
+{
+   double sum(0);
+
+   for (const auto comp : _set1) {
+      sum -= std::log(dataMap.at(comp)[0]);
+   }
+
+   output[0] = sum;
+}
+
+
+std::unique_ptr<RooArgSet> RooConstraintSum::fillNormSetForServer(RooArgSet const& /*normSet*/, RooAbsArg const& /*server*/) const {
+  return std::make_unique<RooArgSet>(_paramSet);
 }
 
 

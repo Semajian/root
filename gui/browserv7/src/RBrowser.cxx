@@ -62,7 +62,7 @@ public:
 
    void Show(const std::string &) override {}
 
-   bool DrawElement(std::shared_ptr<Browsable::RElement> &elem, const std::string &) override
+   bool DrawElement(std::shared_ptr<Browsable::RElement> &elem, const std::string &, bool) override
    {
       if (fIsEditor && elem->IsCapable(Browsable::RElement::kActEdit)) {
          auto code = elem->GetContent("text");
@@ -272,6 +272,9 @@ std::string RBrowser::ProcessDblClick(std::vector<std::string> &args)
 {
    args.pop_back(); // remove exec string, not used now
 
+   std::string doAppend = args.back();
+   args.pop_back(); // remove append option
+
    std::string drawingOptions = args.back();
    args.pop_back(); // remove draw option
 
@@ -309,7 +312,7 @@ std::string RBrowser::ProcessDblClick(std::vector<std::string> &args)
    }
 
    auto widget = GetActiveWidget();
-   if (widget && widget->DrawElement(elem, drawingOptions)) {
+   if (widget && widget->DrawElement(elem, drawingOptions, doAppend == "true"s)) {
       widget->SetPath(path);
       return widget->SendWidgetContent();
    }
@@ -340,7 +343,7 @@ std::string RBrowser::ProcessDblClick(std::vector<std::string> &args)
       if (new_widget) {
          // draw object before client side is created - should not be a problem
          // after widget add in browser, connection will be established and data provided
-         if (new_widget->DrawElement(elem, drawingOptions))
+         if (new_widget->DrawElement(elem, drawingOptions, false))
             new_widget->SetPath(path);
          return NewWidgetMsg(new_widget);
       }
@@ -566,6 +569,15 @@ std::string RBrowser::NewWidgetMsg(std::shared_ptr<RBrowserWidget> &widget)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
+/// Check if any widget was modified and update if necessary
+
+void RBrowser::CheckWidgtesModified()
+{
+   for (auto &widget : fWidgets)
+      widget->CheckModified();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
 /// Process received message from the client
 
 void RBrowser::ProcessMsg(unsigned connid, const std::string &arg0)
@@ -629,12 +641,13 @@ void RBrowser::ProcessMsg(unsigned connid, const std::string &arg0)
       }
 
       std::ofstream ofs(pathtmp.str(), std::ofstream::out | std::ofstream::app);
-      ofs << sPrompt << msg;
+      ofs << sPrompt << msg << std::endl;
       ofs.close();
 
       gSystem->RedirectOutput(pathtmp.str().c_str(), "a");
       gROOT->ProcessLine(msg.c_str());
-      gSystem->RedirectOutput(0);
+      gSystem->RedirectOutput(nullptr);
+      CheckWidgtesModified();
    } else if (kind == "GETHISTORY") {
 
       auto history = GetRootHistory();

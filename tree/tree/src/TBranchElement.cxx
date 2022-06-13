@@ -2068,16 +2068,24 @@ static void GatherArtificialElements(const TObjArray &branches, TStreamerInfoAct
             subprefix = ename + ".";
          }
          auto nbranches = search->GetEntriesFast();
+         bool foundRelatedSplit = false;
          for (Int_t bi = 0; bi < nbranches; ++bi) {
             TBranchElement* subbe = (TBranchElement*)search->At(bi);
+            bool matchSubPrefix = strncmp(subbe->GetFullName(), subprefix.Data(), subprefix.Length()) == 0;
+            if (!foundRelatedSplit)
+               foundRelatedSplit = matchSubPrefix;
             if (elementClass == subbe->GetInfo()->GetClass() // Use GetInfo to provoke its creation.
                && subbe->GetOnfileObject()
-               && strncmp(subbe->GetFullName(), subprefix.Data(), subprefix.Length()) == 0)
+               && matchSubPrefix)
             {
                nextinfo = subbe->GetInfo();
                onfileObject = subbe->GetOnfileObject();
                break;
             }
+         }
+
+         if (!foundRelatedSplit) {
+            continue;
          }
 
          if (!nextinfo) {
@@ -2128,7 +2136,8 @@ void TBranchElement::SetupInfo()
          targetClass = fTargetClass;
       }
       if ( !targetClass ) {
-         Error( "InitInfo", "The target class dictionary is not present!" );
+         Error("InitInfo", "Branch '%s': missing dictionary for target class '%s'!",
+               GetFullName().Data(), fTargetClass.GetClassName());
          return;
       }
    } else {
@@ -2236,7 +2245,7 @@ void TBranchElement::InitInfo()
             Bool_t seenExisting = kFALSE;
 
             fOnfileObject = new TVirtualArray( info->GetElement(0)->GetClassPointer(), arrlen );
-            // Propagate this to all the other branch belonging to the same object.
+            // Propagate this to all the other branches belonging to the same object.
             TObjArray *branches = toplevel ? GetListOfBranches() : GetMother()->GetSubBranch(this)->GetListOfBranches();
             Int_t nbranches = branches->GetEntriesFast();
             TBranchElement *lastbranch = this;

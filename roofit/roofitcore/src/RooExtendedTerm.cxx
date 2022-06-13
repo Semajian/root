@@ -24,7 +24,6 @@ an extended ML term for a given number of expected events term when an extended 
 is constructed.
 **/
 
-#include "RooFit.h"
 #include "RooExtendedTerm.h"
 
 using namespace std;
@@ -77,7 +76,7 @@ RooExtendedTerm::~RooExtendedTerm()
 ////////////////////////////////////////////////////////////////////////////////
 /// Return number of expected events from associated event count variable
 
-Double_t RooExtendedTerm::expectedEvents(const RooArgSet* /*nset*/) const
+double RooExtendedTerm::expectedEvents(const RooArgSet* /*nset*/) const
 {
   return _n ;
 }

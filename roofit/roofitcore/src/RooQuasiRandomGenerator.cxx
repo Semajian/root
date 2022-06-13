@@ -28,8 +28,6 @@ Quasi-random number sequences are useful for improving the
 convergence of a Monte Carlo integration.
 **/
 
-#include "RooFit.h"
-
 #include "RooQuasiRandomGenerator.h"
 #include "RooMsgService.h"
 
@@ -49,7 +47,7 @@ RooQuasiRandomGenerator::RooQuasiRandomGenerator()
 {
   if(!_coefsCalculated) {
     calculateCoefs(MaxDimension);
-    _coefsCalculated= kTRUE;
+    _coefsCalculated= true;
   }
   // allocate workspace memory
   _nextq= new Int_t[MaxDimension];
@@ -80,10 +78,10 @@ void RooQuasiRandomGenerator::reset()
 /// Generate the next number in the sequence for the specified dimension.
 /// The maximum dimension supported is 12.
 
-Bool_t RooQuasiRandomGenerator::generate(UInt_t dimension, Double_t vector[])
+bool RooQuasiRandomGenerator::generate(UInt_t dimension, double vector[])
 {
   /* Load the result from the saved state. */
-  static const Double_t recip = 1.0/(double)(1U << NBits); /* 2^(-nbits) */
+  static const double recip = 1.0/(double)(1U << NBits); /* 2^(-nbits) */
 
   UInt_t dim;
   for(dim=0; dim < dimension; dim++) {
@@ -103,8 +101,8 @@ Bool_t RooQuasiRandomGenerator::generate(UInt_t dimension, Double_t vector[])
     else break;
   }
   if(r >= NBits) {
-    oocoutE((TObject*)0,Integration) << "RooQuasiRandomGenerator::generate: internal error!" << endl;
-    return kFALSE;
+    oocoutE(nullptr,Integration) << "RooQuasiRandomGenerator::generate: internal error!" << endl;
+    return false;
   }
 
   /* Calculate the next state. */
@@ -113,7 +111,7 @@ Bool_t RooQuasiRandomGenerator::generate(UInt_t dimension, Double_t vector[])
   }
   _sequenceCount++;
 
-  return kTRUE;
+  return true;
 }
 
 
@@ -356,4 +354,4 @@ const Int_t RooQuasiRandomGenerator::_polyDegree[RooQuasiRandomGenerator::MaxDim
   0, 1, 1, 2, 3, 3, 4, 4, 4, 5, 5, 5, 5
 };
 
-Bool_t RooQuasiRandomGenerator::_coefsCalculated= kFALSE;
+bool RooQuasiRandomGenerator::_coefsCalculated= false;

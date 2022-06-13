@@ -227,14 +227,11 @@ std::string ColumnName2ColumnTypeName(const std::string &colName, TTree *tree, R
    std::string colType;
 
    // must check defines first: we want Redefines to have precedence over everything else
-   if (colType.empty() && define) {
+   if (define) {
       colType = define->GetTypeName();
-   }
-
-   if (ds && ds->HasColumn(colName))
+   } else if (ds && ds->HasColumn(colName)) {
       colType = ds->GetTypeName(colName);
-
-   if (colType.empty() && tree) {
+   } else if (tree) {
       colType = GetBranchOrLeafTypeName(*tree, colName);
       if (vector2rvec && TClassEdit::IsSTLCont(colType) == ROOT::ESTLType::kSTLvector) {
          std::vector<std::string> split;
@@ -386,31 +383,30 @@ unsigned int GetColumnWidth(const std::vector<std::string>& names, const unsigne
    return columnWidth;
 }
 
-void CheckDefineType(RDefineBase &define, const std::type_info &tid)
+void CheckReaderTypeMatches(const std::type_info &colType, const std::type_info &requestedType,
+                            const std::string &colName, const std::string &where)
 {
-   const auto &colTId = define.GetTypeId();
-
    // Here we compare names and not typeinfos since they may come from two different contexts: a compiled
    // and a jitted one.
-   const auto diffTypes = (0 != std::strcmp(colTId.name(), tid.name()));
+   const auto diffTypes = (0 != std::strcmp(colType.name(), requestedType.name()));
    auto inheritedType = [&]() {
-      auto colTClass = TClass::GetClass(colTId);
-      return colTClass && colTClass->InheritsFrom(TClass::GetClass(tid));
+      auto colTClass = TClass::GetClass(colType);
+      return colTClass && colTClass->InheritsFrom(TClass::GetClass(requestedType));
    };
 
    if (diffTypes && !inheritedType()) {
-      const auto tName = TypeID2TypeName(tid);
-      const auto colTypeName = TypeID2TypeName(colTId);
-      std::string errMsg = "RDefineReader: column \"" + define.GetName() + "\" is being used as ";
+      const auto tName = TypeID2TypeName(requestedType);
+      const auto colTypeName = TypeID2TypeName(colType);
+      std::string errMsg = where + ": type mismatch: column \"" + colName + "\" is being used as ";
       if (tName.empty()) {
-         errMsg += tid.name();
+         errMsg += requestedType.name();
          errMsg += " (extracted from type info)";
       } else {
          errMsg += tName;
       }
-      errMsg += " but defined column has type ";
+      errMsg += " but the Define or Vary node advertises it as ";
       if (colTypeName.empty()) {
-         auto &id = colTId;
+         auto &id = colType;
          errMsg += id.name();
          errMsg += " (extracted from type info)";
       } else {

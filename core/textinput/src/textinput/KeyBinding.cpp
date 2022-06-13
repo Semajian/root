@@ -70,7 +70,7 @@ namespace textinput {
       case 'p' - 0x60: return C(Editor::kCmdHistOlder);
       case 'q' - 0x60: return C(In, Editor::kCKError);
       case 'r' - 0x60: return C(Editor::kCmdReverseSearch);
-      case 's' - 0x60: return C(In, Editor::kCKError);
+      case 's' - 0x60: return C(Editor::kCmdForwardSearch);
       case 't' - 0x60: return C(Editor::kCmdSwapThisAndLeftThenMoveRight);
       case 'u' - 0x60: return C(Editor::kCmdCutToFront);
       case 'v' - 0x60: return C(In, Editor::kCKError);
@@ -82,7 +82,7 @@ namespace textinput {
       case 'z' - 0x60:
         return C(In, Editor::kCKControl);
       case 0x1f: return C(Editor::kCmdUndo);
-      case 0x7f: // MacOS
+      case 0x7f: // Backspace key (with Alt, or no modifier) on Unix, Del on MacOS
         if (HadEscPending) {
           return C(Editor::kCmdCutPrevWord);
         } else {
@@ -142,7 +142,8 @@ namespace textinput {
         if (HadEscPending) {
           return C(Editor::kCmdCutPrevWord);
         } else {
-          return C(Editor::kCmdDel);
+          return (modifier & InputData::kModCtrl)
+                 ? C(Editor::kCmdCutNextWord) : C(Editor::kCmdDel);
         }
       case InputData::kEIIns: return C(Editor::kCmdToggleOverwriteMode);
       case InputData::kEITab: return C(Editor::kCmdComplete);

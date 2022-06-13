@@ -1,4 +1,4 @@
-## @author Vincenzo Eduardo Padulano
+#  @author Vincenzo Eduardo Padulano
 #  @author Enric Tejedor
 #  @date 2021-02
 
@@ -10,11 +10,10 @@
 # For the list of contributors see $ROOTSYS/README/CREDITS.                    #
 ################################################################################
 
-from __future__ import print_function
-
 import logging
 
 from DistRDF import Proxy
+from DistRDF.Operation import SUPPORTED_OPERATIONS
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +23,15 @@ class RDataFrame(object):
     Interface to an RDataFrame that can run its computation graph distributedly.
     """
 
-    def __init__(self, headnode, backend):
+    def __init__(self, headnode):
         """Initialization of """
 
         self._headnode = headnode
 
-        self._headnode.backend = backend
-
         self._headproxy = Proxy.TransformationProxy(self._headnode)
 
     def __dir__(self):
-        opdir = self._headnode.backend.supported_operations + super().__dir__()
+        opdir = list(SUPPORTED_OPERATIONS.keys()) + super().__dir__()
         opdir.sort()
         return opdir
 

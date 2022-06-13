@@ -34,18 +34,24 @@ std::shared_ptr<GraphNode> CreateRangeNode(const ROOT::Detail::RDF::RRangeBase *
 namespace Detail {
 namespace RDF {
 namespace RDFGraphDrawing = ROOT::Internal::RDF::GraphDrawing;
+class RJittedFilter;
 
-template <typename PrevNode>
+template <typename PrevNodeRaw>
 class RRange final : public RRangeBase {
-   const std::shared_ptr<PrevNode> fPrevNodePtr;
-   PrevNode &fPrevNode;
+   // If the PrevNode is a RJittedFilter, treat it as a more generic RFilterBase: when dealing with systematic
+   // variations we'll have a RJittedFilter node for the nominal case but other "universes" will use concrete filters,
+   // so we normalize the "previous node type" to the base type RFilterBase.
+   using PrevNode_t = std::conditional_t<std::is_same<PrevNodeRaw, RJittedFilter>::value, RFilterBase, PrevNodeRaw>;
+   const std::shared_ptr<PrevNode_t> fPrevNodePtr;
+   PrevNode_t &fPrevNode;
 
 public:
-   RRange(unsigned int start, unsigned int stop, unsigned int stride, std::shared_ptr<PrevNode> pd)
+   RRange(unsigned int start, unsigned int stop, unsigned int stride, std::shared_ptr<PrevNode_t> pd)
       : RRangeBase(pd->GetLoopManagerUnchecked(), start, stop, stride, pd->GetLoopManagerUnchecked()->GetNSlots(),
                    pd->GetVariations()),
         fPrevNodePtr(std::move(pd)), fPrevNode(*fPrevNodePtr)
    {
+      fLoopManager->Register(this);
    }
 
    RRange(const RRange &) = delete;
@@ -110,14 +116,14 @@ public:
       // TODO: Ranges node have no information about custom columns, hence it is not possible now
       // if defines have been used before.
       auto prevNode = fPrevNode.GetGraph(visitedMap);
-      auto prevColumns = prevNode->GetDefinedColumns();
+      const auto &prevColumns = prevNode->GetDefinedColumns();
 
       auto thisNode = RDFGraphDrawing::CreateRangeNode(this, visitedMap);
 
       /* If the returned node is not new, there is no need to perform any other operation.
        * This is a likely scenario when building the entire graph in which branches share
        * some nodes. */
-      if (!thisNode->GetIsNew()) {
+      if (!thisNode->IsNew()) {
          return thisNode;
       }
       thisNode->SetPrevNode(prevNode);
@@ -147,10 +153,9 @@ public:
       auto prevNode = fPrevNodePtr;
       if (static_cast<RNodeBase *>(fPrevNodePtr.get()) != static_cast<RNodeBase *>(fLoopManager) &&
           RDFInternal::IsStrInVec(variationName, prevNode->GetVariations()))
-         prevNode = std::static_pointer_cast<PrevNode>(prevNode->GetVariedFilter(variationName));
+         prevNode = std::static_pointer_cast<PrevNode_t>(prevNode->GetVariedFilter(variationName));
 
       auto variedRange = std::unique_ptr<RRangeBase>(new RRange(fStart, fStop, fStride, std::move(prevNode)));
-      fLoopManager->Book(variedRange.get());
       auto e = fVariedRanges.insert({variationName, std::move(variedRange)});
       return e.first->second;
    }

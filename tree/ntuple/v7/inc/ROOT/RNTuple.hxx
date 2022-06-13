@@ -18,6 +18,7 @@
 
 #include <ROOT/RConfig.hxx> // for R__unlikely
 #include <ROOT/RError.hxx>
+#include <ROOT/RMiniFile.hxx>
 #include <ROOT/RNTupleMetrics.hxx>
 #include <ROOT/RNTupleModel.hxx>
 #include <ROOT/RNTupleOptions.hxx>
@@ -26,6 +27,8 @@
 #include <ROOT/RPageStorage.hxx>
 #include <ROOT/RSpan.hxx>
 #include <ROOT/RStringView.hxx>
+
+#include <TClassRef.h>
 
 #include <iterator>
 #include <memory>
@@ -38,6 +41,7 @@ namespace ROOT {
 namespace Experimental {
 
 class REntry;
+class RNTuple;
 class RNTupleModel;
 
 namespace Detail {
@@ -45,6 +49,9 @@ class RPageSink;
 class RPageSource;
 }
 
+namespace Internal {
+struct RNTupleTester; // friend of RNTuple
+}
 
 /**
  * Listing of the different options that can be printed by RNTupleReader::GetInfo()
@@ -113,6 +120,12 @@ private:
    /// from the full model even if the analysis code uses only a subset of fields. The display reader
    /// is a clone of the original reader.
    std::unique_ptr<RNTupleReader> fDisplayReader;
+   /// The ntuple descriptor in the page source is protected by a read-write lock. We don't expose that to the
+   /// users of RNTupleReader::GetDescriptor().  Instead, if descriptor information is needed, we clone the
+   /// descriptor.  Using the descriptor's generation number, we know if the cached descriptor is stale.
+   /// Retrieving descriptor data from an RNTupleReader is supposed to be for testing and information purposes,
+   /// not on a hot code path.
+   std::unique_ptr<RNTupleDescriptor> fCachedDescriptor;
    Detail::RNTupleMetrics fMetrics;
 
    void ConnectModel(const RNTupleModel &model);
@@ -176,6 +189,8 @@ public:
    static std::unique_ptr<RNTupleReader> Open(std::string_view ntupleName,
                                               std::string_view storage,
                                               const RNTupleReadOptions &options = RNTupleReadOptions());
+   static std::unique_ptr<RNTupleReader>
+   Open(RNTuple *ntuple, const RNTupleReadOptions &options = RNTupleReadOptions());
    /// Open RNTuples as one virtual, horizontally combined ntuple.  The underlying RNTuples must
    /// have an identical number of entries.  Fields in the combined RNTuple are named with the ntuple name
    /// as a prefix, e.g. myNTuple1.px and myNTuple2.pt (see tutorial ntpl006_friends)
@@ -195,7 +210,10 @@ public:
 
    RNTupleModel *GetModel();
    NTupleSize_t GetNEntries() const { return fSource->GetNEntries(); }
-   const RNTupleDescriptor &GetDescriptor() const { return fSource->GetDescriptor(); }
+
+   /// Returns a cached copy of the page source descriptor. The returned pointer remains valid until the next call
+   /// to LoadEntry or to any of the views returned from the reader.
+   const RNTupleDescriptor *GetDescriptor();
 
    /// Prints a detailed summary of the ntuple, including a list of fields.
    ///
@@ -238,7 +256,7 @@ public:
    void LoadEntry(NTupleSize_t index) {
       // TODO(jblomer): can be templated depending on the factory method / constructor
       if (R__unlikely(!fModel)) {
-         fModel = fSource->GetDescriptor().GenerateModel();
+         fModel = fSource->GetSharedDescriptorGuard()->GenerateModel();
          ConnectModel(*fModel);
       }
       LoadEntry(index, *fModel->GetDefaultEntry());
@@ -289,11 +307,10 @@ public:
    /// ~~~
    template <typename T>
    RNTupleView<T> GetView(std::string_view fieldName) {
-      auto fieldId = fSource->GetDescriptor().FindFieldId(fieldName);
+      auto fieldId = fSource->GetSharedDescriptorGuard()->FindFieldId(fieldName);
       if (fieldId == kInvalidDescriptorId) {
-         throw RException(R__FAIL("no field named '" + std::string(fieldName) + "' in RNTuple '"
-            + fSource->GetDescriptor().GetName() + "'"
-         ));
+         throw RException(R__FAIL("no field named '" + std::string(fieldName) + "' in RNTuple '" +
+                                  fSource->GetSharedDescriptorGuard()->GetName() + "'"));
       }
       return RNTupleView<T>(fieldId, fSource.get());
    }
@@ -302,11 +319,10 @@ public:
    /// * there is no field with the given name or,
    /// * the field is not a collection
    RNTupleViewCollection GetViewCollection(std::string_view fieldName) {
-      auto fieldId = fSource->GetDescriptor().FindFieldId(fieldName);
+      auto fieldId = fSource->GetSharedDescriptorGuard()->FindFieldId(fieldName);
       if (fieldId == kInvalidDescriptorId) {
-         throw RException(R__FAIL("no field named '" + std::string(fieldName) + "' in RNTuple '"
-            + fSource->GetDescriptor().GetName() + "'"
-         ));
+         throw RException(R__FAIL("no field named '" + std::string(fieldName) + "' in RNTuple '" +
+                                  fSource->GetSharedDescriptorGuard()->GetName() + "'"));
       }
       return RNTupleViewCollection(fieldId, fSource.get());
    }
@@ -395,7 +411,7 @@ public:
 
    /// The simplest user interface if the default entry that comes with the ntuple model is used
    void Fill() { Fill(*fModel->GetDefaultEntry()); }
-   /// Multiple entries can have been instantiated from the tnuple model.  This method will perform
+   /// Multiple entries can have been instantiated from the ntuple model.  This method will perform
    /// a light check whether the entry comes from the ntuple's own model
    void Fill(REntry &entry) {
       if (R__unlikely(entry.GetModelId() != fModel->GetModelId()))
@@ -449,6 +465,56 @@ public:
    }
 
    ClusterSize_t *GetOffsetPtr() { return &fOffset; }
+};
+
+// clang-format off
+/**
+\class ROOT::Experimental::RNTuple
+\ingroup NTuple
+\brief Representation of an RNTuple data set in a ROOT file
+
+This class provides an API entry point to an RNTuple stored in a ROOT file. Its main purpose is to
+construct a page source for an RNTuple, which in turn can be used to read an RNTuple with an RDF or
+an RNTupleReader.
+
+For instance, for an RNTuple called "Events" in a ROOT file, usage can be
+~~~ {.cpp}
+auto f = TFile::Open("data.root");
+auto ntpl = f->Get<ROOT::Experimental::RNTuple>("Events");
+
+auto reader = RNTupleReader::Open(ntpl);
+or
+auto pageSource = ntpl->MakePageSource();
+~~~
+*/
+// clang-format on
+class RNTuple final : protected ROOT::Experimental::Internal::RFileNTupleAnchor {
+   friend class ROOT::Experimental::Internal::RNTupleFileWriter;
+   friend struct ROOT::Experimental::Internal::RNTupleTester;
+
+private:
+   // Only add transient members. The on-disk layout must be identical to RFileNTupleAnchor
+
+   TFile *fFile = nullptr; ///<! The file from which the ntuple was streamed, registered in the custom streamer
+
+   // Conversion between low-level anchor and RNTuple UI class
+   explicit RNTuple(const Internal::RFileNTupleAnchor &a) : Internal::RFileNTupleAnchor(a) {}
+   Internal::RFileNTupleAnchor GetAnchor() const { return *this; }
+
+public:
+   RNTuple() = default;
+   ~RNTuple() = default;
+
+   /// Create a page source from the RNTuple object. Requires the RNTuple object to be streamed from a file.
+   /// If fFile is not set, an exception is thrown.
+   std::unique_ptr<Detail::RPageSource> MakePageSource(const RNTupleReadOptions &options = RNTupleReadOptions());
+
+   /// RNTuple implements the hadd MergeFile interface
+   /// Merge this NTuple with the input list entries
+   Long64_t Merge(TCollection *input, TFileMergeInfo *mergeInfo);
+
+   // The version must match the RFileNTupleAnchor version in the LinkDef.h
+   ClassDefNV(RNTuple, 3);
 };
 
 } // namespace Experimental

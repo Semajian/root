@@ -50,8 +50,6 @@
  * ```
  */
 
-#include "RooFit.h"
-
 #include "RooChi2Var.h"
 #include "RooDataHist.h"
 #include "RooAbsPdf.h"
@@ -124,7 +122,7 @@ RooChi2Var::RooChi2Var(const char *name, const char* title, RooAbsReal& func, Ro
 {
   RooCmdConfig pc("RooChi2Var::RooChi2Var") ;
   pc.defineInt("etype","DataError",0,(Int_t)RooDataHist::Auto) ;
-  pc.defineInt("extended","Extended",0,kFALSE) ;
+  pc.defineInt("extended","Extended",0,false) ;
   pc.allowUndefined() ;
 
   pc.process(arg1) ;  pc.process(arg2) ;  pc.process(arg3) ;
@@ -184,7 +182,7 @@ RooChi2Var::RooChi2Var(const char *name, const char* title, RooAbsPdf& pdf, RooD
                          makeRooAbsTestStatisticCfgForPdf(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9))
 {
   RooCmdConfig pc("RooChi2Var::RooChi2Var") ;
-  pc.defineInt("extended","Extended",0,kFALSE) ;
+  pc.defineInt("extended","Extended",0,false) ;
   pc.defineInt("etype","DataError",0,(Int_t)RooDataHist::Auto) ;
   pc.allowUndefined() ;
 
@@ -201,57 +199,6 @@ RooChi2Var::RooChi2Var(const char *name, const char* title, RooAbsPdf& pdf, RooD
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Constructor of a chi2 for given p.d.f. with respect given binned
-/// dataset. If cutRange is specified the calculation of the chi2 is
-/// restricted to that named range. If addCoefRange is specified, the
-/// interpretation of fractions for all component RooAddPdfs that do
-/// not have a frozen range interpretation is set to chosen range
-/// name. If nCPU is greater than one the chi^2 calculation is
-/// parallelized over the specified number of processors. If
-/// interleave is true the partitioning of event over processors
-/// follows a (i % n == i_set) strategy rather than a bulk
-/// partitioning strategy which may result in unequal load balancing
-/// in binned datasets with many (adjacent) zero bins. If
-/// splitCutRange is true the cutRange is used to construct an
-/// individual cutRange for each RooSimultaneous index category state
-/// name cutRange_{indexStateName}.
-
-RooChi2Var::RooChi2Var(const char *name, const char *title, RooAbsPdf& pdf, RooDataHist& hdata,
-                       RooAbsTestStatistic::Configuration const& cfg, bool extended, RooDataHist::ErrorType etype) :
-  RooAbsOptTestStatistic(name,title,pdf,hdata,RooArgSet(), cfg),
-   _etype(etype), _funcMode(extended?ExtendedPdf:Pdf)
-{
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-/// Constructor of a chi2 for given p.d.f. with respect given binned
-/// dataset taking the observables specified in projDeps as projected
-/// observables. If cutRange is specified the calculation of the chi2
-/// is restricted to that named range. If addCoefRange is specified,
-/// the interpretation of fractions for all component RooAddPdfs that
-/// do not have a frozen range interpretation is set to chosen range
-/// name. If nCPU is greater than one the chi^2 calculation is
-/// parallelized over the specified number of processors. If
-/// interleave is true the partitioning of event over processors
-/// follows a (i % n == i_set) strategy rather than a bulk
-/// partitioning strategy which may result in unequal load balancing
-/// in binned datasets with many (adjacent) zero bins. If
-/// splitCutRange is true the cutRange is used to construct an
-/// individual cutRange for each RooSimultaneous index category state
-/// name cutRange_{indexStateName}.
-
-RooChi2Var::RooChi2Var(const char *name, const char *title, RooAbsReal& func, RooDataHist& hdata,
-                       const RooArgSet& projDeps, RooChi2Var::FuncMode fmode,
-                       RooAbsTestStatistic::Configuration const& cfg,
-                       RooDataHist::ErrorType etype) :
-  RooAbsOptTestStatistic(name,title,func,hdata,projDeps,cfg),
-  _etype(etype), _funcMode(fmode)
-{
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Copy constructor
 
 RooChi2Var::RooChi2Var(const RooChi2Var& other, const char* name) :
@@ -263,30 +210,22 @@ RooChi2Var::RooChi2Var(const RooChi2Var& other, const char* name) :
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Destructor
-
-RooChi2Var::~RooChi2Var()
-{
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 /// Calculate chi^2 in partition from firstEvent to lastEvent using given stepSize
 /// Throughout the calculation, we use Kahan's algorithm for summing to
 /// prevent loss of precision - this is a factor four more expensive than
 /// straight addition, but since evaluating the PDF is usually much more
 /// expensive than that, we tolerate the additional cost...
 
-Double_t RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
+double RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
 {
 
-  Double_t result(0), carry(0);
+  double result(0), carry(0);
 
-  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, kFALSE) ;
+  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize, false) ;
 
 
   // Determine normalization factor depending on type of input function
-  Double_t normFactor(1) ;
+  double normFactor(1) ;
   switch (_funcMode) {
   case Function: normFactor=1 ; break ;
   case Pdf: normFactor = _dataClone->sumEntries() ; break ;
@@ -300,18 +239,16 @@ Double_t RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastE
     // get the data values for this event
     hdata->get(i);
 
-    if (!hdata->valid()) continue;
+    const double nData = hdata->weight() ;
 
-    const Double_t nData = hdata->weight() ;
+    const double nPdf = _funcClone->getVal(_normSet) * normFactor * hdata->binVolume() ;
 
-    const Double_t nPdf = _funcClone->getVal(_normSet) * normFactor * hdata->binVolume() ;
-
-    const Double_t eExt = nPdf-nData ;
+    const double eExt = nPdf-nData ;
 
 
-    Double_t eInt ;
+    double eInt ;
     if (_etype != RooAbsData::Expected) {
-      Double_t eIntLo,eIntHi ;
+      double eIntLo,eIntHi ;
       hdata->weightError(eIntLo,eIntHi,_etype) ;
       eInt = (eExt>0) ? eIntHi : eIntLo ;
     } else {
@@ -330,9 +267,9 @@ Double_t RooChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastE
 
 //     cout << "Chi2Var[" << i << "] nData = " << nData << " nPdf = " << nPdf << " errorExt = " << eExt << " errorInt = " << eInt << " contrib = " << eExt*eExt/(eInt*eInt) << endl ;
 
-    Double_t term = eExt*eExt/(eInt*eInt) ;
-    Double_t y = term - carry;
-    Double_t t = result + y;
+    double term = eExt*eExt/(eInt*eInt) ;
+    double y = term - carry;
+    double t = result + y;
     carry = (t - result) - y;
     result = t;
   }

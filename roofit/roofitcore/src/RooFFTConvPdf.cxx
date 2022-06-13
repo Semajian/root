@@ -151,14 +151,14 @@ RooFFTConvPdf::RooFFTConvPdf(const char *name, const char *title, RooRealVar& co
   RooAbsCachedPdf(name,title,ipOrder),
   _x("!x","Convolution Variable",this,convVar),
   _xprime("!xprime","External Convolution Variable",this,0),
-  _pdf1("!pdf1","pdf1",this,pdf1,kFALSE),
-  _pdf2("!pdf2","pdf2",this,pdf2,kFALSE),
+  _pdf1("!pdf1","pdf1",this,pdf1,false),
+  _pdf2("!pdf2","pdf2",this,pdf2,false),
   _params("!params","effective parameters",this),
   _bufFrac(0.1),
   _bufStrat(Extend),
   _shift1(0),
   _shift2(0),
-  _cacheObs("!cacheObs","Cached observables",this,kFALSE,kFALSE)
+  _cacheObs("!cacheObs","Cached observables",this,false,false)
 {
   prepareFFTBinning(convVar);
 
@@ -175,16 +175,16 @@ RooFFTConvPdf::RooFFTConvPdf(const char *name, const char *title, RooRealVar& co
 
 RooFFTConvPdf::RooFFTConvPdf(const char *name, const char *title, RooAbsReal& pdfConvVar, RooRealVar& convVar, RooAbsPdf& pdf1, RooAbsPdf& pdf2, Int_t ipOrder) :
   RooAbsCachedPdf(name,title,ipOrder),
-  _x("!x","Convolution Variable",this,convVar,kFALSE,kFALSE),
+  _x("!x","Convolution Variable",this,convVar,false,false),
   _xprime("!xprime","External Convolution Variable",this,pdfConvVar),
-  _pdf1("!pdf1","pdf1",this,pdf1,kFALSE),
-  _pdf2("!pdf2","pdf2",this,pdf2,kFALSE),
+  _pdf1("!pdf1","pdf1",this,pdf1,false),
+  _pdf2("!pdf2","pdf2",this,pdf2,false),
   _params("!params","effective parameters",this),
   _bufFrac(0.1),
   _bufStrat(Extend),
   _shift1(0),
   _shift2(0),
-  _cacheObs("!cacheObs","Cached observables",this,kFALSE,kFALSE)
+  _cacheObs("!cacheObs","Cached observables",this,false,false)
 {
   prepareFFTBinning(convVar);
 
@@ -336,7 +336,7 @@ RooFFTConvPdf::FFTCacheElem::FFTCacheElem(const RooFFTConvPdf& self, const RooAr
 
   // Remove all cache histogram from fftParams as these
   // observable need to remain attached to the histogram
-  fftParams.remove(*hist()->get(),kTRUE,kTRUE) ;
+  fftParams.remove(*hist()->get(),true,true) ;
 
   pdf1Clone->recursiveRedirectServers(fftParams) ;
   pdf2Clone->recursiveRedirectServers(fftParams) ;
@@ -358,7 +358,7 @@ RooFFTConvPdf::FFTCacheElem::FFTCacheElem(const RooFFTConvPdf& self, const RooAr
         " of bins of the observable '" << convObs->GetName() << "'." << std::endl;
   }
   Int_t Nbuf = static_cast<Int_t>((N*self.bufferFraction())/2 + 0.5) ;
-  Double_t obw = (convObs->getMax() - convObs->getMin())/N ;
+  double obw = (convObs->getMax() - convObs->getMin())/N ;
   Int_t N2 = N+2*Nbuf ;
 
   scanBinning = std::make_unique<RooUniformBinning>(convObs->getMin()-Nbuf*obw,convObs->getMax()+Nbuf*obw,N2);
@@ -366,8 +366,8 @@ RooFFTConvPdf::FFTCacheElem::FFTCacheElem(const RooFFTConvPdf& self, const RooAr
 
   // Deactivate dirty state propagation on datahist observables
   // and set all nodes on both pdfs to operMode AlwaysDirty
-  hist()->setDirtyProp(kFALSE) ;
-  convObs->setOperMode(ADirty,kTRUE) ;
+  hist()->setDirtyProp(false) ;
+  convObs->setOperMode(ADirty,true) ;
 }
 
 
@@ -409,8 +409,8 @@ void RooFFTConvPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) const
 {
   RooDataHist& cacheHist = *cache.hist() ;
 
-  ((FFTCacheElem&)cache).pdf1Clone->setOperMode(ADirty,kTRUE) ;
-  ((FFTCacheElem&)cache).pdf2Clone->setOperMode(ADirty,kTRUE) ;
+  ((FFTCacheElem&)cache).pdf1Clone->setOperMode(ADirty,true) ;
+  ((FFTCacheElem&)cache).pdf2Clone->setOperMode(ADirty,true) ;
 
   // Determine if there other observables than the convolution observable in the cache
   RooArgSet otherObs ;
@@ -418,13 +418,13 @@ void RooFFTConvPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) const
 
   RooAbsArg* histArg = otherObs.find(_x.arg().GetName()) ;
   if (histArg) {
-    otherObs.remove(*histArg,kTRUE,kTRUE) ;
+    otherObs.remove(*histArg,true,true) ;
   }
 
   //cout << "RooFFTConvPdf::fillCacheObject() otherObs = " << otherObs << endl ;
 
   // Handle trivial scenario -- no other observables
-  if (otherObs.getSize()==0) {
+  if (otherObs.empty()) {
     fillCacheSlice((FFTCacheElem&)cache,RooArgSet()) ;
     return ;
   }
@@ -449,7 +449,7 @@ void RooFFTConvPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) const
     i++ ;
   }
 
-  Bool_t loop(kTRUE) ;
+  bool loop(true) ;
   while(loop) {
     // Set current slice position
     for (Int_t j=0 ; j<n ; j++) { obsLV[j]->setBin(binCur[j],binningName()) ; }
@@ -468,7 +468,7 @@ void RooFFTConvPdf::fillCacheObject(RooAbsCachedPdf::PdfCacheElem& cache) const
 
       // master termination condition
       if (curObs==n) {
-   loop=kFALSE ;
+   loop=false ;
    break ;
       }
     }
@@ -535,11 +535,11 @@ void RooFFTConvPdf::fillCacheSlice(FFTCacheElem& aux, const RooArgSet& slicePos)
   // Loop over first half +1 of complex output results, multiply
   // and set as input of reverse transform
   for (Int_t i=0 ; i<N2/2+1 ; i++) {
-    Double_t re1,re2,im1,im2 ;
+    double re1,re2,im1,im2 ;
     aux.fftr2c1->GetPointComplex(i,re1,im1) ;
     aux.fftr2c2->GetPointComplex(i,re2,im2) ;
-    Double_t re = re1*re2 - im1*im2 ;
-    Double_t im = re1*im2 + re2*im1 ;
+    double re = re1*re2 - im1*im2 ;
+    double im = re1*im2 + re2*im1 ;
     TComplex t(re,im) ;
     aux.fftc2r->SetPointComplex(i,t) ;
   }
@@ -574,7 +574,7 @@ void RooFFTConvPdf::fillCacheSlice(FFTCacheElem& aux, const RooArgSet& slicePos)
 /// of the array
 
 std::vector<double>  RooFFTConvPdf::scanPdf(RooRealVar& obs, RooAbsPdf& pdf, const RooDataHist& hist, const RooArgSet& slicePos,
-              Int_t& N, Int_t& N2, Int_t& zeroBin, Double_t shift) const
+              Int_t& N, Int_t& N2, Int_t& zeroBin, double shift) const
 {
 
   RooRealVar* histX = (RooRealVar*) hist.get()->find(obs.GetName()) ;
@@ -596,10 +596,10 @@ std::vector<double>  RooFFTConvPdf::scanPdf(RooRealVar& obs, RooAbsPdf& pdf, con
   if (histX->getMax()>=0 && histX->getMin()<=0) {
     zeroBin = histX->getBinning().binNumber(0) ;
   } else if (histX->getMin()>0) {
-    Double_t bw = (histX->getMax() - histX->getMin())/N2 ;
+    double bw = (histX->getMax() - histX->getMin())/N2 ;
     zeroBin = Int_t(-histX->getMin()/bw) ;
   } else {
-    Double_t bw = (histX->getMax() - histX->getMin())/N2 ;
+    double bw = (histX->getMax() - histX->getMin())/N2 ;
     zeroBin = Int_t(-1*histX->getMax()/bw) ;
   }
 
@@ -627,7 +627,7 @@ std::vector<double>  RooFFTConvPdf::scanPdf(RooRealVar& obs, RooAbsPdf& pdf, con
     // bins with p.d.f. value at respective boundary
     {
       histX->setBin(0) ;
-      Double_t val = pdf.getVal(hist.get()) ;
+      double val = pdf.getVal(hist.get()) ;
       for (k=0 ; k<Nbuf ; k++) {
    tmp[k] = val ;
       }
@@ -708,7 +708,7 @@ RooArgSet* RooFFTConvPdf::actualObservables(const RooArgSet& nset) const
     obs1->remove(killList) ;
 
     // And add back the convolution observables
-    obs1->add(_x.arg(),kTRUE) ;
+    obs1->add(_x.arg(),true) ;
 
     obs1->add(_cacheObs) ;
 
@@ -727,7 +727,7 @@ RooArgSet* RooFFTConvPdf::actualObservables(const RooArgSet& nset) const
 
 
     // Make sure convolution observable is always in there
-    obs1->add(_x.arg(),kTRUE) ;
+    obs1->add(_x.arg(),true) ;
 
   }
 
@@ -773,16 +773,16 @@ RooAbsArg& RooFFTConvPdf::pdfObservable(RooAbsArg& histObservable) const
 /// regular accept/reject generator context
 
 RooAbsGenContext* RooFFTConvPdf::genContext(const RooArgSet &vars, const RooDataSet *prototype,
-                   const RooArgSet* auxProto, Bool_t verbose) const
+                   const RooArgSet* auxProto, bool verbose) const
 {
   RooArgSet vars2(vars) ;
-  vars2.remove(_x.arg(),kTRUE,kTRUE) ;
+  vars2.remove(_x.arg(),true,true) ;
   Int_t numAddDep = vars2.getSize() ;
 
   RooArgSet dummy ;
-  Bool_t pdfCanDir = (((RooAbsPdf&)_pdf1.arg()).getGenerator(_x.arg(),dummy) != 0 && \
+  bool pdfCanDir = (((RooAbsPdf&)_pdf1.arg()).getGenerator(_x.arg(),dummy) != 0 && \
             ((RooAbsPdf&)_pdf1.arg()).isDirectGenSafe(_x.arg())) ;
-  Bool_t resCanDir = (((RooAbsPdf&)_pdf2.arg()).getGenerator(_x.arg(),dummy) !=0  &&
+  bool resCanDir = (((RooAbsPdf&)_pdf2.arg()).getGenerator(_x.arg(),dummy) !=0  &&
             ((RooAbsPdf&)_pdf2.arg()).isDirectGenSafe(_x.arg())) ;
 
   if (pdfCanDir) {
@@ -820,7 +820,7 @@ RooAbsGenContext* RooFFTConvPdf::genContext(const RooArgSet &vars, const RooData
 /// Change the size of the buffer on either side of the observable range to `frac` times the
 /// size of the range of the convolution observable.
 
-void RooFFTConvPdf::setBufferFraction(Double_t frac)
+void RooFFTConvPdf::setBufferFraction(double frac)
 {
   if (frac<0) {
     coutE(InputArguments) << "RooFFTConvPdf::setBufferFraction(" << GetName() << ") fraction should be greater than or equal to zero" << endl ;
@@ -882,7 +882,7 @@ void RooFFTConvPdf::calcParams()
 ////////////////////////////////////////////////////////////////////////////////
 ///calcParams() ;
 
-Bool_t RooFFTConvPdf::redirectServersHook(const RooAbsCollection& /*newServerList*/, Bool_t /*mustReplaceAll*/, Bool_t /*nameChange*/, Bool_t /*isRecursive*/)
+bool RooFFTConvPdf::redirectServersHook(const RooAbsCollection& /*newServerList*/, bool /*mustReplaceAll*/, bool /*nameChange*/, bool /*isRecursive*/)
 {
-  return kFALSE ;
+  return false ;
 }

@@ -17,6 +17,7 @@
 #define ROO_CATEGORY
 
 #include "RooAbsCategoryLValue.h"
+#include "RooSharedProperties.h"
 
 #include <vector>
 #include <map>
@@ -40,14 +41,14 @@ public:
     return RooCategory::evaluate();
   }
 
-  Bool_t setIndex(Int_t index, bool printError = true) override;
+  bool setIndex(Int_t index, bool printError = true) override;
   using RooAbsCategoryLValue::setIndex;
-  Bool_t setLabel(const char* label, bool printError = true) override;
+  bool setLabel(const char* label, bool printError = true) override;
   using RooAbsCategoryLValue::setLabel;
 
   // I/O streaming interface (machine readable)
-  Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) override;
-  void writeToStream(std::ostream& os, Bool_t compact) const override ;
+  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override;
+  void writeToStream(std::ostream& os, bool compact) const override ;
 
   bool defineType(const std::string& label);
   bool defineType(const std::string& label, Int_t index);
@@ -69,7 +70,7 @@ public:
     clearTypes();
   }
 
-  void clearRange(const char* name, Bool_t silent) ;
+  void clearRange(const char* name, bool silent) ;
   void setRange(const char* rangeName, const char* stateNameList) ;
   void addToRange(const char* rangeName, RooAbsCategory::value_type stateIndex);
   void addToRange(const char* rangeName, const char* stateNameList) ;
@@ -79,20 +80,20 @@ public:
   /// @{
 
   /// Tell whether we can be stored in a dataset. Always true for RooCategory.
-  inline Bool_t isFundamental() const override {
+  inline bool isFundamental() const override {
     return true;
   }
 
   /// Does our value or shape depend on any other arg? Always false for RooCategory.
-  Bool_t isDerived() const override {
+  bool isDerived() const override {
     return false;
   }
 
-  Bool_t isStateInRange(const char* rangeName, RooAbsCategory::value_type stateIndex) const ;
-  Bool_t isStateInRange(const char* rangeName, const char* stateName) const ;
+  bool isStateInRange(const char* rangeName, RooAbsCategory::value_type stateIndex) const ;
+  bool isStateInRange(const char* rangeName, const char* stateName) const ;
   /// Check if the currently defined category state is in the range with the given name.
   /// If no ranges are defined, the state counts as being in range.
-  Bool_t inRange(const char* rangeName) const override {
+  bool inRange(const char* rangeName) const override {
     return isStateInRange(rangeName, RooCategory::evaluate());
   }
   /// Returns true if category has a range with given name defined.
@@ -133,7 +134,7 @@ private:
   void installLegacySharedProp(const RooCategorySharedProperties* sp);
   void installSharedRange(std::unique_ptr<RangeMap_t>&& rangeMap);
   /// Helper for restoring shared ranges from old versions of this class read from files. Maps TUUID names to shared ranges.
-  static std::map<std::string, std::weak_ptr<RangeMap_t>> _uuidToSharedRangeIOHelper;
+  static std::map<RooSharedProperties::UUID, std::weak_ptr<RangeMap_t>> _uuidToSharedRangeIOHelper;
   /// Helper for restoring shared ranges from current versions of this class read from files. Maps category names to shared ranges.
   static std::map<std::string, std::weak_ptr<RangeMap_t>> _sharedRangeIOHelper;
 

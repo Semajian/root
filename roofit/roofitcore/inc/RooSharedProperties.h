@@ -26,7 +26,7 @@ public:
   RooSharedProperties() ;
   RooSharedProperties(const char* uuidstr) ;
   ~RooSharedProperties() override ;
-  Bool_t operator==(const RooSharedProperties& other) const ;
+  bool operator==(const RooSharedProperties& other) const ;
 
   // Copying and moving is disabled for RooSharedProperties and derived classes
   // because it is not meaningful. Instead, one should copy and move around
@@ -42,10 +42,21 @@ public:
   void decreaseRefCount() { if (_refCount>0) _refCount-- ; }
   Int_t refCount() const { return _refCount ; }
 
-  void setInSharedList() { _inSharedList = kTRUE ; }
-  Bool_t inSharedList() const { return _inSharedList ; }
+  void setInSharedList() { _inSharedList = true ; }
+  bool inSharedList() const { return _inSharedList ; }
 
-   TString asString() const { return TString(_uuid.AsString()); }
+   // Wrapper class to make the TUUID comparable for use as key type in std::map.
+   class UUID {
+   public:
+     UUID(TUUID const& tuuid) : _uuid{tuuid} {}
+     bool operator<(UUID const& other) const { return _uuid.Compare(other._uuid) < 0; }
+     bool operator>(UUID const& other) const { return _uuid.Compare(other._uuid) > 0; }
+     bool operator==(UUID const& other) const { return _uuid.Compare(other._uuid) == 0; }
+   private:
+     TUUID _uuid;
+   };
+
+   UUID uuid() const { return _uuid; }
 
 protected:
 

@@ -621,6 +621,15 @@ static const char* BuildAndEmitVPWrapperBody(cling::Interpreter &Interp,
                                           R.begin(),
                                           R.end());
 
+  // For `auto foo = bar;` decls, we are interested in the deduced type, i.e.
+  // AutoType 0x55e5ac848030 'int *' sugar
+  // `-PointerType 0x55e5ac847f70 'int *' << this type
+  //   `-BuiltinType 0x55e5ab517420 'int'
+  if (auto AT = llvm::dyn_cast<clang::AutoType>(QT.getTypePtr())) {
+    if (AT->isDeduced())
+      QT = AT->getDeducedType();
+  }
+
   if (auto PT = llvm::dyn_cast<clang::PointerType>(QT.getTypePtr())) {
     // Normalize `X*` to `const void*`, invoke `printValue(const void**)`,
     // unless it's a character string.
@@ -629,9 +638,7 @@ static const char* BuildAndEmitVPWrapperBody(cling::Interpreter &Interp,
         && !Ctx.hasSameType(QTPointeeUnqual, Ctx.WCharTy)
         && !Ctx.hasSameType(QTPointeeUnqual, Ctx.Char16Ty)
         && !Ctx.hasSameType(QTPointeeUnqual, Ctx.Char32Ty)) {
-      QT = Ctx.VoidTy;
-      QT.addConst();
-      QT = Ctx.getPointerType(QT);
+      QT = Ctx.getPointerType(Ctx.VoidTy.withConst());
     }
   } else if (auto RTy
              = llvm::dyn_cast<clang::ReferenceType>(QT.getTypePtr())) {

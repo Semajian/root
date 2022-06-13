@@ -29,7 +29,7 @@ public:
 
   RooFirstMoment() ;
   RooFirstMoment(const char *name, const char *title, RooAbsReal& func, RooRealVar& x) ;
-  RooFirstMoment(const char *name, const char *title, RooAbsReal& func, RooRealVar& x, const RooArgSet& nset, Bool_t intNSet=kFALSE) ;
+  RooFirstMoment(const char *name, const char *title, RooAbsReal& func, RooRealVar& x, const RooArgSet& nset, bool intNSet=false) ;
   ~RooFirstMoment() override ;
 
   RooFirstMoment(const RooFirstMoment& other, const char* name = 0);
@@ -44,7 +44,7 @@ protected:
   RooRealProxy _xf ;                     ///< X*F
   RooRealProxy _ixf ;                    ///< Int(X*F(X))dx ;
   RooRealProxy _if ;                     ///< Int(F(x))dx ;
-  Double_t evaluate() const override;
+  double evaluate() const override;
 
   ClassDefOverride(RooFirstMoment,1) // Representation of moment in a RooAbsReal in a given RooRealVar
 };

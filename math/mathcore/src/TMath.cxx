@@ -46,6 +46,7 @@ namespace TMath {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns `sqrt(x*x + y*y)`
 
 Long_t TMath::Hypot(Long_t x, Long_t y)
 {
@@ -53,6 +54,7 @@ Long_t TMath::Hypot(Long_t x, Long_t y)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns `sqrt(x*x + y*y)`
 
 Double_t TMath::Hypot(Double_t x, Double_t y)
 {
@@ -60,6 +62,7 @@ Double_t TMath::Hypot(Double_t x, Double_t y)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns the area hyperbolic sine of `x`.
 
 Double_t TMath::ASinH(Double_t x)
 {
@@ -73,6 +76,7 @@ Double_t TMath::ASinH(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns the nonnegative area hyperbolic cosine of `x`.
 
 Double_t TMath::ACosH(Double_t x)
 {
@@ -86,6 +90,7 @@ Double_t TMath::ACosH(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns the area hyperbolic tangent of `x`.
 
 Double_t TMath::ATanH(Double_t x)
 {
@@ -97,6 +102,7 @@ Double_t TMath::ATanH(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Returns the binary (base-2) logarithm of `x`.
 
 Double_t TMath::Log2(Double_t x)
 {
@@ -187,9 +193,8 @@ Double_t TMath::Erf(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the complementary error function erfc(x).
+/// Computes the complementary error function erfc(x).
 /// Erfc(x) = (2/sqrt(pi)) Integral(exp(-t^2))dt between x and infinity
-///
 
 Double_t TMath::Erfc(Double_t x)
 {
@@ -197,7 +202,7 @@ Double_t TMath::Erfc(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// returns  the inverse error function
+/// Returns the inverse error function.
 /// x must be  <-1<x<1
 
 Double_t TMath::ErfInverse(Double_t x)
@@ -229,7 +234,7 @@ Double_t TMath::ErfInverse(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// returns  the inverse of the complementary error function
+/// Returns the inverse of the complementary error function.
 /// x must be  0<x<2
 /// implement using  the quantile of the normal distribution
 /// instead of ErfInverse for better numerical precision for large x
@@ -242,7 +247,7 @@ Double_t TMath::ErfcInverse(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute factorial(n).
+/// Computes factorial(n).
 
 Double_t TMath::Factorial(Int_t n)
 {
@@ -432,7 +437,7 @@ Double_t TMath::GamSer(Double_t a,Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate a Breit Wigner function with mean and gamma.
+/// Calculates a Breit Wigner function with mean and gamma.
 
 Double_t TMath::BreitWigner(Double_t x, Double_t mean, Double_t gamma)
 {
@@ -441,9 +446,8 @@ Double_t TMath::BreitWigner(Double_t x, Double_t mean, Double_t gamma)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate a Relativistic Breit Wigner function with median and gamma.
-// \f[ BW(E) = \frac{2\sqrt{2}}{\pi}\frac{M^{2}\gamma\sqrt{M^{2} + \gamma^{2}}}{\left(\sqrt{M^{2}+M\sqrt{M^{2} + \gamma^{2}}}\right)\left(\left(E^{2} - M^{2}\right)^{2} + M^{2}\gamma^{2}\right)} \f]
-
+/// Calculates a Relativistic Breit Wigner function with median and gamma.
+// \f$ BW(E) = \frac{2\sqrt{2}}{\pi}\frac{M^{2}\gamma\sqrt{M^{2} + \gamma^{2}}}{\left(\sqrt{M^{2}+M\sqrt{M^{2} + \gamma^{2}}}\right)\left(\left(E^{2} - M^{2}\right)^{2} + M^{2}\gamma^{2}\right)} \f$
 
 Double_t TMath::BreitWignerRelativistic(Double_t x, Double_t median, Double_t gamma)
 {
@@ -459,9 +463,8 @@ Double_t TMath::BreitWignerRelativistic(Double_t x, Double_t median, Double_t ga
    return bw;
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate a gaussian function with mean and sigma.
+/// Calculates a gaussian function with mean and sigma.
 /// If norm=kTRUE (default is kFALSE) the result is divided
 /// by sqrt(2*Pi)*sigma.
 
@@ -568,7 +571,7 @@ Double_t TMath::Normalize(Double_t v[3])
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the Poisson distribution function for (x,par).
+/// Computes the Poisson distribution function for (x,par).
 /// The Poisson PDF is implemented by means of Euler's Gamma-function
 /// (for the factorial), so for any x integer argument it is the correct Poisson distribution.
 /// BUT for non-integer x values, it IS NOT equal to the Poisson distribution !
@@ -596,7 +599,7 @@ Double_t TMath::Poisson(Double_t x, Double_t par)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the Discrete Poisson distribution function for (x,par).
+/// Computes the Discrete Poisson distribution function for (x,par).
 /// This is a discrete and a non-smooth function.
 /// This function is equivalent to ROOT::Math::poisson_pdf
 ///
@@ -1095,7 +1098,7 @@ Double_t TMath::Voigt(Double_t xx, Double_t sigma, Double_t lg, Int_t r)
 ///
 /// If the boolean returned by the method is false:
 ///    ==> there are 3 real roots a,b,c
-
+///
 /// If the boolean returned by the method is true:
 ///    ==> there is one real root a and 2 complex conjugates roots (b+i*c,b-i*c)
 ///
@@ -1416,7 +1419,7 @@ ULong_t TMath::Hash(const char *txt)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the modified Bessel function I_0(x) for any real x.
+/// Computes the modified Bessel function I_0(x) for any real x.
 ///
 /// \author NvE 12-mar-2000 UU-SAP Utrecht
 
@@ -1447,7 +1450,7 @@ Double_t TMath::BesselI0(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the modified Bessel function K_0(x) for positive real x.
+/// Computes the modified Bessel function K_0(x) for positive real x.
 ///
 ///  M.Abramowitz and I.A.Stegun, Handbook of Mathematical Functions,
 ///     Applied Mathematics Series vol. 55 (1964), Washington.
@@ -1481,7 +1484,7 @@ Double_t TMath::BesselK0(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the modified Bessel function I_1(x) for any real x.
+/// Computes the modified Bessel function I_1(x) for any real x.
 ///
 ///  M.Abramowitz and I.A.Stegun, Handbook of Mathematical Functions,
 ///     Applied Mathematics Series vol. 55 (1964), Washington.
@@ -1516,7 +1519,7 @@ Double_t TMath::BesselI1(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the modified Bessel function K_1(x) for positive real x.
+/// Computes the modified Bessel function K_1(x) for positive real x.
 ///
 ///  M.Abramowitz and I.A.Stegun, Handbook of Mathematical Functions,
 ///     Applied Mathematics Series vol. 55 (1964), Washington.
@@ -1550,7 +1553,7 @@ Double_t TMath::BesselK1(Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the Integer Order Modified Bessel function K_n(x)
+/// Computes the Integer Order Modified Bessel function K_n(x)
 /// for n=0,1,2,... and positive real x.
 ///
 /// \author NvE 12-mar-2000 UU-SAP Utrecht
@@ -1579,7 +1582,7 @@ Double_t TMath::BesselK(Int_t n,Double_t x)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Compute the Integer Order Modified Bessel function I_n(x)
+/// Computes the Integer Order Modified Bessel function I_n(x)
 /// for n=0,1,2,... and any real x.
 ///
 /// \author NvE 12-mar-2000 UU-SAP Utrecht
@@ -1914,7 +1917,8 @@ Double_t TMath::StruveH1(Double_t x)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Modified Struve Function of Order 0.
-/// By Kirill Filimonov.
+///
+/// \author Kirill Filimonov.
 
 Double_t TMath::StruveL0(Double_t x)
 {
@@ -1960,7 +1964,8 @@ Double_t TMath::StruveL0(Double_t x)
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Modified Struve Function of Order 1.
-/// By Kirill Filimonov.
+///
+/// \author Kirill Filimonov.
 
 Double_t TMath::StruveL1(Double_t x)
 {
@@ -2100,7 +2105,7 @@ Double_t TMath::BetaIncomplete(Double_t x, Double_t a, Double_t b)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Calculate the binomial coefficient n over k.
+/// Calculates the binomial coefficient n over k.
 
 Double_t TMath::Binomial(Int_t n,Int_t k)
 {
@@ -2119,13 +2124,15 @@ Double_t TMath::Binomial(Int_t n,Int_t k)
 /// Suppose an event occurs with probability _p_ per trial
 /// Then the probability P of its occurring _k_ or more times
 /// in _n_ trials is termed a cumulative binomial probability
-/// the formula is P = sum_from_j=k_to_n(TMath::Binomial (n, j)*
-/// *TMath::Power (p, j)*TMath::Power (1-p, n-j)
+/// the formula is:
+/// ~~~ {cpp}
+/// P = sum_from_j=k_to_n(TMath::Binomial (n, j)**TMath::Power (p, j)*TMath::Power (1-p, n-j)
+/// ~~~
 /// For _n_ larger than 12 BetaIncomplete is a much better way
 /// to evaluate the sum than would be the straightforward sum calculation
-/// for _n_ smaller than 12 either method is acceptable
-/// ("Numerical Recipes")
-///     --implementation by Anna Kreshuk
+/// for _n_ smaller than 12 either method is acceptable ("Numerical Recipes")
+///
+/// \author Anna Kreshuk
 
 Double_t TMath::BinomialI(Double_t p, Int_t n, Int_t k)
 {
@@ -2150,7 +2157,6 @@ Double_t TMath::BinomialI(Double_t p, Int_t n, Int_t k)
 /// does a single point.
 /// The formula was taken from "Engineering Statistics Handbook" on site
 /// http://www.itl.nist.gov/div898/handbook/eda/section3/eda3663.htm
-/// Implementation by Anna Kreshuk.
 ///
 /// Example:
 ///
@@ -2159,6 +2165,8 @@ Double_t TMath::BinomialI(Double_t p, Int_t n, Int_t k)
 ///    fc->SetParameters(0, 1);
 ///    fc->Draw();
 /// ~~~
+///
+/// \author Anna Kreshuk
 
 Double_t TMath::CauchyDist(Double_t x, Double_t t, Double_t s)
 {
@@ -2170,11 +2178,13 @@ Double_t TMath::CauchyDist(Double_t x, Double_t t, Double_t s)
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate the quantiles of the chi-squared probability distribution function.
 /// Algorithm AS 91   Appl. Statist. (1975) Vol.24, P.35
-/// implemented by Anna Kreshuk.
+/// .
 /// Incorporates the suggested changes in AS R85 (vol.40(1), pp.233-5, 1991)
 ///
 /// \param[in] p     the probability value, at which the quantile is computed
 /// \param[in] ndf   number of degrees of freedom
+///
+/// \author Anna Kreshuk
 
 Double_t TMath::ChisquareQuantile(Double_t p, Double_t ndf)
 {
@@ -2257,7 +2267,8 @@ Double_t TMath::ChisquareQuantile(Double_t p, Double_t ndf)
 /// distributions, with N and M degrees of freedom respectively,
 /// where each chi-square is first divided by it's number of degrees
 /// of freedom.
-/// Implementation by Anna Kreshuk.
+///
+/// \author Anna Kreshuk
 
 Double_t TMath::FDist(Double_t F, Double_t N, Double_t M)
 {
@@ -2276,7 +2287,7 @@ Double_t TMath::FDist(Double_t F, Double_t N, Double_t M)
 /// rejection, in turn implying high confidence in the hypothesis
 /// "1 has variance greater than 2".
 ///
-/// Implementation by Anna Kreshuk.
+/// \author Anna Kreshuk
 
 Double_t TMath::FDistI(Double_t F, Double_t N, Double_t M)
 {
@@ -2602,7 +2613,7 @@ Bool_t TMath::Permute(Int_t n, Int_t *a)
 /// As the number of degrees of freedom grows, t-distribution approaches
 /// Normal(0,1) distribution.
 ///
-/// Implementation by Anna Kreshuk.
+/// \author Anna Kreshuk
 
 Double_t TMath::Student(Double_t T, Double_t ndf)
 {
@@ -2624,7 +2635,7 @@ Double_t TMath::Student(Double_t T, Double_t ndf)
 /// if x has Student's t-distribution, the function returns the probability of
 /// x being less than T.
 ///
-/// Implementation by Anna Kreshuk.
+/// \author Anna Kreshuk
 
 Double_t TMath::StudentI(Double_t T, Double_t ndf)
 {

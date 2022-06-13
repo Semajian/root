@@ -43,7 +43,6 @@ the names of the arguments are not hard coded.
 **/
 
 #include "RooGenericPdf.h"
-#include "RooFit.h"
 #include "Riostream.h"
 #include "RooStreamParser.h"
 #include "RooMsgService.h"
@@ -67,7 +66,7 @@ RooGenericPdf::RooGenericPdf(const char *name, const char *title, const RooArgLi
   _actualVars.add(dependents) ;
   formula();
 
-  if (_actualVars.getSize()==0) _value = traceEval(0) ;
+  if (_actualVars.empty()) _value = traceEval(0) ;
 }
 
 
@@ -84,7 +83,7 @@ RooGenericPdf::RooGenericPdf(const char *name, const char *title,
   _actualVars.add(dependents) ;
   formula();
 
-  if (_actualVars.getSize()==0) _value = traceEval(0) ;
+  if (_actualVars.empty()) _value = traceEval(0) ;
 }
 
 
@@ -118,7 +117,7 @@ RooFormula& RooGenericPdf::formula() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate current value of this object
 
-Double_t RooGenericPdf::evaluate() const
+double RooGenericPdf::evaluate() const
 {
   return formula().eval(_normSet) ;
 }
@@ -137,25 +136,22 @@ RooSpan<double> RooGenericPdf::evaluateSpan(RooBatchCompute::RunContext& inputDa
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void RooGenericPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooBatchCompute::DataMap& dataMap) const
+void RooGenericPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   formula().computeBatch(stream, output, nEvents, dataMap);
-  RooSpan<const double> normVal = dataMap.at(&*_norm);
-  // TODO: also deal with non-scalar integral batch
-  for (size_t i=0; i<nEvents; i++) output[i] = normalizeWithNaNPacking(output[i], normVal[0]);
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Change formula expression to given expression
 
-Bool_t RooGenericPdf::setFormula(const char* inFormula)
+bool RooGenericPdf::setFormula(const char* inFormula)
 {
-  if (formula().reCompile(inFormula)) return kTRUE ;
+  if (formula().reCompile(inFormula)) return true ;
 
   _formExpr = inFormula ;
   setValueDirty() ;
-  return kFALSE ;
+  return false ;
 }
 
 
@@ -163,9 +159,9 @@ Bool_t RooGenericPdf::setFormula(const char* inFormula)
 ////////////////////////////////////////////////////////////////////////////////
 /// Check if given value is valid
 
-Bool_t RooGenericPdf::isValidReal(Double_t /*value*/, Bool_t /*printError*/) const
+bool RooGenericPdf::isValidReal(double /*value*/, bool /*printError*/) const
 {
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -173,12 +169,12 @@ Bool_t RooGenericPdf::isValidReal(Double_t /*value*/, Bool_t /*printError*/) con
 ////////////////////////////////////////////////////////////////////////////////
 /// Propagate server changes to embedded formula object
 
-Bool_t RooGenericPdf::redirectServersHook(const RooAbsCollection& newServerList, Bool_t mustReplaceAll, Bool_t nameChange, Bool_t /*isRecursive*/)
+bool RooGenericPdf::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool /*isRecursive*/)
 {
   if (_formula) {
      return _formula->changeDependents(newServerList,mustReplaceAll,nameChange);
   } else {
-    return kTRUE ;
+    return true ;
   }
 }
 
@@ -187,7 +183,7 @@ Bool_t RooGenericPdf::redirectServersHook(const RooAbsCollection& newServerList,
 ////////////////////////////////////////////////////////////////////////////////
 /// Print info about this object to the specified stream.
 
-void RooGenericPdf::printMultiline(ostream& os, Int_t content, Bool_t verbose, TString indent) const
+void RooGenericPdf::printMultiline(ostream& os, Int_t content, bool verbose, TString indent) const
 {
   RooAbsPdf::printMultiline(os,content,verbose,indent);
   if (verbose) {
@@ -213,11 +209,11 @@ void RooGenericPdf::printMetaArgs(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Read object contents from given stream
 
-Bool_t RooGenericPdf::readFromStream(istream& is, Bool_t compact, Bool_t /*verbose*/)
+bool RooGenericPdf::readFromStream(istream& is, bool compact, bool /*verbose*/)
 {
   if (compact) {
     coutE(InputArguments) << "RooGenericPdf::readFromStream(" << GetName() << "): can't read in compact mode" << endl ;
-    return kTRUE ;
+    return true ;
   } else {
     RooStreamParser parser(is) ;
     return setFormula(parser.readLine()) ;
@@ -228,7 +224,7 @@ Bool_t RooGenericPdf::readFromStream(istream& is, Bool_t compact, Bool_t /*verbo
 ////////////////////////////////////////////////////////////////////////////////
 /// Write object contents to given stream
 
-void RooGenericPdf::writeToStream(ostream& os, Bool_t compact) const
+void RooGenericPdf::writeToStream(ostream& os, bool compact) const
 {
   if (compact) {
     os << getVal() << endl ;

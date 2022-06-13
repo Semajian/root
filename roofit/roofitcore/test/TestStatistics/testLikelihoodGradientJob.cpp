@@ -26,7 +26,6 @@
 #include "RooFit/MultiProcess/JobManager.h"
 #include "RooFit/MultiProcess/Config.h"
 #include "RooStats/ModelConfig.h"
-#include "RunContext.h" // complete RooBatchCompute::RunContext type used in RooUnbinnedL
 
 #include <TFile.h>
 
@@ -354,7 +353,7 @@ TEST_F(LikelihoodSimBinnedConstrainedTest, ConstrainedAndOffset)
 {
    // do a minimization, but now using GradMinimizer and its MP version
    nll.reset(pdf->createNLL(*data, RooFit::Constrain(RooArgSet(*w.var("alpha_bkg_obs_A"))),
-                            RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_B"))), RooFit::Offset(kTRUE)));
+                            RooFit::GlobalObservables(RooArgSet(*w.var("alpha_bkg_obs_B"))), RooFit::Offset(true)));
 
    // parameters
    std::size_t NWorkers = 2;

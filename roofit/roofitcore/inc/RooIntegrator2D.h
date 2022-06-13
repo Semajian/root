@@ -25,23 +25,23 @@ public:
   // Constructors, assignment etc
   RooIntegrator2D() ;
   RooIntegrator2D(const RooAbsFunc& function, RooIntegrator1D::SummationRule rule=RooIntegrator1D::Trapezoid,
-        Int_t maxSteps= 0, Double_t eps= 0) ;
-  RooIntegrator2D(const RooAbsFunc& function, Double_t xmin, Double_t xmax, Double_t ymin, Double_t ymax,
-        SummationRule rule= Trapezoid, Int_t maxSteps= 0, Double_t eps= 0) ;
+        Int_t maxSteps= 0, double eps= 0) ;
+  RooIntegrator2D(const RooAbsFunc& function, double xmin, double xmax, double ymin, double ymax,
+        SummationRule rule= Trapezoid, Int_t maxSteps= 0, double eps= 0) ;
 
   RooIntegrator2D(const RooAbsFunc& function, const RooNumIntConfig& config) ;
-  RooIntegrator2D(const RooAbsFunc& function, Double_t xmin, Double_t xmax, Double_t ymin, Double_t ymax,
+  RooIntegrator2D(const RooAbsFunc& function, double xmin, double xmax, double ymin, double ymax,
         const RooNumIntConfig& config) ;
 
   RooAbsIntegrator* clone(const RooAbsFunc& function, const RooNumIntConfig& config) const override ;
   ~RooIntegrator2D() override ;
 
-  Bool_t checkLimits() const override;
+  bool checkLimits() const override;
 
-  Bool_t canIntegrate1D() const override { return kFALSE ; }
-  Bool_t canIntegrate2D() const override { return kTRUE ; }
-  Bool_t canIntegrateND() const override { return kFALSE ; }
-  Bool_t canIntegrateOpenEnded() const override { return kFALSE ; }
+  bool canIntegrate1D() const override { return false ; }
+  bool canIntegrate2D() const override { return true ; }
+  bool canIntegrateND() const override { return false ; }
+  bool canIntegrateOpenEnded() const override { return false ; }
 
 protected:
 

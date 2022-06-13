@@ -148,7 +148,7 @@ RooNLLVar::RooNLLVar(const char *name, const char *title, RooAbsPdf& pdf, RooAbs
       _binnedPdf = nullptr;
     } else {
       auto* var = static_cast<RooRealVar*>(obs.first());
-      std::unique_ptr<std::list<Double_t>> boundaries{_binnedPdf->binBoundaries(*var,var->getMin(),var->getMax())};
+      std::unique_ptr<std::list<double>> boundaries{_binnedPdf->binBoundaries(*var,var->getMin(),var->getMax())};
       auto biter = boundaries->begin() ;
       _binw.reserve(boundaries->size()-1) ;
       double lastBound = (*biter) ;
@@ -196,7 +196,7 @@ RooAbsTestStatistic* RooNLLVar::create(const char *name, const char *title, RooA
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooNLLVar::applyWeightSquared(Bool_t flag)
+void RooNLLVar::applyWeightSquared(bool flag)
 {
   if (_gofOpMode==Slave) {
     if (flag != _weightSq) {
@@ -224,7 +224,7 @@ void RooNLLVar::applyWeightSquared(Bool_t flag)
 /// If this an extended likelihood, the extended term is added to the return likelihood
 /// in the batch that encounters the event with index 0.
 
-Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
+double RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
 {
   // Throughout the calculation, we use Kahan's algorithm for summing to
   // prevent loss of precision - this is a factor four more expensive than
@@ -247,8 +247,6 @@ Double_t RooNLLVar::evaluatePartition(std::size_t firstEvent, std::size_t lastEv
     for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
 
       _dataClone->get(i) ;
-
-      if (!_dataClone->valid()) continue;
 
       double eventWeight = _dataClone->weight();
 
@@ -381,7 +379,7 @@ RooNLLVar::ComputeResult RooNLLVar::computeBatchedFunc(const RooAbsPdf *pdfClone
     evalData.reset(new RooBatchCompute::RunContext);
   }
   evalData->clear();
-  dataClone->getBatches(*evalData, firstEvent, nEvents);
+  evalData->spans = dataClone->getBatches(firstEvent, nEvents);
 
   auto results = pdfClone->getLogProbabilities(*evalData, normSet);
 
@@ -392,7 +390,6 @@ RooNLLVar::ComputeResult RooNLLVar::computeBatchedFunc(const RooAbsPdf *pdfClone
     if (dataClone->weight() == 0.) // 0-weight events are not cached, so cannot compare against them.
       continue;
 
-    assert(dataClone->valid());
     try {
       // Cross check results with strict tolerance and complain
       BatchInterfaceAccessor::checkBatchComputation(*pdfClone, *evalData, evtNo-firstEvent, normSet, 1.E-13);
@@ -482,8 +479,6 @@ RooNLLVar::ComputeResult RooNLLVar::computeScalarFunc(const RooAbsPdf *pdfClone,
 
   for (auto i=firstEvent; i<lastEvent; i+=stepSize) {
     dataClone->get(i) ;
-
-    if (!dataClone->valid()) continue;
 
     double eventWeight = dataClone->weight(); //FIXME
     if (0. == eventWeight * eventWeight) continue ;

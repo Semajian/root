@@ -29,8 +29,6 @@ constructed from all the categories in the dataset
 
 **/
 
-#include "RooFit.h"
-
 #include "RooDataProjBinding.h"
 #include "RooAbsReal.h"
 #include "RooAbsData.h"
@@ -56,17 +54,14 @@ ClassImp(RooDataProjBinding);
 
 RooDataProjBinding::RooDataProjBinding(const RooAbsReal &real, const RooAbsData& data,
                    const RooArgSet &vars, const RooArgSet* nset) :
-  RooRealBinding(real,vars,0), _first(kTRUE), _real(&real), _data(&data), _nset(nset),
+  RooRealBinding(real,vars,0), _first(true), _real(&real), _data(&data), _nset(nset),
   _superCat(0), _catTable(0)
 {
   // Determine if dataset contains only categories
-  TIterator* iter = data.get()->createIterator() ;
-  Bool_t allCat(kTRUE) ;
-  RooAbsArg* arg ;
-  while((arg=(RooAbsArg*)iter->Next())) {
-    if (!dynamic_cast<RooCategory*>(arg)) allCat = kFALSE ;
+  bool allCat(true) ;
+  for(RooAbsArg * arg : *data.get()) {
+    if (!dynamic_cast<RooCategory*>(arg)) allCat = false ;
   }
-  delete iter ;
 
   // Determine weights of various super categories fractions
   if (allCat) {
@@ -91,15 +86,15 @@ RooDataProjBinding::~RooDataProjBinding()
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate data-projected values of the bound real function.
 
-Double_t RooDataProjBinding::operator()(const Double_t xvector[]) const
+double RooDataProjBinding::operator()(const double xvector[]) const
 {
   assert(isValid());
   loadValues(xvector);
 
-  //RooAbsArg::setDirtyInhibit(kTRUE) ;
+  //RooAbsArg::setDirtyInhibit(true) ;
 
-  Double_t result(0) ;
-  Double_t wgtSum(0) ;
+  double result(0) ;
+  double wgtSum(0) ;
 
   if (_catTable) {
 
@@ -109,7 +104,7 @@ Double_t RooDataProjBinding::operator()(const Double_t xvector[]) const
       _superCat->setIndex(nameIdx) ;
 
       // Add weighted sum
-      Double_t wgt = _catTable->get(nameIdx.first.c_str());
+      double wgt = _catTable->get(nameIdx.first.c_str());
       if (wgt) {
    result += wgt * _real->getVal(_nset) ;
    wgtSum += wgt ;
@@ -125,7 +120,7 @@ Double_t RooDataProjBinding::operator()(const Double_t xvector[]) const
     // Procedure might be lengthy, give some progress indication
     if (_first) {
       oocoutW(_real,Eval) << "RooDataProjBinding::operator() projecting over " << nEvt << " events" << endl ;
-      _first = kFALSE ;
+      _first = false ;
     } else {
       if (oodologW(_real,Eval)) {
    ooccoutW(_real,Eval) << "." ; cout.flush() ;
@@ -140,8 +135,8 @@ Double_t RooDataProjBinding::operator()(const Double_t xvector[]) const
     for (i=0 ; i<nEvt ; i++) {
       _data->get(i) ;
 
-      Double_t wgt = _data->weight() ;
-      Double_t ret ;
+      double wgt = _data->weight() ;
+      double ret ;
       if (wgt) {
    ret = _real->getVal(_nset) ;
    result += wgt * ret ;
@@ -153,7 +148,7 @@ Double_t RooDataProjBinding::operator()(const Double_t xvector[]) const
     }
   }
 
-  //RooAbsArg::setDirtyInhibit(kFALSE) ;
+  //RooAbsArg::setDirtyInhibit(false) ;
 
   if (wgtSum==0) return 0 ;
   return result / wgtSum ;

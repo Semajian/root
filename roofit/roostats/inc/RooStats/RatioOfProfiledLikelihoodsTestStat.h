@@ -14,8 +14,6 @@
 
 #include "Rtypes.h"
 
-#include "RooNLLVar.h"
-
 #include "RooStats/TestStatistic.h"
 
 #include "RooStats/ProfileLikelihoodTestStat.h"
@@ -30,10 +28,10 @@ namespace RooStats {
       RatioOfProfiledLikelihoodsTestStat() :
          fNullProfile(),
          fAltProfile(),
-         fAltPOI(NULL),
+         fAltPOI(nullptr),
          fSubtractMLE(true),
          fDetailedOutputEnabled(false),
-         fDetailedOutput(NULL)
+         fDetailedOutput(nullptr)
       {
          // Proof constructor. Don't use.
       }
@@ -44,7 +42,7 @@ namespace RooStats {
          fAltProfile(altPdf),
          fSubtractMLE(true),
          fDetailedOutputEnabled(false),
-         fDetailedOutput(NULL)
+         fDetailedOutput(nullptr)
       {
          //  Calculates the ratio of profiled likelihoods.
 
@@ -66,10 +64,10 @@ namespace RooStats {
       /// it does not subtract off the global MLE
       /// because  nuisance parameters of null and alternate may not
       /// be the same.
-      Double_t ProfiledLikelihood(RooAbsData& data, RooArgSet& poi, RooAbsPdf& pdf);
+      double ProfiledLikelihood(RooAbsData& data, RooArgSet& poi, RooAbsPdf& pdf);
 
       /// evaluate the ratio of profile likelihood
-      Double_t Evaluate(RooAbsData& data, RooArgSet& nullParamsOfInterest) override;
+      double Evaluate(RooAbsData& data, RooArgSet& nullParamsOfInterest) override;
 
       virtual void EnableDetailedOutput( bool e=true ) {
          fDetailedOutputEnabled = e;
@@ -77,9 +75,9 @@ namespace RooStats {
          fAltProfile.EnableDetailedOutput(fDetailedOutputEnabled);
       }
 
-      static void SetAlwaysReuseNLL(Bool_t flag);
+      static void SetAlwaysReuseNLL(bool flag);
 
-      void SetReuseNLL(Bool_t flag) {
+      void SetReuseNLL(bool flag) {
          fNullProfile.SetReuseNLL(flag);
          fAltProfile.SetReuseNLL(flag);
       }
@@ -92,7 +90,7 @@ namespace RooStats {
          fNullProfile.SetStrategy(strategy);
          fAltProfile.SetStrategy(strategy);
       }
-      void SetTolerance(Double_t tol){
+      void SetTolerance(double tol){
          fNullProfile.SetTolerance(tol);
          fAltProfile.SetTolerance(tol);
       }
@@ -138,8 +136,8 @@ namespace RooStats {
       ProfileLikelihoodTestStat fAltProfile;
 
       RooArgSet* fAltPOI;
-      Bool_t fSubtractMLE;
-      static Bool_t fgAlwaysReuseNll ;
+      bool fSubtractMLE;
+      static bool fgAlwaysReuseNll ;
 
       bool fDetailedOutputEnabled;
       RooArgSet* fDetailedOutput;

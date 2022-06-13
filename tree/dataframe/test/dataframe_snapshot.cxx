@@ -1,5 +1,6 @@
 #include "ROOT/TestSupport.hxx"
 #include "ROOT/RDataFrame.hxx"
+#include "ROOT/RTrivialDS.hxx"
 #include "ROOT/TSeq.hxx"
 #include "TFile.h"
 #include "TROOT.h"
@@ -294,7 +295,9 @@ void checkSnapshotArrayFile(RResultPtr<RInterface<RLoopManager>> &df, unsigned i
       EXPECT_EQ(thisSize, bv.size());
       for (auto j = 0u; j < thisSize; ++j) {
          EXPECT_DOUBLE_EQ(dv[j], i * j);
-         EXPECT_EQ(bv[j], j % 2 == 0);
+         const bool value = bv[j];
+         const bool expected = j % 2 == 0;
+         EXPECT_EQ(value, expected);
       }
    }
 }
@@ -320,6 +323,24 @@ TEST_F(RDFSnapshotArrays, SingleThreadJitted)
                           {"fixedSizeArr", "size", "varSizeArr", "varSizeBoolArr", "fixedSizeBoolArr"});
 
    checkSnapshotArrayFile(dj, kNEvents);
+}
+
+TEST_F(RDFSnapshotArrays, RedefineArray)
+{
+   RDataFrame df("arrayTree", kFileNames);
+   auto df2 = df.Redefine("fixedSizeArr",
+                          [] {
+                             return ROOT::RVecF{42.f, 42.f};
+                          })
+                 .Snapshot<ROOT::RVec<float>>("t", "test_snapshotRVecRedefineArray.root", {"fixedSizeArr"});
+   df2->Foreach(
+      [](const ROOT::RVecF &v) {
+         EXPECT_EQ(v.size(), 2u); // not 4 as it was in the original input
+         EXPECT_TRUE(All(v == ROOT::RVecF{42.f, 42.f}));
+      },
+      {"fixedSizeArr"});
+
+   gSystem->Unlink("test_snapshotRVecRedefineArray.root");
 }
 
 void WriteColsWithCustomTitles(const std::string &tname, const std::string &fname)
@@ -476,11 +497,14 @@ void ReadWriteCarray(const char *outFileNameBase)
    t.Branch("vb", vb, "vb[size]/O");
    t.Branch("vl", vl, "vl[size]/G");
 
+   // use 2**33 as a larger-than-int value on 64 bits, otherwise just something larger than short (2**30)
+   static constexpr long int longintTestValue = sizeof(long int) == 8 ? 8589934592 : 1073741824;
+
    // Size 1
    size = 1;
    v[0] = 12;
    vb[0] = true;
-   vl[0] = 8589934592; // 2**33
+   vl[0] = longintTestValue;
    t.Fill();
 
    // Size 0 (see ROOT-9860)
@@ -527,7 +551,7 @@ void ReadWriteCarray(const char *outFileNameBase)
       EXPECT_EQ(rvb.GetSize(), 1u);
       EXPECT_TRUE(rvb[0]);
       EXPECT_EQ(rvl.GetSize(), 1u);
-      EXPECT_EQ(rvl[0], 8589934592);
+      EXPECT_EQ(rvl[0], longintTestValue);
 
       // Size 0
       EXPECT_TRUE(r.Next());
@@ -832,6 +856,16 @@ TEST(RDFSnapshotMore, ZeroOutputEntries)
    gSystem->Unlink(fname);
 }
 
+// Test for https://github.com/root-project/root/issues/10233
+TEST(RDFSnapshotMore, RedefinedDSColumn)
+{
+   const auto fname = "test_snapshot_redefinedscolumn.root";
+   auto df = ROOT::RDF::MakeTrivialDataFrame(1);
+
+   df.Redefine("col0", [] { return 42; }).Snapshot("t", fname);
+   gSystem->Unlink(fname);
+}
+
 /********* MULTI THREAD TESTS ***********/
 #ifdef R__USE_IMT
 TEST_F(RDFSnapshotMT, Snapshot_update_diff_treename)
@@ -970,6 +1004,28 @@ TEST_F(RDFSnapshotArrays, MultiThreadJitted)
    checkSnapshotArrayFileMT(dj, kNEvents);
 
    ROOT::DisableImplicitMT();
+}
+
+// See also https://github.com/root-project/root/issues/10225
+TEST_F(RDFSnapshotArrays, WriteRVecFromFile)
+{
+   {
+      auto df = ROOT::RDataFrame(3).Define("x", [](ULong64_t e) { return ROOT::RVecD(e, double(e)); }, {"rdfentry_"});
+      df.Snapshot<ROOT::RVecD>("t", "test_snapshotRVecWriteRVecFromFile.root", {"x"});
+   }
+
+   ROOT::RDataFrame df("t", "test_snapshotRVecWriteRVecFromFile.root");
+   auto outdf = df.Snapshot<ROOT::RVecD>("t", "test_snapshotRVecWriteRVecFromFile2.root", {"x"});
+
+   const auto res = outdf->Take<ROOT::RVecD>("x").GetValue();
+
+   EXPECT_EQ(res.size(), 3u);
+   EXPECT_EQ(res[0].size(), 0u);
+   EXPECT_TRUE(All(res[1] == ROOT::RVecD{1.}));
+   EXPECT_TRUE(All(res[2] == ROOT::RVecD{2., 2.}));
+
+   gSystem->Unlink("test_snapshotRVecWriteRVecFromFile.root");
+   gSystem->Unlink("test_snapshotRVecWriteRVecFromFile2.root");
 }
 
 TEST(RDFSnapshotMore, ColsWithCustomTitlesMT)

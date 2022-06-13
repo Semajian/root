@@ -73,17 +73,83 @@ std::size_t GetNVariations(const RVec<T> &results)
    return results.size();
 }
 
+template <typename RVec_t, typename Value_t = typename RVec_t::value_type>
+std::enable_if_t<!IsRVec<Value_t>::value, const std::type_info &> GetInnerValueType(std::size_t)
+{
+   return typeid(Value_t);
+}
+
+template <typename RVec_t, typename Value_t = typename RVec_t::value_type>
+std::enable_if_t<IsRVec<Value_t>::value, const std::type_info &> GetInnerValueType(std::size_t nCols)
+{
+   if (nCols == 1) // we are varying one column that is an RVec
+      return typeid(Value_t);
+   else // we are varying multiple columns whose type is the inner type of this RVec
+      return typeid(typename Value_t::value_type);
+}
+
+// This overload is for the case of a single column and ret_type != RVec<RVec<...>>
+template <typename T>
+std::enable_if_t<!IsRVec<T>::value, void>
+ResizeResults(ROOT::RVec<T> &results, std::size_t /*nCols*/, std::size_t nVariations)
+{
+   results.resize(nVariations);
+}
+
+// This overload is for the case of ret_type == RVec<RVec<...>>
+template <typename T>
+std::enable_if_t<IsRVec<T>::value, void>
+ResizeResults(ROOT::RVec<T> &results, std::size_t nCols, std::size_t nVariations)
+{
+   if (nCols == 1) {
+      results.resize(nVariations);
+   } else {
+      results.resize(nCols);
+      for (auto &rvecOverVariations : results) {
+         rvecOverVariations.resize(nVariations);
+      }
+   }
+}
+
+// Assign into fLastResults[slot] without changing the addresses of its elements (we gave those addresses away in
+// GetValuePtr)
+// This overload is for the case of a single column and ret_type != RVec<RVec<...>>
+template <typename T>
+std::enable_if_t<!IsRVec<T>::value, void>
+AssignResults(ROOT::RVec<T> &resStorage, ROOT::RVec<T> &&tmpResults, std::size_t /*nCols*/)
+{
+   const auto nVariations = resStorage.size(); // we have already checked that tmpResults has the same size
+
+   for (auto i = 0u; i < nVariations; ++i)
+      resStorage[i] = std::move(tmpResults[i]);
+}
+
+// This overload is for the case of ret_type == RVec<RVec<...>>
+template <typename T>
+std::enable_if_t<IsRVec<T>::value, void>
+AssignResults(ROOT::RVec<T> &resStorage, ROOT::RVec<T> &&tmpResults, std::size_t nCols)
+{
+   // we have already checked that tmpResults has the same inner size
+   const auto nVariations = nCols == 1 ? resStorage.size() : resStorage[0].size();
+
+   if (nCols == 1) {
+      for (auto varIdx = 0u; varIdx < nVariations; ++varIdx)
+         resStorage[varIdx] = std::move(tmpResults[varIdx]);
+   } else {
+      for (auto colIdx = 0u; colIdx < nCols; ++colIdx)
+         for (auto varIdx = 0u; varIdx < nVariations; ++varIdx)
+            resStorage[colIdx][varIdx] = std::move(tmpResults[colIdx][varIdx]);
+   }
+}
+
 template <typename F>
 class R__CLING_PTRCHECK(off) RVariation final : public RVariationBase {
    using ColumnTypes_t = typename CallableTraits<F>::arg_types;
    using TypeInd_t = std::make_index_sequence<ColumnTypes_t::list_size>;
    using ret_type = typename CallableTraits<F>::ret_type;
-   // Avoid instantiating vector<bool> as `operator[]` returns temporaries in that case. Use std::deque instead.
-   using ValuesPerSlot_t =
-      std::conditional_t<std::is_same<ret_type, bool>::value, std::deque<ret_type>, std::vector<ret_type>>;
 
    F fExpression;
-   ValuesPerSlot_t fLastResults;
+   std::vector<ret_type> fLastResults;
 
    /// Column readers per slot and per input column
    std::vector<std::array<std::unique_ptr<RColumnReaderBase>, ColumnTypes_t::list_size>> fValues;
@@ -92,16 +158,16 @@ class R__CLING_PTRCHECK(off) RVariation final : public RVariationBase {
    void UpdateHelper(unsigned int slot, Long64_t entry, TypeList<ColTypes...>, std::index_sequence<S...>)
    {
       // fExpression must return an RVec<T>
-      const auto &results = fExpression(fValues[slot][S]->template Get<ColTypes>(entry)...);
+      auto &&results = fExpression(fValues[slot][S]->template Get<ColTypes>(entry)...);
+
       if (!ResultsSizeEq(results, fVariationNames.size(), fColNames.size())) {
          std::string variationName = fVariationNames[0].substr(0, fVariationNames[0].find_first_of(':'));
          throw std::runtime_error("The evaluation of the expression for variation \"" + variationName +
                                   "\" resulted in " + std::to_string(GetNVariations(results)) + " values, but " +
                                   std::to_string(fVariationNames.size()) + " were expected.");
       }
-      // Assign into fLastResults without changing the addresses of its elements (we gave those addresses away in
-      // GetValuePtr)
-      fLastResults[slot * CacheLineStep<ret_type>()].assign(results.begin(), results.end());
+
+      AssignResults(fLastResults[slot * CacheLineStep<ret_type>()], std::move(results), fColNames.size());
 
       // silence "unused parameter" warnings in gcc
       (void)slot;
@@ -138,12 +204,15 @@ public:
         fExpression(std::move(expression)), fLastResults(lm.GetNSlots() * RDFInternal::CacheLineStep<ret_type>()),
         fValues(lm.GetNSlots())
    {
+      fLoopManager->Register(this);
+
       for (auto i = 0u; i < lm.GetNSlots(); ++i)
-         fLastResults[i * RDFInternal::CacheLineStep<ret_type>()].resize(fVariationNames.size());
+         ResizeResults(fLastResults[i * RDFInternal::CacheLineStep<ret_type>()], colNames.size(), variationTags.size());
    }
 
    RVariation(const RVariation &) = delete;
    RVariation &operator=(const RVariation &) = delete;
+   ~RVariation() { fLoopManager->Deregister(this); }
 
    void InitSlot(TTreeReader *r, unsigned int slot) final
    {
@@ -179,7 +248,7 @@ public:
       }
    }
 
-   const std::type_info &GetTypeId() const { return typeid(ret_type); }
+   const std::type_info &GetTypeId() const { return GetInnerValueType<ret_type>(fColNames.size()); }
 
    /// Clean-up operations to be performed at the end of a task.
    void FinalizeSlot(unsigned int slot) final

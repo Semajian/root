@@ -38,6 +38,8 @@ class RRawFile;
 }
 
 namespace Experimental {
+class RNTuple; // for making RPageSourceFile a friend of RNTuple
+
 namespace Detail {
 
 class RClusterPool;
@@ -112,11 +114,19 @@ public:
 */
 // clang-format on
 class RPageSourceFile : public RPageSource {
-public:
-   /// Cannot process pages larger than 1MB
-   static constexpr std::size_t kMaxPageSize = 1024 * 1024;
+   friend class ROOT::Experimental::RNTuple;
 
 private:
+   /// Summarizes cluster-level information that are necessary to populate a certain page.
+   /// Used by PopulatePageFromCluster().
+   struct RClusterInfo {
+      DescriptorId_t fClusterId = 0;
+      /// Location of the page on disk
+      RClusterDescriptor::RPageRange::RPageInfoExtended fPageInfo;
+      /// The first element number of the page's column in the given cluster
+      std::uint64_t fColumnOffset = 0;
+   };
+
    /// Populated pages might be shared; there memory buffer is managed by the RPageAllocatorFile
    std::unique_ptr<RPageAllocatorFile> fPageAllocator;
    /// The page pool might, at some point, be used by multiple page sources
@@ -127,11 +137,19 @@ private:
    std::unique_ptr<ROOT::Internal::RRawFile> fFile;
    /// Takes the fFile to read ntuple blobs from it
    Internal::RMiniFileReader fReader;
+   /// The descriptor is created from the header and footer either in AttachImpl or in CreateFromAnchor
+   RNTupleDescriptorBuilder fDescriptorBuilder;
    /// The cluster pool asynchronously preloads the next few clusters
    std::unique_ptr<RClusterPool> fClusterPool;
 
+   /// Deserialized header and footer into a minimal descriptor held by fDescriptorBuilder
+   void InitDescriptor(const Internal::RFileNTupleAnchor &anchor);
+
    RPageSourceFile(std::string_view ntupleName, const RNTupleReadOptions &options);
-   RPage PopulatePageFromCluster(ColumnHandle_t columnHandle, const RClusterDescriptor &clusterDescriptor,
+   /// Used from the RNTuple class to build a datasource if the anchor is already available
+   static std::unique_ptr<RPageSourceFile> CreateFromAnchor(const Internal::RFileNTupleAnchor &anchor,
+                                                            std::string_view path, const RNTupleReadOptions &options);
+   RPage PopulatePageFromCluster(ColumnHandle_t columnHandle, const RClusterInfo &clusterInfo,
                                  ClusterSize_t::ValueType idxInCluster);
 
    /// Helper function for LoadClusters: it prepares the memory buffer (page map) and the
@@ -154,8 +172,8 @@ public:
 
    RPageSourceFile(const RPageSourceFile&) = delete;
    RPageSourceFile& operator=(const RPageSourceFile&) = delete;
-   RPageSourceFile(RPageSourceFile&&) = default;
-   RPageSourceFile& operator=(RPageSourceFile&&) = default;
+   RPageSourceFile(RPageSourceFile &&) = delete;
+   RPageSourceFile &operator=(RPageSourceFile &&) = delete;
    virtual ~RPageSourceFile();
 
    RPage PopulatePage(ColumnHandle_t columnHandle, NTupleSize_t globalIndex) final;

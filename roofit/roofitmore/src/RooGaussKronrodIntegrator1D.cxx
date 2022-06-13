@@ -39,10 +39,6 @@ Scientific Library version 1.5 and applies the 10-, 21-, 43- and
 reached
 **/
 
-
-
-#include "RooFit.h"
-
 #include <assert.h>
 #include <math.h>
 #include <float.h>
@@ -106,7 +102,7 @@ static Roo_reg_GKInteg1D instance;
 void RooGaussKronrodIntegrator1D::registerIntegrator(RooNumIntFactory& fact)
 {
   fact.storeProtoIntegrator(new RooGaussKronrodIntegrator1D(),RooArgSet()) ;
-  oocoutI((TObject*)nullptr,Integration) << "RooGaussKronrodIntegrator1D has been registered" << std::endl;
+  oocoutI(nullptr,Integration) << "RooGaussKronrodIntegrator1D has been registered" << std::endl;
 }
 
 
@@ -130,7 +126,7 @@ RooGaussKronrodIntegrator1D::RooGaussKronrodIntegrator1D(const RooAbsFunc& funct
   _epsAbs(config.epsRel()),
   _epsRel(config.epsAbs())
 {
-  _useIntegrandLimits= kTRUE;
+  _useIntegrandLimits= true;
   _valid= initialize();
 }
 
@@ -140,14 +136,14 @@ RooGaussKronrodIntegrator1D::RooGaussKronrodIntegrator1D(const RooAbsFunc& funct
 /// Construct integral on 'function' using given configuration object in the given range
 
 RooGaussKronrodIntegrator1D::RooGaussKronrodIntegrator1D(const RooAbsFunc& function,
-                      Double_t xmin, Double_t xmax, const RooNumIntConfig& config) :
+                      double xmin, double xmax, const RooNumIntConfig& config) :
   RooAbsIntegrator(function),
   _epsAbs(config.epsRel()),
   _epsRel(config.epsAbs()),
   _xmin(xmin),
   _xmax(xmax)
 {
-  _useIntegrandLimits= kFALSE;
+  _useIntegrandLimits= false;
   _valid= initialize();
 }
 
@@ -166,10 +162,10 @@ RooAbsIntegrator* RooGaussKronrodIntegrator1D::clone(const RooAbsFunc& function,
 ////////////////////////////////////////////////////////////////////////////////
 /// Perform one-time initialization of integrator
 
-Bool_t RooGaussKronrodIntegrator1D::initialize()
+bool RooGaussKronrodIntegrator1D::initialize()
 {
   // Allocate coordinate buffer size after number of function dimensions
-  _x = new Double_t[_function->getDimension()] ;
+  _x = new double[_function->getDimension()] ;
 
   return checkLimits();
 }
@@ -189,15 +185,15 @@ RooGaussKronrodIntegrator1D::~RooGaussKronrodIntegrator1D()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Change our integration limits. Return kTRUE if the new limits are
-/// ok, or otherwise kFALSE. Always returns kFALSE and does nothing
+/// Change our integration limits. Return true if the new limits are
+/// ok, or otherwise false. Always returns false and does nothing
 /// if this object was constructed to always use our integrand's limits.
 
-Bool_t RooGaussKronrodIntegrator1D::setLimits(Double_t* xmin, Double_t* xmax)
+bool RooGaussKronrodIntegrator1D::setLimits(double* xmin, double* xmax)
 {
   if(_useIntegrandLimits) {
-    oocoutE((TObject*)0,Eval) << "RooGaussKronrodIntegrator1D::setLimits: cannot override integrand's limits" << endl;
-    return kFALSE;
+    oocoutE(nullptr,Eval) << "RooGaussKronrodIntegrator1D::setLimits: cannot override integrand's limits" << endl;
+    return false;
   }
   _xmin= *xmin;
   _xmax= *xmax;
@@ -207,17 +203,17 @@ Bool_t RooGaussKronrodIntegrator1D::setLimits(Double_t* xmin, Double_t* xmax)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Check that our integration range is finite and otherwise return kFALSE.
+/// Check that our integration range is finite and otherwise return false.
 /// Update the limits from the integrand if requested.
 
-Bool_t RooGaussKronrodIntegrator1D::checkLimits() const
+bool RooGaussKronrodIntegrator1D::checkLimits() const
 {
   if(_useIntegrandLimits) {
     assert(0 != integrand() && integrand()->isValid());
     _xmin= integrand()->getMinLimit(0);
     _xmax= integrand()->getMaxLimit(0);
   }
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -233,7 +229,7 @@ double RooGaussKronrodIntegrator1D_GSL_GlueFunction(double x, void *data)
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return integral
 
-Double_t RooGaussKronrodIntegrator1D::integral(const Double_t *yvec)
+double RooGaussKronrodIntegrator1D::integral(const double *yvec)
 {
   assert(isValid());
 
@@ -286,7 +282,7 @@ Double_t RooGaussKronrodIntegrator1D::integral(const Double_t *yvec)
 #define GSL_SUCCESS 0
 #define GSL_EBADTOL 13  /* user specified an invalid tolerance */
 #define GSL_ETOL    14  /* failed to reach the specified tolerance */
-#define GSL_ERROR(a,b) oocoutE((TObject*)0,Eval) << "RooGaussKronrodIntegrator1D::integral() ERROR: " << a << endl ; return b ;
+#define GSL_ERROR(a,b) oocoutE(nullptr,Eval) << "RooGaussKronrodIntegrator1D::integral() ERROR: " << a << endl ; return b ;
 #define GSL_DBL_MIN        2.2250738585072014e-308
 #define GSL_DBL_EPSILON    2.2204460492503131e-16
 

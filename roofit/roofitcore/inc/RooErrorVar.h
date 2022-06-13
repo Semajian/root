@@ -36,49 +36,49 @@ public:
   TObject* clone(const char* newname) const override { return new RooErrorVar(*this,newname); }
   ~RooErrorVar() override ;
 
-  Double_t getValV(const RooArgSet* set=0) const override ;
+  double getValV(const RooArgSet* set=0) const override ;
 
-  Double_t evaluate() const override {
+  double evaluate() const override {
     // return error of input RooRealVar
     return ((RooRealVar&)_realVar.arg()).getError() ;
   }
 
-  void setVal(Double_t value) override {
+  void setVal(double value) override {
     // Set error of input RooRealVar to value
     ((RooRealVar&)_realVar.arg()).setVal(value) ;
   }
 
-  inline Bool_t isFundamental() const override {
-    // Return kTRUE as we implement a fundamental type of AbsArg that can be stored in a dataset
-    return kTRUE ;
+  inline bool isFundamental() const override {
+    // Return true as we implement a fundamental type of AbsArg that can be stored in a dataset
+    return true ;
   }
 
   // I/O streaming interface (machine readable)
-  Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) override ;
-  void writeToStream(std::ostream& os, Bool_t compact) const override ;
+  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override ;
+  void writeToStream(std::ostream& os, bool compact) const override ;
 
   // Set/get finite fit range limits
   /// Set lower bound of default range to value
-  inline void setMin(Double_t value) {
+  inline void setMin(double value) {
     setMin(0,value) ;
   }
   /// Set upper bound of default range to value
-  inline void setMax(Double_t value) {
+  inline void setMax(double value) {
     setMax(0,value) ;
   }
   /// Set default ranges to [min,max]
-  inline void setRange(Double_t min, Double_t max) {
+  inline void setRange(double min, double max) {
     setRange(0,min,max) ;
   }
-  void setMin(const char* name, Double_t value) ;
-  void setMax(const char* name, Double_t value) ;
-  void setRange(const char* name, Double_t min, Double_t max) ;
+  void setMin(const char* name, double value) ;
+  void setMax(const char* name, double value) ;
+  void setRange(const char* name, double min, double max) ;
 
   void setBins(Int_t nBins);
   void setBinning(const RooAbsBinning& binning, const char* name=0) ;
-  const RooAbsBinning& getBinning(const char* name=0, Bool_t verbose=kTRUE, Bool_t createOnTheFly=kFALSE) const override ;
-  RooAbsBinning& getBinning(const char* name=0, Bool_t verbose=kTRUE, Bool_t createOnTheFly=kFALSE) override ;
-  Bool_t hasBinning(const char* name) const override ;
+  const RooAbsBinning& getBinning(const char* name=0, bool verbose=true, bool createOnTheFly=false) const override ;
+  RooAbsBinning& getBinning(const char* name=0, bool verbose=true, bool createOnTheFly=false) override ;
+  bool hasBinning(const char* name) const override ;
   std::list<std::string> getBinningNames() const override ;
 
   // Set infinite fit range limits

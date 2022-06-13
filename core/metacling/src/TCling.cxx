@@ -1426,11 +1426,16 @@ TCling::TCling(const char *name, const char *title, const char* const argv[])
 
       clingArgsStorage.push_back("-Wno-undefined-inline");
       clingArgsStorage.push_back("-fsigned-char");
+      // The -O1 optimization flag has nasty side effects on Windows (32 and 64 bit)
+      // See the GitHub issues #9809 and #9944
+      // TODO: to be reviewed after the upgrade of LLVM & Clang
+#ifndef _MSC_VER
       clingArgsStorage.push_back("-O1");
       // Disable optimized register allocation which is turned on automatically
       // by -O1, but seems to require -O2 to not explode in run time.
       clingArgsStorage.push_back("-mllvm");
       clingArgsStorage.push_back("-optimize-regalloc=0");
+#endif
    }
 
    // Process externally passed arguments if present.
@@ -1729,51 +1734,6 @@ void TCling::LoadPCMImpl(TFile &pcmFile)
    if (gDebug > 1)
       ::Info("TCling::LoadPCMImpl", "reading protoclasses for %s \n", pcmFile.GetName());
 
-   pcmFile.GetObject("__ProtoClasses", protoClasses);
-
-   if (protoClasses) {
-      for (auto obj : *protoClasses) {
-         TProtoClass *proto = (TProtoClass *)obj;
-         TClassTable::Add(proto);
-      }
-      // Now that all TClass-es know how to set them up we can update
-      // existing TClasses, which might cause the creation of e.g. TBaseClass
-      // objects which in turn requires the creation of TClasses, that could
-      // come from the PCH, but maybe later in the loop. Instead of resolving
-      // a dependency graph the addition to the TClassTable above allows us
-      // to create these dependent TClasses as needed below.
-      for (auto proto : *protoClasses) {
-         if (TClass *existingCl = (TClass *)gROOT->GetListOfClasses()->FindObject(proto->GetName())) {
-            // We have an existing TClass object. It might be emulated
-            // or interpreted; we now have more information available.
-            // Make that available.
-            if (existingCl->GetState() != TClass::kHasTClassInit) {
-               DictFuncPtr_t dict = gClassTable->GetDict(proto->GetName());
-               if (!dict) {
-                  ::Error("TCling::LoadPCM", "Inconsistent TClassTable for %s", proto->GetName());
-               } else {
-                  // This will replace the existing TClass.
-                  TClass *ncl = (*dict)();
-                  if (ncl)
-                     ncl->PostLoadCheck();
-               }
-            }
-         }
-      }
-
-      protoClasses->Clear(); // Ownership was transfered to TClassTable.
-      delete protoClasses;
-   }
-
-   TObjArray *dataTypes;
-   pcmFile.GetObject("__Typedefs", dataTypes);
-   if (dataTypes) {
-      for (auto typedf : *dataTypes)
-         gROOT->GetListOfTypes()->Add(typedf);
-      dataTypes->Clear(); // Ownership was transfered to TListOfTypes.
-      delete dataTypes;
-   }
-
    TObjArray *enums;
    pcmFile.GetObject("__Enums", enums);
    if (enums) {
@@ -1822,6 +1782,51 @@ void TCling::LoadPCMImpl(TFile &pcmFile)
       }
       enums->Clear();
       delete enums;
+   }
+
+   pcmFile.GetObject("__ProtoClasses", protoClasses);
+
+   if (protoClasses) {
+      for (auto obj : *protoClasses) {
+         TProtoClass *proto = (TProtoClass *)obj;
+         TClassTable::Add(proto);
+      }
+      // Now that all TClass-es know how to set them up we can update
+      // existing TClasses, which might cause the creation of e.g. TBaseClass
+      // objects which in turn requires the creation of TClasses, that could
+      // come from the PCH, but maybe later in the loop. Instead of resolving
+      // a dependency graph the addition to the TClassTable above allows us
+      // to create these dependent TClasses as needed below.
+      for (auto proto : *protoClasses) {
+         if (TClass *existingCl = (TClass *)gROOT->GetListOfClasses()->FindObject(proto->GetName())) {
+            // We have an existing TClass object. It might be emulated
+            // or interpreted; we now have more information available.
+            // Make that available.
+            if (existingCl->GetState() != TClass::kHasTClassInit) {
+               DictFuncPtr_t dict = gClassTable->GetDict(proto->GetName());
+               if (!dict) {
+                  ::Error("TCling::LoadPCM", "Inconsistent TClassTable for %s", proto->GetName());
+               } else {
+                  // This will replace the existing TClass.
+                  TClass *ncl = (*dict)();
+                  if (ncl)
+                     ncl->PostLoadCheck();
+               }
+            }
+         }
+      }
+
+      protoClasses->Clear(); // Ownership was transfered to TClassTable.
+      delete protoClasses;
+   }
+
+   TObjArray *dataTypes;
+   pcmFile.GetObject("__Typedefs", dataTypes);
+   if (dataTypes) {
+      for (auto typedf : *dataTypes)
+         gROOT->GetListOfTypes()->Add(typedf);
+      dataTypes->Clear(); // Ownership was transfered to TListOfTypes.
+      delete dataTypes;
    }
 }
 
@@ -6496,14 +6501,18 @@ bool TCling::LibraryLoadingFailed(const std::string& errmessage, const std::stri
    return false;
 }
 
-static void* LazyFunctionCreatorAutoloadForModule(const std::string &mangled_name,
-                                                  const cling::DynamicLibraryManager &DLM) {
+////////////////////////////////////////////////////////////////////////////////
+/// Autoload a library based on a missing symbol.
+
+void* TCling::LazyFunctionCreatorAutoload(const std::string& mangled_name) {
+
+   const cling::DynamicLibraryManager &DLM = *GetInterpreterImpl()->getDynamicLibraryManager();
    R__LOCKGUARD(gInterpreterMutex);
 
    auto LibLoader = [](const std::string& LibName) -> bool {
      if (gSystem->Load(LibName.c_str(), "", false) < 0) {
-       Error("TCling__LazyFunctionCreatorAutoloadForModule",
-             "Failed to load library %s", LibName.c_str());
+        ::Error("TCling__LazyFunctionCreatorAutoloadForModule",
+                "Failed to load library %s", LibName.c_str());
        return false;
      }
      return true; //success.
@@ -6531,103 +6540,6 @@ static void* LazyFunctionCreatorAutoloadForModule(const std::string &mangled_nam
       return nullptr;
 
    return llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(mangled_name);
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/// Autoload a library based on a missing symbol.
-
-void* TCling::LazyFunctionCreatorAutoload(const std::string& mangled_name) {
-   if (fCxxModulesEnabled)
-      return LazyFunctionCreatorAutoloadForModule(mangled_name,
-                                                  *GetInterpreterImpl()->getDynamicLibraryManager());
-
-   // First see whether the symbol is in the library that we are currently
-   // loading. It will have access to the symbols of its dependent libraries,
-   // thus checking "back()" is sufficient.
-   if (!fRegisterModuleDyLibs.empty()) {
-      if (void* addr = dlsym(fRegisterModuleDyLibs.back(),
-                             mangled_name.c_str())) {
-         return addr;
-      }
-   }
-
-   int err = 0;
-   char* demangled_name_c = TClassEdit::DemangleName(mangled_name.c_str(), err);
-   if (err) {
-      return 0;
-   }
-
-   std::string name(demangled_name_c);
-   free(demangled_name_c);
-
-   //fprintf(stderr, "demangled name: '%s'\n", demangled_name);
-   //
-   //  Separate out the class or namespace part of the
-   //  function name.
-   //
-
-   std::string::size_type pos = name.find("__thiscall ");
-   if (pos != std::string::npos) {
-      name.erase(0, pos + sizeof("__thiscall ")-1);
-   }
-   pos = name.find("__cdecl ");
-   if (pos != std::string::npos) {
-      name.erase(0, pos + sizeof("__cdecl ")-1);
-   }
-   if (!strncmp(name.c_str(), "typeinfo for ", sizeof("typeinfo for ")-1)) {
-      name.erase(0, sizeof("typeinfo for ")-1);
-   } else if (!strncmp(name.c_str(), "vtable for ", sizeof("vtable for ")-1)) {
-      name.erase(0, sizeof("vtable for ")-1);
-   } else if (!strncmp(name.c_str(), "operator", sizeof("operator")-1)
-              && !isalnum(name[sizeof("operator")])) {
-     // operator...(A, B) - let's try with A!
-     name.erase(0, sizeof("operator")-1);
-     pos = name.rfind('(');
-     if (pos != std::string::npos) {
-       name.erase(0, pos + 1);
-       pos = name.find(",");
-       if (pos != std::string::npos) {
-         // remove next arg up to end, leaving only the first argument type.
-         name.erase(pos);
-       }
-       pos = name.rfind(" const");
-       if (pos != std::string::npos) {
-         name.erase(pos, strlen(" const"));
-       }
-       while (!name.empty() && strchr("&*", name.back()))
-         name.erase(name.length() - 1);
-     }
-   } else {
-      TClassEdit::FunctionSplitInfo fsi;
-      TClassEdit::SplitFunction(name, fsi);
-      name = fsi.fScopeName;
-   }
-   //fprintf(stderr, "name: '%s'\n", name.c_str());
-   // Now we have the class or namespace name, so do the lookup.
-   TString libs = GetClassSharedLibs(name.c_str());
-   if (libs.IsNull()) {
-      // Not found in the map, all done.
-      return 0;
-   }
-   //fprintf(stderr, "library: %s\n", iter->second.c_str());
-   // Now we have the name of the libraries to load, so load them.
-
-   TString lib;
-   Ssiz_t posLib = 0;
-   while (libs.Tokenize(lib, posLib)) {
-      if (gSystem->Load(lib, "", kFALSE /*system*/) < 0) {
-         // The library load failed, all done.
-         //fprintf(stderr, "load failed: %s\n", errmsg.c_str());
-         return 0;
-      }
-   }
-
-   //fprintf(stderr, "load succeeded.\n");
-   // Get the address of the function being called.
-   void* addr = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(mangled_name.c_str());
-   //fprintf(stderr, "addr: %016lx\n", reinterpret_cast<unsigned long>(addr));
-   return addr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

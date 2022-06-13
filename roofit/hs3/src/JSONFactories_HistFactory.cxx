@@ -116,25 +116,25 @@ RooRealVar *getNP(RooJSONFactoryWSTool *tool, const char *parname)
 {
    RooRealVar *par = tool->workspace()->var(parname);
    if (!tool->workspace()->var(parname)) {
-      par = (RooRealVar *)tool->workspace()->factory(TString::Format("%s[0.,-5,5]", parname).Data());
+      par = (RooRealVar *)tool->workspace()->factory(std::string(parname) + "[0.,-5,5]");
    }
    if (par) {
       par->setAttribute("np");
    }
-   TString globname = TString::Format("nom_%s", parname);
-   RooRealVar *nom = tool->workspace()->var(globname.Data());
+   std::string globname = std::string("nom_") + parname;
+   RooRealVar *nom = tool->workspace()->var(globname);
    if (!nom) {
-      nom = (RooRealVar *)tool->workspace()->factory((globname + "[0.]").Data());
+      nom = (RooRealVar *)tool->workspace()->factory(globname + "[0.]");
    }
    if (nom) {
       nom->setAttribute("glob");
       nom->setRange(-5, 5);
       nom->setConstant(true);
    }
-   TString constrname = TString::Format("sigma_%s", parname);
-   RooRealVar *sigma = tool->workspace()->var(constrname.Data());
+   std::string constrname = std::string("sigma_") + parname;
+   RooRealVar *sigma = tool->workspace()->var(constrname);
    if (!sigma) {
-      sigma = (RooRealVar *)tool->workspace()->factory((constrname + "[1.]").Data());
+      sigma = (RooRealVar *)tool->workspace()->factory(constrname + "[1.]");
    }
    if (sigma) {
       sigma->setRange(sigma->getVal(), sigma->getVal());
@@ -174,7 +174,8 @@ public:
          std::stack<std::unique_ptr<RooAbsArg>> ownedArgsStack;
          RooArgSet shapeElems;
          RooArgSet normElems;
-         auto varlist = tool->getObservables(p["data"], prefix);
+         RooArgSet varlist;
+         tool->getObservables(p["data"], prefix, varlist);
 
          auto getBinnedData = [&tool, &p, &varlist](std::string const &binnedDataName) -> RooDataHist & {
             auto *dh = dynamic_cast<RooDataHist *>(tool->workspace()->embeddedData(binnedDataName));
@@ -211,8 +212,7 @@ public:
                if (r) {
                   normElems.add(*r);
                } else {
-                  normElems.add(
-                     *(RooRealVar *)tool->workspace()->factory(TString::Format("%s[1.]", nfname.c_str()).Data()));
+                  normElems.add(*static_cast<RooRealVar *>(tool->workspace()->factory(nfname + "[1.]")));
                }
             }
          }
@@ -290,7 +290,7 @@ public:
             RooProduct norm((name + "_norm").c_str(), (name + "_norm").c_str(), normElems);
             tool->workspace()->import(norm, RooFit::RecycleConflictNodes(true), RooFit::Silence(true));
          } else {
-            tool->workspace()->factory(("RooConstVar::" + name + "_norm(1.)").c_str());
+            tool->workspace()->factory("RooConstVar::" + name + "_norm(1.)");
          }
       } catch (const std::runtime_error &e) {
          RooJSONFactoryWSTool::error("function '" + name +
@@ -302,10 +302,10 @@ public:
 
 class RooRealSumPdfFactory : public RooJSONFactoryWSTool::Importer {
 public:
-   std::unique_ptr<ParamHistFunc> createPHF(const std::string &sysname, const std::string &phfname, const std::vector<double> &vals,
-                                            RooWorkspace &w, RooArgList &constraints, const RooArgSet &observables,
-                                            const std::string &constraintType, RooArgList &gammas, double gamma_min,
-                                            double gamma_max) const
+   std::unique_ptr<ParamHistFunc> createPHF(const std::string &sysname, const std::string &phfname,
+                                            const std::vector<double> &vals, RooWorkspace &w, RooArgList &constraints,
+                                            const RooArgSet &observables, const std::string &constraintType,
+                                            RooArgList &gammas, double gamma_min, double gamma_max) const
    {
       RooArgList ownedComponents;
 
@@ -371,10 +371,10 @@ public:
 
    std::unique_ptr<ParamHistFunc> createPHFMCStat(const std::string &name, const std::vector<double> &sumW,
                                                   const std::vector<double> &sumW2, RooWorkspace &w,
-                                                  RooArgList &constraints, const RooArgSet &observables, double statErrorThreshold,
-                                                  const std::string &statErrorType) const
+                                                  RooArgList &constraints, const RooArgSet &observables,
+                                                  double statErrorThreshold, const std::string &statErrorType) const
    {
-      if (sumW.size() == 0)
+      if (sumW.empty())
          return nullptr;
 
       RooArgList gammas;
@@ -445,7 +445,7 @@ public:
       std::vector<std::string> coefnames;
       RooArgSet observables;
       if (p.has_child("observables")) {
-         observables.add(tool->getObservables(p, name));
+         tool->getObservables(p, name, observables);
          tool->setScopeObservables(observables);
       }
       for (const auto &comp : p["samples"].children()) {
@@ -454,8 +454,8 @@ public:
          std::string fprefix = RooJSONFactoryWSTool::genPrefix(def, true);
          if (def["type"].val() == "hist-sample") {
             try {
-               if (observables.size() == 0) {
-                  observables.add(tool->getObservables(comp["data"], fprefix));
+               if (observables.empty()) {
+                  tool->getObservables(comp["data"], fprefix, observables);
                }
                if (def.has_child("overallSystematics"))
                   ::collectNames(def["overallSystematics"], sysnames);
@@ -492,8 +492,8 @@ public:
          coefnames.push_back(fprefix + fname + "_norm");
       }
 
-      auto phf = createPHFMCStat(name, sumW, sumW2, *(tool->workspace()), constraints, observables,
-                                 statErrorThreshold, statErrorType);
+      auto phf = createPHFMCStat(name, sumW, sumW2, *(tool->workspace()), constraints, observables, statErrorThreshold,
+                                 statErrorType);
       if (phf) {
          tool->workspace()->import(*phf, RooFit::RecycleConflictNodes(), RooFit::Silence(true));
          tool->setScopeObject("mcstat", tool->workspace()->function(phf->GetName()));
@@ -740,7 +740,7 @@ public:
                norms.append_child() << e->GetName();
             } else if (e->InheritsFrom(RooHistFunc::Class())) {
                const RooHistFunc *hf = static_cast<const RooHistFunc *>(e);
-               if (varnames.size() == 0) {
+               if (varnames.empty()) {
                   varnames = getVarnames(hf);
                }
                if (!hist) {
@@ -760,7 +760,7 @@ public:
             if (!hist) {
                hist = histFunc2TH1(dynamic_cast<const RooHistFunc *>(pip->nominalHist()));
             }
-            if (varnames.size() == 0) {
+            if (varnames.empty()) {
                varnames = getVarnames(dynamic_cast<const RooHistFunc *>(pip->nominalHist()));
             }
             for (size_t i = 0; i < pip->paramList().size(); ++i) {

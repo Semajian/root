@@ -174,12 +174,9 @@ public:
      if (!SetHasOnlyParameters(set,"ModelConfig::SetGlobalObservables")) return ;
 
       // make global observables constant
-      RooFIter iter = set.fwdIterator();
-      RooAbsArg *arg = iter.next();
-      while(arg != NULL) {
-         arg->setAttribute("Constant", kTRUE);
-         arg = iter.next();
-      }
+     for (auto *arg : set){
+         arg->setAttribute("Constant", true);
+     }
 
       fGlobalObsName=std::string(GetName()) + "_GlobalObservables";
       DefineSetInWS(fGlobalObsName.c_str(), set);
@@ -230,34 +227,34 @@ public:
    /* getter methods */
 
 
-   /// get model PDF (return NULL if pdf has not been specified or does not exist)
+   /// get model PDF (return nullptr if pdf has not been specified or does not exist)
    RooAbsPdf * GetPdf() const { return (GetWS()) ? GetWS()->pdf(fPdfName.c_str()) : 0;   }
 
-   /// get RooArgSet containing the parameter of interest (return NULL if not existing)
+   /// get RooArgSet containing the parameter of interest (return nullptr if not existing)
    const RooArgSet * GetParametersOfInterest() const { return (GetWS()) ? GetWS()->set(fPOIName.c_str()) : 0; }
 
-   /// get RooArgSet containing the nuisance parameters (return NULL if not existing)
+   /// get RooArgSet containing the nuisance parameters (return nullptr if not existing)
    const RooArgSet * GetNuisanceParameters() const { return (GetWS()) ? GetWS()->set(fNuisParamsName.c_str()) : 0; }
 
-   /// get RooArgSet containing the constraint parameters (return NULL if not existing)
+   /// get RooArgSet containing the constraint parameters (return nullptr if not existing)
    const RooArgSet * GetConstraintParameters() const { return (GetWS()) ? GetWS()->set(fConstrParamsName.c_str()) : 0; }
 
-   /// get parameters prior pdf  (return NULL if not existing)
+   /// get parameters prior pdf  (return nullptr if not existing)
    RooAbsPdf * GetPriorPdf() const { return (GetWS()) ? GetWS()->pdf(fPriorPdfName.c_str()) : 0; }
 
-   /// get RooArgSet for observables  (return NULL if not existing)
+   /// get RooArgSet for observables  (return nullptr if not existing)
    const RooArgSet * GetObservables() const { return (GetWS()) ? GetWS()->set(fObservablesName.c_str()) : 0; }
 
-   /// get RooArgSet for conditional observables  (return NULL if not existing)
+   /// get RooArgSet for conditional observables  (return nullptr if not existing)
    const RooArgSet * GetConditionalObservables() const { return (GetWS()) ? GetWS()->set(fConditionalObsName.c_str()) : 0; }
 
-   /// get RooArgSet for global observables  (return NULL if not existing)
+   /// get RooArgSet for global observables  (return nullptr if not existing)
    const RooArgSet * GetGlobalObservables() const { return (GetWS()) ? GetWS()->set(fGlobalObsName.c_str()) : 0; }
 
-   /// get Proto data set (return NULL if not existing)
+   /// get Proto data set (return nullptr if not existing)
    RooAbsData * GetProtoData()  const {  return (GetWS()) ? GetWS()->data(fProtoDataName.c_str()) : 0; }
 
-   /// get RooArgSet for parameters for a particular hypothesis  (return NULL if not existing)
+   /// get RooArgSet for parameters for a particular hypothesis  (return nullptr if not existing)
    const RooArgSet * GetSnapshot() const;
 
    void LoadSnapshot() const;
@@ -274,7 +271,7 @@ public:
 protected:
 
    /// helper function to check that content of a given set is exclusively parameters
-   Bool_t SetHasOnlyParameters(const RooArgSet& set, const char* errorMsgPrefix=0) ;
+   bool SetHasOnlyParameters(const RooArgSet& set, const char* errorMsgPrefix=0) ;
 
    /// helper functions to define a set in the WS
    void DefineSetInWS(const char* name, const RooArgSet& set);

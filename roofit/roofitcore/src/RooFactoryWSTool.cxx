@@ -28,8 +28,6 @@ instantiate the objects.
 It interprets all expressions for RooWorkspace::factory(const char*).
 **/
 
-#include "RooFit.h"
-
 #include "RooFactoryWSTool.h"
 #include "RooAbsReal.h"
 #include "RooAbsCategory.h"
@@ -154,7 +152,7 @@ RooFactoryWSTool::~RooFactoryWSTool()
 ////////////////////////////////////////////////////////////////////////////////
 /// Low-level factory interface for creating a RooRealVar with a given range and initial value
 
-RooRealVar* RooFactoryWSTool::createVariable(const char* name, Double_t xmin, Double_t xmax)
+RooRealVar* RooFactoryWSTool::createVariable(const char* name, double xmin, double xmax)
 {
   // First check if variable already exists
   if (_ws->var(name)) {
@@ -351,7 +349,7 @@ RooAbsArg* RooFactoryWSTool::createArg(const char* className, const char* objNam
 
   // Try CINT interface
   pair<list<string>,unsigned int> ca = ctorArgs(className,_args.size()+2) ;
-  if (ca.first.size()==0) {
+  if (ca.first.empty()) {
     coutE(ObjectHandling) << "RooFactoryWSTool::createArg() ERROR no suitable constructor found for class " << className << endl ;
     logError() ;
     return 0 ;
@@ -428,10 +426,10 @@ RooAbsArg* RooFactoryWSTool::createArg(const char* className, const char* objNam
       } else if ((*ti)=="const char*") {
    RooFactoryWSTool::as_STRING(i) ;
    cintExpr += Form(",RooFactoryWSTool::as_STRING(%d)",i) ;
-      } else if ((*ti)=="Int_t" || (*ti)=="int" || (*ti)=="Bool_t" || (*ti)=="bool") {
+      } else if ((*ti)=="Int_t" || (*ti)=="int" || (*ti)=="bool" || (*ti)=="bool") {
    RooFactoryWSTool::as_INT(i) ;
    cintExpr += Form(",RooFactoryWSTool::as_INT(%d)",i) ;
-      } else if ((*ti)=="Double_t") {
+      } else if ((*ti)=="double") {
    RooFactoryWSTool::as_DOUBLE(i) ;
    cintExpr += Form(",RooFactoryWSTool::as_DOUBLE(%d)",i) ;
       } else if (isEnum(ti->c_str())) {
@@ -505,7 +503,7 @@ RooAbsArg* RooFactoryWSTool::createArg(const char* className, const char* objNam
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooAddPdf* RooFactoryWSTool::add(const char *objName, const char* specList, Bool_t recursiveCoefs)
+RooAddPdf* RooFactoryWSTool::add(const char *objName, const char* specList, bool recursiveCoefs)
 {
   // Spec list is of form a*A,b*B,c*C,D [ *d]
 
@@ -608,9 +606,9 @@ RooProdPdf* RooFactoryWSTool::prod(const char *objName, const char* pdfList)
       sep++ ;
 
       // |x is conditional on x, |~x is conditional on all but x
-      Bool_t invCond(kFALSE) ;
+      bool invCond(false) ;
       if (*sep=='~') {
-   invCond=kTRUE ;
+   invCond=true ;
    sep++ ;
       }
 
@@ -954,7 +952,7 @@ std::string RooFactoryWSTool::processCompositeExpression(const char* token)
   list<string> singleExpr ;
   list<char> separator ;
   Int_t blevel(0) ;
-  Bool_t litmode(kFALSE) ;
+  bool litmode(false) ;
   while(*p) {
 
     // Keep track of opening and closing brackets
@@ -1043,7 +1041,7 @@ std::string RooFactoryWSTool::processSingleExpression(const char* arg)
 
   char* tok = p ;
   Int_t blevel=0 ;
-  Bool_t litmode(kFALSE) ;
+  bool litmode(false) ;
   while(*p) {
 
     // Keep track of opening and closing brackets
@@ -1261,7 +1259,7 @@ TClass* RooFactoryWSTool::resolveClassName(const char* className)
   }
 
   // Now find dealiased class in ROOT class table
-  TClass* tc =  TClass::GetClass(className,kTRUE,kTRUE) ;
+  TClass* tc =  TClass::GetClass(className,true,true) ;
 
   // If its not there, try prefixing with Roo
   if (!tc) {
@@ -1320,7 +1318,7 @@ string RooFactoryWSTool::processCreateVar(string& func, vector<string>& args)
     if (args.size()==1) {
 
       // One argument, create constant variable with given value
-      Double_t xinit = atof((ai)->c_str()) ;
+      double xinit = atof((ai)->c_str()) ;
       cxcoutD(ObjectHandling) << "CREATE variable " << func << " xinit = " << xinit << endl ;
       RooRealVar tmp(func.c_str(),func.c_str(),xinit) ;
       tmp.setStringAttribute("factory_tag",varTag(func,args).c_str()) ;
@@ -1331,8 +1329,8 @@ string RooFactoryWSTool::processCreateVar(string& func, vector<string>& args)
     } else if (args.size()==2) {
 
       // Two arguments, create variable with given range
-      Double_t xlo = atof((ai++)->c_str()) ;
-      Double_t xhi = atof(ai->c_str()) ;
+      double xlo = atof((ai++)->c_str()) ;
+      double xhi = atof(ai->c_str()) ;
       cxcoutD(ObjectHandling) << "CREATE variable " << func << " xlo = " << xlo << " xhi = " << xhi << endl ;
       RooRealVar tmp(func.c_str(),func.c_str(),xlo,xhi) ;
       tmp.setStringAttribute("factory_tag",varTag(func,args).c_str()) ;
@@ -1343,9 +1341,9 @@ string RooFactoryWSTool::processCreateVar(string& func, vector<string>& args)
     } else if (args.size()==3) {
 
       // Three arguments, create variable with given initial value and range
-      Double_t xinit = atof((ai++)->c_str()) ;
-      Double_t xlo = atof((ai++)->c_str()) ;
-      Double_t xhi = atof(ai->c_str()) ;
+      double xinit = atof((ai++)->c_str()) ;
+      double xlo = atof((ai++)->c_str()) ;
+      double xhi = atof(ai->c_str()) ;
       cxcoutD(ObjectHandling) << "CREATE variable " << func << " xinit = " << xinit << " xlo = " << xlo << " xhi = " << xhi << endl ;
       RooRealVar tmp(func.c_str(),func.c_str(),xinit,xlo,xhi) ;
       tmp.setStringAttribute("factory_tag",varTag(func,args).c_str()) ;
@@ -1474,7 +1472,7 @@ vector<string> RooFactoryWSTool::splitFunctionArgs(const char* funcExpr)
 
   char* tok = p ;
   Int_t blevel=0 ;
-  Bool_t litmode(kFALSE) ;
+  bool litmode(false) ;
   while(*p) {
 
     // Keep track of opening and closing brackets
@@ -1526,7 +1524,7 @@ vector<string> RooFactoryWSTool::splitFunctionArgs(const char* funcExpr)
 /// Perform basic syntax on given factory expression. If function returns
 /// true syntax errors are found.
 
-Bool_t RooFactoryWSTool::checkSyntax(const char* arg)
+bool RooFactoryWSTool::checkSyntax(const char* arg)
 {
   // Count parentheses
   Int_t nParentheses(0), nBracket(0), nAccolade(0) ;
@@ -1542,17 +1540,17 @@ Bool_t RooFactoryWSTool::checkSyntax(const char* arg)
   }
   if (nParentheses!=0) {
     coutE(ObjectHandling) << "RooFactoryWSTool::checkSyntax ERROR non-matching '" << (nParentheses>0?"(":")") << "' in expression" << endl ;
-    return kTRUE ;
+    return true ;
   }
   if (nBracket!=0) {
     coutE(ObjectHandling) << "RooFactoryWSTool::checkSyntax ERROR non-matching '" << (nBracket>0?"[":"]") << "' in expression" << endl ;
-    return kTRUE ;
+    return true ;
   }
   if (nAccolade!=0) {
     coutE(ObjectHandling) << "RooFactoryWSTool::checkSyntax ERROR non-matching '" << (nAccolade>0?"{":"}") << "' in expression" << endl ;
-    return kTRUE ;
+    return true ;
   }
-  return kFALSE ;
+  return false ;
 }
 
 
@@ -1923,9 +1921,9 @@ Int_t RooFactoryWSTool::asINT(const char* arg)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// CINT constructor interface, return constructor string argument `#idx` as Double_t
+/// CINT constructor interface, return constructor string argument `#idx` as double
 
-Double_t RooFactoryWSTool::asDOUBLE(const char* arg)
+double RooFactoryWSTool::asDOUBLE(const char* arg)
 {
   return atof(arg) ;
 }
@@ -1974,12 +1972,12 @@ std::string RooFactoryWSTool::SpecialsIFace::create(RooFactoryWSTool& ft, const 
   if (cl=="SUM") {
 
     // SUM::name[a*A,b*B,C]
-    ft.add(instName,pargs,kFALSE) ;
+    ft.add(instName,pargs,false) ;
 
   } else if (cl=="RSUM") {
 
     // RSUM::name[a*A,b*B,C]
-    ft.add(instName,pargs,kTRUE) ;
+    ft.add(instName,pargs,true) ;
 
   } else if (cl=="ASUM") {
 

@@ -53,7 +53,7 @@
 ///  interface for this is quite similar to that for integrals of regular PDFs. Two functions,
 ///  \code{.cpp}
 ///   Int_t getCoefAnalyticalIntegral(Int_t coef, RooArgSet& allVars, RooArgSet& analVars, const char* rangeName) const
-///   Double_t coefAnalyticalIntegral(Int_t coef, Int_t code, const char* rangeName) const
+///   double coefAnalyticalIntegral(Int_t coef, Int_t code, const char* rangeName) const
 ///  \endcode
 ///
 ///  advertise the coefficient integration capabilities and implement them respectively.
@@ -62,7 +62,6 @@
 
 #include "RooAbsAnaConvPdf.h"
 
-#include "RooFit.h"
 #include "RooMsgService.h"
 #include "Riostream.h"
 #include "RooResolutionModel.h"
@@ -96,9 +95,9 @@ RooAbsAnaConvPdf::RooAbsAnaConvPdf() :
 
 RooAbsAnaConvPdf::RooAbsAnaConvPdf(const char *name, const char *title,
                const RooResolutionModel& model, RooRealVar& cVar) :
-  RooAbsPdf(name,title), _isCopy(kFALSE),
-  _model("!model","Original resolution model",this,(RooResolutionModel&)model,kFALSE,kFALSE),
-  _convVar("!convVar","Convolution variable",this,cVar,kFALSE,kFALSE),
+  RooAbsPdf(name,title), _isCopy(false),
+  _model("!model","Original resolution model",this,(RooResolutionModel&)model,false,false),
+  _convVar("!convVar","Convolution variable",this,cVar,false,false),
   _convSet("!convSet","Set of resModel X basisFunc convolutions",this),
   _coefNormMgr(this,10),
   _codeReg(10)
@@ -111,7 +110,7 @@ RooAbsAnaConvPdf::RooAbsAnaConvPdf(const char *name, const char *title,
 ////////////////////////////////////////////////////////////////////////////////
 
 RooAbsAnaConvPdf::RooAbsAnaConvPdf(const RooAbsAnaConvPdf& other, const char* name) :
-  RooAbsPdf(other,name), _isCopy(kTRUE),
+  RooAbsPdf(other,name), _isCopy(true),
   _model("!model",this,other._model),
   _convVar("!convVar",this,other._convVar),
   _convSet("!convSet",this,other._convSet),
@@ -206,17 +205,17 @@ Int_t RooAbsAnaConvPdf::declareBasis(const char* expression, const RooArgList& p
 ////////////////////////////////////////////////////////////////////////////////
 /// Change the current resolution model to newModel
 
-Bool_t RooAbsAnaConvPdf::changeModel(const RooResolutionModel& newModel)
+bool RooAbsAnaConvPdf::changeModel(const RooResolutionModel& newModel)
 {
   RooArgList newConvSet ;
-  Bool_t allOK(kTRUE) ;
+  bool allOK(true) ;
   for (auto convArg : _convSet) {
     auto conv = static_cast<RooResolutionModel*>(convArg);
 
     // Build new resolution model
     RooResolutionModel* newConv = newModel.convolution((RooFormulaVar*)&conv->basis(),this) ;
     if (!newConvSet.add(*newConv)) {
-      allOK = kFALSE ;
+      allOK = false ;
       break ;
     }
   }
@@ -226,7 +225,7 @@ Bool_t RooAbsAnaConvPdf::changeModel(const RooResolutionModel& newModel)
     // Delete new basis functions created sofar
     std::for_each(newConvSet.begin(), newConvSet.end(), [](RooAbsArg* arg){delete arg;});
 
-    return kTRUE ;
+    return true ;
   }
 
   // Replace old convolutions with new set
@@ -234,10 +233,10 @@ Bool_t RooAbsAnaConvPdf::changeModel(const RooResolutionModel& newModel)
   _convSet.addOwned(newConvSet) ;
 
   // Update server link by hand, since _model.setArg() below will not do this
-  replaceServer((RooAbsArg&)_model.arg(),(RooAbsArg&)newModel,kFALSE,kFALSE) ;
+  replaceServer((RooAbsArg&)_model.arg(),(RooAbsArg&)newModel,false,false) ;
 
   _model.setArg((RooResolutionModel&)newModel) ;
-  return kFALSE ;
+  return false ;
 }
 
 
@@ -251,21 +250,21 @@ Bool_t RooAbsAnaConvPdf::changeModel(const RooResolutionModel& newModel)
 /// a (slower) generic generation context that uses accept/reject sampling
 
 RooAbsGenContext* RooAbsAnaConvPdf::genContext(const RooArgSet &vars, const RooDataSet *prototype,
-                      const RooArgSet* auxProto, Bool_t verbose) const
+                      const RooArgSet* auxProto, bool verbose) const
 {
   // Check if the resolution model specifies a special context to be used.
   RooResolutionModel* conv = dynamic_cast<RooResolutionModel*>(_model.absArg());
   assert(conv);
 
   RooArgSet* modelDep = _model.absArg()->getObservables(&vars) ;
-  modelDep->remove(*convVar(),kTRUE,kTRUE) ;
+  modelDep->remove(*convVar(),true,true) ;
   Int_t numAddDep = modelDep->getSize() ;
   delete modelDep ;
 
   // Check if physics PDF and resolution model can both directly generate the convolution variable
   RooArgSet dummy ;
-  Bool_t pdfCanDir = (getGenerator(*convVar(),dummy) != 0) ;
-  Bool_t resCanDir = conv && (conv->getGenerator(*convVar(),dummy)!=0) && conv->isDirectGenSafe(*convVar()) ;
+  bool pdfCanDir = (getGenerator(*convVar(),dummy) != 0) ;
+  bool resCanDir = conv && (conv->getGenerator(*convVar(),dummy)!=0) && conv->isDirectGenSafe(*convVar()) ;
 
   if (numAddDep>0 || !pdfCanDir || !resCanDir) {
     // Any resolution model with more dependents than the convolution variable
@@ -293,13 +292,13 @@ RooAbsGenContext* RooAbsAnaConvPdf::genContext(const RooArgSet &vars, const RooD
 /// from the internal generator (this is the case if the chosen resolution
 /// model is the truth model)
 
-Bool_t RooAbsAnaConvPdf::isDirectGenSafe(const RooAbsArg& arg) const
+bool RooAbsAnaConvPdf::isDirectGenSafe(const RooAbsArg& arg) const
 {
 
   // All direct generation of convolution arg if model is truth model
   if (!TString(_convVar.absArg()->GetName()).CompareTo(arg.GetName()) &&
       dynamic_cast<RooTruthModel*>(_model.absArg())) {
-    return kTRUE ;
+    return true ;
   }
 
   return RooAbsPdf::isDirectGenSafe(arg) ;
@@ -325,17 +324,17 @@ RooAbsRealLValue* RooAbsAnaConvPdf::convVar()
 /// PDF = sum_k coef_k * [ basis_k (x) ResModel ]
 ///
 
-Double_t RooAbsAnaConvPdf::evaluate() const
+double RooAbsAnaConvPdf::evaluate() const
 {
-  Double_t result(0) ;
+  double result(0) ;
 
   Int_t index(0) ;
   for (auto convArg : _convSet) {
     auto conv = static_cast<RooAbsPdf*>(convArg);
-    Double_t coef = coefficient(index++) ;
+    double coef = coefficient(index++) ;
     if (coef!=0.) {
-      Double_t c = conv->getVal(0) ;
-      Double_t r = coef ;
+      double c = conv->getVal(0) ;
+      double r = coef ;
       cxcoutD(Eval) << "RooAbsAnaConvPdf::evaluate(" << GetName() << ") val += coef*conv [" << index-1 << "/"
           << _convSet.getSize() << "] coef = " << r << " conv = " << c << endl ;
       result += conv->getVal(0)*coef ;
@@ -366,30 +365,25 @@ Int_t RooAbsAnaConvPdf::getAnalyticalIntegralWN(RooArgSet& allVars,
                        RooArgSet& analVars, const RooArgSet* normSet2, const char* /*rangeName*/) const
 {
   // Handle trivial no-integration scenario
-  if (allVars.getSize()==0) return 0 ;
+  if (allVars.empty()) return 0 ;
 
   if (_forceNumInt) return 0 ;
 
   // Select subset of allVars that are actual dependents
-  RooArgSet* allDeps = getObservables(allVars) ;
-  RooArgSet* normSet = normSet2 ? getObservables(normSet2) : 0 ;
+  RooArgSet allDeps;
+  getObservables(&allVars, allDeps);
+  std::unique_ptr<RooArgSet> normSet{normSet2 ? getObservables(normSet2) : nullptr};
 
-  RooAbsArg *arg ;
-  RooResolutionModel *conv ;
-
-  RooArgSet* intSetAll = new RooArgSet(*allDeps,"intSetAll") ;
+  RooArgSet intSetAll{allDeps,"intSetAll"};
 
   // Split intSetAll in coef/conv parts
-  RooArgSet* intCoefSet = new RooArgSet("intCoefSet") ;
-  RooArgSet* intConvSet = new RooArgSet("intConvSet") ;
-  TIterator* varIter  = intSetAll->createIterator() ;
-  TIterator* convIter = _convSet.createIterator() ;
+  auto intCoefSet = std::make_unique<RooArgSet>("intCoefSet");
+  auto intConvSet = std::make_unique<RooArgSet>("intConvSet");
 
-  while(((arg=(RooAbsArg*) varIter->Next()))) {
-    Bool_t ok(kTRUE) ;
-    convIter->Reset() ;
-    while(((conv=(RooResolutionModel*) convIter->Next()))) {
-      if (conv->dependsOn(*arg)) ok=kFALSE ;
+  for (RooAbsArg * arg : intSetAll) {
+    bool ok(true) ;
+    for (RooAbsArg * conv : _convSet) {
+      if (conv->dependsOn(*arg)) ok=false ;
     }
 
     if (ok) {
@@ -399,61 +393,44 @@ Int_t RooAbsAnaConvPdf::getAnalyticalIntegralWN(RooArgSet& allVars,
     }
 
   }
-  delete varIter ;
-
 
   // Split normSetAll in coef/conv parts
-  RooArgSet* normCoefSet = new RooArgSet("normCoefSet") ;
-  RooArgSet* normConvSet = new RooArgSet("normConvSet") ;
-  RooArgSet* normSetAll = normSet ? (new RooArgSet(*normSet,"normSetAll")) : 0 ;
-  if (normSetAll) {
-    varIter  =  normSetAll->createIterator() ;
-    while(((arg=(RooAbsArg*) varIter->Next()))) {
-      Bool_t ok(kTRUE) ;
-      convIter->Reset() ;
-      while(((conv=(RooResolutionModel*) convIter->Next()))) {
-   if (conv->dependsOn(*arg)) ok=kFALSE ;
+  auto normCoefSet = std::make_unique<RooArgSet>("normCoefSet");
+  auto normConvSet = std::make_unique<RooArgSet>("normConvSet");
+  if (normSet) {
+    for (RooAbsArg * arg : *normSet) {
+      bool ok(true) ;
+      for (RooAbsArg * conv : _convSet) {
+        if (conv->dependsOn(*arg)) ok=false ;
       }
 
       if (ok) {
-   normCoefSet->add(*arg) ;
+        normCoefSet->add(*arg) ;
       } else {
-   normConvSet->add(*arg) ;
+        normConvSet->add(*arg) ;
       }
 
     }
-    delete varIter ;
-  }
-  delete convIter ;
-
-  if (intCoefSet->getSize()==0) {
-    delete intCoefSet ; intCoefSet=0 ;
-  }
-  if (intConvSet->getSize()==0) {
-    delete intConvSet ; intConvSet=0 ;
-  }
-  if (normCoefSet->getSize()==0) {
-    delete normCoefSet ; normCoefSet=0 ;
-  }
-  if (normConvSet->getSize()==0) {
-    delete normConvSet ; normConvSet=0 ;
   }
 
+  if (intCoefSet->empty()) intCoefSet.reset();
+  if (intConvSet->empty()) intConvSet.reset();
+  if (normCoefSet->empty()) normCoefSet.reset();
+  if (normConvSet->empty()) normConvSet.reset();
 
 
   // Store integration configuration in registry
   Int_t masterCode(0) ;
   std::vector<Int_t> tmp(1, 0) ;
 
-  masterCode = _codeReg.store(tmp, intCoefSet, intConvSet, normCoefSet, normConvSet) + 1 ; // takes ownership of all sets
+  // takes ownership of all sets
+  masterCode = _codeReg.store(tmp,
+                              intCoefSet.release(),
+                              intConvSet.release(),
+                              normCoefSet.release(),
+                              normConvSet.release()) + 1;
 
-  analVars.add(*allDeps) ;
-  delete allDeps ;
-  if (normSet) delete normSet ;
-  if (normSetAll) delete normSetAll ;
-  delete intSetAll ;
-
-//   cout << this << "---> masterCode = " << masterCode << endl ;
+  analVars.add(allDeps) ;
 
   return masterCode  ;
 }
@@ -489,7 +466,7 @@ Int_t RooAbsAnaConvPdf::getAnalyticalIntegralWN(RooArgSet& allVars,
 /// Set \f$ x \f$ must be contained in \f$ v \f$ and set \f$ y \f$ must be contained in \f$ w \f$.
 ///
 
-Double_t RooAbsAnaConvPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
+double RooAbsAnaConvPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
 {
   // WVE needs adaptation to handle new rangeName feature
 
@@ -501,16 +478,16 @@ Double_t RooAbsAnaConvPdf::analyticalIntegralWN(Int_t code, const RooArgSet* nor
   _codeReg.retrieve(code-1,intCoefSet,intConvSet,normCoefSet,normConvSet) ;
 
   Int_t index(0) ;
-  Double_t answer(0) ;
+  double answer(0) ;
 
   if (normCoefSet==0&&normConvSet==0) {
 
     // Integral over unnormalized function
-    Double_t integral(0) ;
+    double integral(0) ;
     const TNamed *_rangeName = RooNameReg::ptr(rangeName);
     for (auto convArg : _convSet) {
       auto conv = static_cast<RooResolutionModel*>(convArg);
-      Double_t coef = getCoefNorm(index++,intCoefSet,_rangeName) ;
+      double coef = getCoefNorm(index++,intCoefSet,_rangeName) ;
       //cout << "coefInt[" << index << "] = " << coef << " " ; intCoefSet->Print("1") ;
       if (coef!=0) {
    integral += coef* conv->getNormObj(0,intConvSet,_rangeName)->getVal();
@@ -523,23 +500,23 @@ Double_t RooAbsAnaConvPdf::analyticalIntegralWN(Int_t code, const RooArgSet* nor
   } else {
 
     // Integral over normalized function
-    Double_t integral(0) ;
-    Double_t norm(0) ;
+    double integral(0) ;
+    double norm(0) ;
     const TNamed *_rangeName = RooNameReg::ptr(rangeName);
     for (auto convArg : _convSet) {
       auto conv = static_cast<RooResolutionModel*>(convArg);
 
-      Double_t coefInt = getCoefNorm(index,intCoefSet,_rangeName) ;
+      double coefInt = getCoefNorm(index,intCoefSet,_rangeName) ;
       //cout << "coefInt[" << index << "] = " << coefInt << "*" << term << " " << (intCoefSet?*intCoefSet:RooArgSet()) << endl ;
       if (coefInt!=0) {
-   Double_t term = conv->getNormObj(0,intConvSet,_rangeName)->getVal();
+   double term = conv->getNormObj(0,intConvSet,_rangeName)->getVal();
    integral += coefInt*term ;
       }
 
-      Double_t coefNorm = getCoefNorm(index,normCoefSet) ;
+      double coefNorm = getCoefNorm(index,normCoefSet) ;
       //cout << "coefNorm[" << index << "] = " << coefNorm << "*" << term << " " << (normCoefSet?*normCoefSet:RooArgSet()) << endl ;
       if (coefNorm!=0) {
-   Double_t term = conv->getNormObj(0,normConvSet)->getVal();
+   double term = conv->getNormObj(0,normConvSet)->getVal();
    norm += coefNorm*term ;
       }
 
@@ -571,7 +548,7 @@ Int_t RooAbsAnaConvPdf::getCoefAnalyticalIntegral(Int_t /* coef*/, RooArgSet& /*
 /// Default implementation of function implementing advertised integrals. Only
 /// the pass-through scenario (no integration) is implemented.
 
-Double_t RooAbsAnaConvPdf::coefAnalyticalIntegral(Int_t coef, Int_t code, const char* /*rangeName*/) const
+double RooAbsAnaConvPdf::coefAnalyticalIntegral(Int_t coef, Int_t code, const char* /*rangeName*/) const
 {
   if (code==0) return coefficient(coef) ;
   coutE(InputArguments) << "RooAbsAnaConvPdf::coefAnalyticalIntegral(" << GetName() << ") ERROR: unrecognized integration code: " << code << endl ;
@@ -591,9 +568,9 @@ Double_t RooAbsAnaConvPdf::coefAnalyticalIntegral(Int_t coef, Int_t code, const 
 /// but feed them to the resolution models integration interface, which will
 /// make the final determination on how to integrate these dependents.
 
-Bool_t RooAbsAnaConvPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
+bool RooAbsAnaConvPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
 {
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -602,7 +579,7 @@ Bool_t RooAbsAnaConvPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
 /// Returns the normalization integral value of the coefficient with number coefIdx over normalization
 /// set nset in range rangeName
 
-Double_t RooAbsAnaConvPdf::getCoefNorm(Int_t coefIdx, const RooArgSet* nset, const TNamed* rangeName) const
+double RooAbsAnaConvPdf::getCoefNorm(Int_t coefIdx, const RooArgSet* nset, const TNamed* rangeName) const
 {
   if (nset==0) return coefficient(coefIdx) ;
 
@@ -673,14 +650,12 @@ RooArgSet* RooAbsAnaConvPdf::coefVars(Int_t /*coefIdx*/) const
 ///
 ///   Verbose : detailed information on convolution integrals
 
-void RooAbsAnaConvPdf::printMultiline(ostream& os, Int_t contents, Bool_t verbose, TString indent) const
+void RooAbsAnaConvPdf::printMultiline(ostream& os, Int_t contents, bool verbose, TString indent) const
 {
   RooAbsPdf::printMultiline(os,contents,verbose,indent);
 
   os << indent << "--- RooAbsAnaConvPdf ---" << endl;
-  TIter iter = _convSet.createIterator() ;
-  RooResolutionModel* conv ;
-  while (((conv=(RooResolutionModel*)iter.Next()))) {
+  for (auto * conv : static_range_cast<RooResolutionModel*>(_convSet)) {
     conv->printMultiline(os,contents,verbose,indent) ;
   }
 }
@@ -695,7 +670,7 @@ void RooAbsAnaConvPdf::setCacheAndTrackHints(RooArgSet& trackNodes)
   while ((carg=citer.next())) {
     if (carg->canNodeBeCached()==Always) {
       trackNodes.add(*carg) ;
-      //cout << "tracking node RooAddPdf component " << carg->IsA()->GetName() << "::" << carg->GetName() << endl ;
+      //cout << "tracking node RooAddPdf component " << carg->ClassName() << "::" << carg->GetName() << endl ;
     }
   }
 }

@@ -159,6 +159,7 @@ int main(int argc, char *argv[])
 
    // Open the input file name.
    f = fopen(gFileName.c_str(),"r");
+   if (!f) return 1;
 
    if (gFileName.find("tutorials") != string::npos) FilterTutorial();
    else                                             FilterClass();
@@ -203,6 +204,7 @@ void FilterClass()
             }
             int ImageSize = 300;
             FILE *f = fopen("ImagesSizes.dat", "r");
+            if (!f) return;
             fscanf(f, "%d", &ImageSize);
             fclose(f);
             remove("ImagesSizes.dat");
@@ -336,7 +338,11 @@ void FilterTutorial()
             ReplaceAll(image_name, " ", "");
             ReplaceAll(image_name, "///\\macro_image(", "");
             ReplaceAll(image_name, ")\n", "");
-            ExecuteCommand(StringFormat("root -l -b -q %s", gFileName.c_str()));
+            if (gPython) {
+               ExecuteCommand(StringFormat("%s %s", gPythonExec.c_str(), gFileName.c_str()));
+            } else {
+               ExecuteCommand(StringFormat("root -l -b -q %s", gFileName.c_str()));
+            }
             ExecuteCommand(StringFormat("mv %s %s/html", image_name.c_str(), gOutDir.c_str()));
             ReplaceAll(gLineString, "macro_image (", "image html ");
             ReplaceAll(gLineString, ")", "");
@@ -345,16 +351,16 @@ void FilterTutorial()
             IN = gImageName;
             int i = IN.find(".");
             IN.erase(i,IN.length());
-            ExecuteCommand(StringFormat("root -l -b -q \"MakeTCanvasJS.C(\\\"%s\\\",\\\"%s\\\",\\\"%s\\\",false,false)\"",
-                                         gFileName.c_str(), IN.c_str(), gOutDir.c_str()));
+            ExecuteCommand(StringFormat("root -l -b -q \"MakeTCanvasJS.C(\\\"%s\\\",\\\"%s\\\",\\\"%s\\\",false,%d)\"",
+                                         gFileName.c_str(), IN.c_str(), gOutDir.c_str(), gPython));
             ReplaceAll(gLineString, "macro_image", StringFormat("htmlinclude %s.html",IN.c_str()));
          } else if (rcanvas_js) {
             string IN;
             IN = gImageName;
             int i = IN.find(".");
             IN.erase(i,IN.length());
-            ExecuteCommand(StringFormat("root -l -b -q --web=batch \"MakeRCanvasJS.C(\\\"%s\\\",\\\"%s\\\",\\\"%s\\\",false,false)\"",
-                                          gFileName.c_str(), IN.c_str(), gOutDir.c_str()));
+            ExecuteCommand(StringFormat("root -l -b -q --web=batch \"MakeRCanvasJS.C(\\\"%s\\\",\\\"%s\\\",\\\"%s\\\",false,%d)\"",
+                                          gFileName.c_str(), IN.c_str(), gOutDir.c_str(), gPython));
             ReplaceAll(gLineString, "macro_image", StringFormat("htmlinclude %s.html",IN.c_str()));
          } else {
             if (gPython) {
@@ -512,6 +518,7 @@ int NumberOfImages()
 {
    int ImageNum;
    FILE *f = fopen("NumberOfImages.dat", "r");
+   if (!f) return 0;
    fscanf(f, "%d", &ImageNum);
    fclose(f);
    remove("NumberOfImages.dat");
@@ -575,6 +582,7 @@ string ImagesList(string& name) {
 
    int ImageSize = 300;
    FILE *f = fopen("ImagesSizes.dat", "r");
+   if (!f) return "";
 
    for (int i = 1; i <= N; i++){
       fscanf(f, "%d", &ImageSize);

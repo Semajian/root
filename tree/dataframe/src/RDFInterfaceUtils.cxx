@@ -175,20 +175,20 @@ static ParsedExpression ParseRDFExpression(std::string_view expr, const ColumnNa
    return ParsedExpression{std::string(std::move(exprWithVars)), std::move(usedCols), std::move(varNames)};
 }
 
-/// Return the static global map of Filter/Define lambda expressions that have been jitted.
+/// Return the static global map of Filter/Define functions that have been jitted.
 /// It's used to check whether a given expression has already been jitted, and
 /// to look up its associated variable name if it is.
 /// Keys in the map are the body of the expression, values are the name of the
 /// jitted variable that corresponds to that expression. For example, for:
-///     auto lambda1 = [] { return 42; };
-/// key would be "[] { return 42; }" and value would be "lambda1".
+///     auto f1(){ return 42; }
+/// key would be "(){ return 42; }" and value would be "f1".
 static std::unordered_map<std::string, std::string> &GetJittedExprs() {
    static std::unordered_map<std::string, std::string> jittedExpressions;
    return jittedExpressions;
 }
 
 static std::string
-BuildLambdaString(const std::string &expr, const ColumnNames_t &vars, const ColumnNames_t &varTypes)
+BuildFunctionString(const std::string &expr, const ColumnNames_t &vars, const ColumnNames_t &varTypes)
 {
    assert(vars.size() == varTypes.size());
 
@@ -229,7 +229,7 @@ BuildLambdaString(const std::string &expr, const ColumnNames_t &vars, const Colu
    };
 
    std::stringstream ss;
-   ss << "[](";
+   ss << "(";
    for (auto i = 0u; i < vars.size(); ++i) {
       std::string fullType;
       const auto &type = varTypes[i];
@@ -255,41 +255,41 @@ BuildLambdaString(const std::string &expr, const ColumnNames_t &vars, const Colu
    return ss.str();
 }
 
-/// Declare a lambda expression to the interpreter in namespace R_rdf, return the name of the jitted lambda.
-/// If the lambda expression is already in GetJittedExprs, return the name for the lambda that has already been jitted.
-static std::string DeclareLambda(const std::string &expr, const ColumnNames_t &vars, const ColumnNames_t &varTypes)
+/// Declare a function to the interpreter in namespace R_rdf, return the name of the jitted function.
+/// If the function is already in GetJittedExprs, return the name for the function that has already been jitted.
+static std::string DeclareFunction(const std::string &expr, const ColumnNames_t &vars, const ColumnNames_t &varTypes)
 {
    R__LOCKGUARD(gROOTMutex);
 
-   const auto lambdaExpr = BuildLambdaString(expr, vars, varTypes);
+   const auto funcCode = BuildFunctionString(expr, vars, varTypes);
    auto &exprMap = GetJittedExprs();
-   const auto exprIt = exprMap.find(lambdaExpr);
+   const auto exprIt = exprMap.find(funcCode);
    if (exprIt != exprMap.end()) {
       // expression already there
-      const auto lambdaName = exprIt->second;
-      return lambdaName;
+      const auto funcName = exprIt->second;
+      return funcName;
    }
 
    // new expression
-   const auto lambdaBaseName = "lambda" + std::to_string(exprMap.size());
-   const auto lambdaFullName = "R_rdf::" + lambdaBaseName;
+   const auto funcBaseName = "func" + std::to_string(exprMap.size());
+   const auto funcFullName = "R_rdf::" + funcBaseName;
 
-   const auto toDeclare = "namespace R_rdf {\nauto " + lambdaBaseName + " = " + lambdaExpr + ";\nusing " +
-                          lambdaBaseName + "_ret_t = typename ROOT::TypeTraits::CallableTraits<decltype(" +
-                          lambdaBaseName + ")>::ret_type;\n}";
+   const auto toDeclare = "namespace R_rdf {\nauto " + funcBaseName + funcCode + "\nusing " + funcBaseName +
+                          "_ret_t = typename ROOT::TypeTraits::CallableTraits<decltype(" + funcBaseName +
+                          ")>::ret_type;\n}";
    ROOT::Internal::RDF::InterpreterDeclare(toDeclare.c_str());
 
-   // InterpreterDeclare could throw. If it doesn't, mark the lambda as already jitted
-   exprMap.insert({lambdaExpr, lambdaFullName});
+   // InterpreterDeclare could throw. If it doesn't, mark the function as already jitted
+   exprMap.insert({funcCode, funcFullName});
 
-   return lambdaFullName;
+   return funcFullName;
 }
 
-/// Each jitted lambda comes with a lambda_ret_t type alias for its return type.
+/// Each jitted function comes with a func_ret_t type alias for its return type.
 /// Resolve that alias and return the true type as string.
-static std::string RetTypeOfLambda(const std::string &lambdaName)
+static std::string RetTypeOfFunc(const std::string &funcName)
 {
-   const auto dt = gROOT->GetType((lambdaName + "_ret_t").c_str());
+   const auto dt = gROOT->GetType((funcName + "_ret_t").c_str());
    R__ASSERT(dt != nullptr);
    const auto type = dt->GetFullTypeName();
    return type;
@@ -423,8 +423,9 @@ void CheckValidCppVarName(std::string_view var, const std::string &where)
          isValid = false;
 
    if (!isValid) {
-      const auto error =
-         "RDataFrame::" + where + ": cannot define column \"" + std::string(var) + "\". Not a valid C++ variable name.";
+      const auto objName = where == "Define" ? "column" : "variation";
+      const auto error = "RDataFrame::" + where + ": cannot define " + objName + " \"" + std::string(var) +
+                         "\". Not a valid C++ variable name.";
       throw std::runtime_error(error);
    }
 }
@@ -544,6 +545,19 @@ void CheckForDefinition(const std::string &where, std::string_view definedColVie
    }
 }
 
+/// Throw if the column has systematic variations attached.
+void CheckForNoVariations(const std::string &where, std::string_view definedColView, const RColumnRegister &customCols)
+{
+   const std::string definedCol(definedColView);
+   const auto &variationDeps = customCols.GetVariationDeps(definedCol);
+   if (!variationDeps.empty()) {
+      const std::string error =
+         "RDataFrame::" + where + ": cannot redefine column \"" + definedCol +
+         "\". The column depends on one or more systematic variations and re-defining varied columns is not supported.";
+      throw std::runtime_error(error);
+   }
+}
+
 void CheckTypesAndPars(unsigned int nTemplateParams, unsigned int nColumnNames)
 {
    if (nTemplateParams != nColumnNames) {
@@ -638,8 +652,8 @@ BookFilterJit(std::shared_ptr<RDFDetail::RNodeBase> *prevNodeOnHeap, std::string
    const auto parsedExpr = ParseRDFExpression(expression, branches, customCols, dsColumns);
    const auto exprVarTypes =
       GetValidatedArgTypes(parsedExpr.fUsedCols, customCols, tree, ds, "Filter", /*vector2rvec=*/true);
-   const auto lambdaName = DeclareLambda(parsedExpr.fExpr, parsedExpr.fVarNames, exprVarTypes);
-   const auto type = RetTypeOfLambda(lambdaName);
+   const auto funcName = DeclareFunction(parsedExpr.fExpr, parsedExpr.fVarNames, exprVarTypes);
+   const auto type = RetTypeOfFunc(funcName);
    if (type != "bool")
       std::runtime_error("Filter: the following expression does not evaluate to bool:\n" + std::string(expression));
 
@@ -655,7 +669,7 @@ BookFilterJit(std::shared_ptr<RDFDetail::RNodeBase> *prevNodeOnHeap, std::string
    // Produce code snippet that creates the filter and registers it with the corresponding RJittedFilter
    // Windows requires std::hex << std::showbase << (size_t)pointer to produce notation "0x1234"
    std::stringstream filterInvocation;
-   filterInvocation << "ROOT::Internal::RDF::JitFilterHelper(" << lambdaName << ", new const char*["
+   filterInvocation << "ROOT::Internal::RDF::JitFilterHelper(" << funcName << ", new const char*["
                     << parsedExpr.fUsedCols.size() << "]{";
    for (const auto &col : parsedExpr.fUsedCols)
       filterInvocation << "\"" << col << "\", ";
@@ -690,16 +704,16 @@ std::shared_ptr<RJittedDefine> BookDefineJit(std::string_view name, std::string_
    const auto parsedExpr = ParseRDFExpression(expression, branches, customCols, dsColumns);
    const auto exprVarTypes =
       GetValidatedArgTypes(parsedExpr.fUsedCols, customCols, tree, ds, "Define", /*vector2rvec=*/true);
-   const auto lambdaName = DeclareLambda(parsedExpr.fExpr, parsedExpr.fVarNames, exprVarTypes);
-   const auto type = RetTypeOfLambda(lambdaName);
+   const auto funcName = DeclareFunction(parsedExpr.fExpr, parsedExpr.fVarNames, exprVarTypes);
+   const auto type = RetTypeOfFunc(funcName);
 
    auto definesCopy = new RColumnRegister(customCols);
    auto definesAddr = PrettyPrintAddr(definesCopy);
    auto jittedDefine = std::make_shared<RDFDetail::RJittedDefine>(name, type, lm, customCols, parsedExpr.fUsedCols);
 
    std::stringstream defineInvocation;
-   defineInvocation << "ROOT::Internal::RDF::JitDefineHelper<ROOT::Internal::RDF::DefineTypes::RDefineTag>("
-                    << lambdaName << ", new const char*[" << parsedExpr.fUsedCols.size() << "]{";
+   defineInvocation << "ROOT::Internal::RDF::JitDefineHelper<ROOT::Internal::RDF::DefineTypes::RDefineTag>(" << funcName
+                    << ", new const char*[" << parsedExpr.fUsedCols.size() << "]{";
    for (const auto &col : parsedExpr.fUsedCols) {
       defineInvocation << "\"" << col << "\", ";
    }
@@ -726,9 +740,9 @@ std::shared_ptr<RJittedDefine> BookDefinePerSampleJit(std::string_view name, std
                                                       RLoopManager &lm, const RColumnRegister &customCols,
                                                       std::shared_ptr<RNodeBase> *upcastNodeOnHeap)
 {
-   const auto lambdaName = DeclareLambda(std::string(expression), {"rdfslot_", "rdfsampleinfo_"},
+   const auto funcName = DeclareFunction(std::string(expression), {"rdfslot_", "rdfsampleinfo_"},
                                          {"unsigned int", "const ROOT::RDF::RSampleInfo"});
-   const auto retType = RetTypeOfLambda(lambdaName);
+   const auto retType = RetTypeOfFunc(funcName);
 
    auto definesCopy = new RColumnRegister(customCols);
    auto definesAddr = PrettyPrintAddr(definesCopy);
@@ -736,7 +750,7 @@ std::shared_ptr<RJittedDefine> BookDefinePerSampleJit(std::string_view name, std
 
    std::stringstream defineInvocation;
    defineInvocation << "ROOT::Internal::RDF::JitDefineHelper<ROOT::Internal::RDF::DefineTypes::RDefinePerSampleTag>("
-                    << lambdaName << ", nullptr, 0, ";
+                    << funcName << ", nullptr, 0, ";
    // lifetime of pointees:
    // - lm is the loop manager, and if that goes out of scope jitting does not happen at all (i.e. will always be valid)
    // - jittedDefine: heap-allocated weak_ptr that will be deleted by JitDefineHelper after usage
@@ -765,8 +779,8 @@ BookVariationJit(const std::vector<std::string> &colNames, std::string_view vari
    const auto parsedExpr = ParseRDFExpression(expression, branches, colRegister, dsColumns);
    const auto exprVarTypes =
       GetValidatedArgTypes(parsedExpr.fUsedCols, colRegister, tree, ds, "Vary", /*vector2rvec=*/true);
-   const auto lambdaName = DeclareLambda(parsedExpr.fExpr, parsedExpr.fVarNames, exprVarTypes);
-   const auto type = RetTypeOfLambda(lambdaName);
+   const auto funcName = DeclareFunction(parsedExpr.fExpr, parsedExpr.fVarNames, exprVarTypes);
+   const auto type = RetTypeOfFunc(funcName);
 
    if (type.rfind("ROOT::VecOps::RVec", 0) != 0)
       throw std::runtime_error(
@@ -785,7 +799,7 @@ BookVariationJit(const std::vector<std::string> &colNames, std::string_view vari
    // - jittedVariation: heap-allocated weak_ptr that will be deleted by JitDefineHelper after usage
    // - definesAddr: heap-allocated, will be deleted by JitDefineHelper after usage
    std::stringstream varyInvocation;
-   varyInvocation << "ROOT::Internal::RDF::JitVariationHelper(" << lambdaName << ", new const char*["
+   varyInvocation << "ROOT::Internal::RDF::JitVariationHelper(" << funcName << ", new const char*["
                   << parsedExpr.fUsedCols.size() << "]{";
    for (const auto &col : parsedExpr.fUsedCols) {
       varyInvocation << "\"" << col << "\", ";

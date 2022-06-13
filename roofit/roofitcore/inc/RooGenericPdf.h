@@ -32,11 +32,11 @@ public:
   TObject* clone(const char* newname) const override { return new RooGenericPdf(*this,newname); }
 
   // I/O streaming interface (machine readable)
-  Bool_t readFromStream(std::istream& is, Bool_t compact, Bool_t verbose=kFALSE) override ;
-  void writeToStream(std::ostream& os, Bool_t compact) const override ;
+  bool readFromStream(std::istream& is, bool compact, bool verbose=false) override ;
+  void writeToStream(std::ostream& os, bool compact) const override ;
 
   // Printing interface (human readable)
-  void printMultiline(std::ostream& os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const override ;
+  void printMultiline(std::ostream& os, Int_t content, bool verbose=false, TString indent="") const override ;
   void printMetaArgs(std::ostream& os) const override ;
 
   // Debugging
@@ -51,16 +51,16 @@ protected:
 
   // Function evaluation
   RooListProxy _actualVars ;
-  Double_t evaluate() const override ;
+  double evaluate() const override ;
   RooSpan<double> evaluateSpan(RooBatchCompute::RunContext& inputData, const RooArgSet* normSet) const override;
-  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooBatchCompute::DataMap&) const override;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
 
-  Bool_t setFormula(const char* formula) ;
+  bool setFormula(const char* formula) ;
 
   // Post-processing of server redirection
-  Bool_t redirectServersHook(const RooAbsCollection& newServerList, Bool_t mustReplaceAll, Bool_t nameChange, Bool_t isRecursive) override ;
+  bool redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool isRecursive) override ;
 
-  Bool_t isValidReal(Double_t value, Bool_t printError) const override ;
+  bool isValidReal(double value, bool printError) const override ;
 
   std::unique_ptr<RooFormula> _formula{nullptr}; ///<! Formula engine
   TString _formExpr ;            ///< Formula expression string

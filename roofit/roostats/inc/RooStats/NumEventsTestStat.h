@@ -51,7 +51,7 @@ namespace RooStats {
      }
 
      // Main interface to evaluate the test statistic on a dataset
-     Double_t Evaluate(RooAbsData& data, RooArgSet& /*paramsOfInterest*/) override  {
+     double Evaluate(RooAbsData& data, RooArgSet& /*paramsOfInterest*/) override  {
 
          if(data.isWeighted()) {
             return data.sumEntries();
@@ -64,12 +64,8 @@ namespace RooStats {
 
          // data is not weighted as pdf cannot be extended
          if(data.numEntries() == 1) {
-
-            const RooArgSet *obsSet = data.get(0);
-            RooLinkedListIter iter = obsSet->iterator();
-
-            RooRealVar *obs = NULL; Double_t numEvents = 0.0;
-            while((obs = (RooRealVar *)iter.Next()) != NULL) {
+            double numEvents = 0.0;
+            for (auto const *obs : static_range_cast<RooRealVar *>(*data.get(0))) {
                numEvents += obs->getValV();
             }
             return numEvents;

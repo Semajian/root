@@ -33,16 +33,15 @@ public:
 
   RooParametricStepFunction(const RooParametricStepFunction& other, const char* name = 0);
   TObject* clone(const char* newname) const override { return new RooParametricStepFunction(*this, newname); }
-  ~RooParametricStepFunction() override ;
 
   Int_t getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars, const char* rangeName=0) const override ;
-  Double_t analyticalIntegral(Int_t code, const char* rangeName=0) const override ;
+  double analyticalIntegral(Int_t code, const char* rangeName=0) const override ;
   Int_t getnBins();
-  Double_t* getLimits();
+  double* getLimits();
 
 protected:
 
-  Double_t lastBinValue() const ;
+  double lastBinValue() const ;
 
   RooRealProxy _x;
   RooListProxy _coefList ;
@@ -50,7 +49,7 @@ protected:
   Int_t _nBins ;
   TIterator* _coefIter ;  //! do not persist
 
-  Double_t evaluate() const override;
+  double evaluate() const override;
 
   ClassDefOverride(RooParametricStepFunction,1) // Parametric Step Function Pdf
 };

@@ -18,6 +18,11 @@ ROOT_ADD_GTEST(dataframe_regression dataframe_regression.cxx LIBRARIES Physics R
 ROOT_ADD_GTEST(dataframe_utils dataframe_utils.cxx LIBRARIES ROOTDataFrame)
 ROOT_ADD_GTEST(dataframe_report dataframe_report.cxx LIBRARIES ROOTDataFrame)
 
+if(MSVC)
+  set_property(TARGET dataframe_cache APPEND_STRING PROPERTY LINK_FLAGS " -STACK:10000000")
+  set_property(TARGET dataframe_interface APPEND_STRING PROPERTY LINK_FLAGS " -STACK:10000000")
+endif()
+
 ROOT_ADD_GTEST(dataframe_splitcoll_arrayview dataframe_splitcoll_arrayview.cxx LIBRARIES ROOTDataFrame)
 target_include_directories(dataframe_splitcoll_arrayview PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 ROOT_GENERATE_DICTIONARY(TwoFloatsDict TwoFloats.h MODULE dataframe_splitcoll_arrayview LINKDEF TwoFloatsLinkDef.h OPTIONS -inlineInputHeader)
@@ -30,9 +35,9 @@ if(NOT MSVC OR win_broken_tests)
   target_include_directories(dataframe_simple PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
   ROOT_GENERATE_DICTIONARY(DataFrameSimpleDict MaxSlotHelper.h SimpleFiller.h MODULE dataframe_simple
                            LINKDEF DataFrameSimpleLinkDef.h OPTIONS -inlineInputHeader DEPENDENCIES ROOTDataFrame Hist)
-  ROOT_ADD_GTEST(dataframe_helpers dataframe_helpers.cxx LIBRARIES ROOTDataFrame)
-  ROOT_ADD_GTEST(dataframe_vecops dataframe_vecops.cxx LIBRARIES ROOTDataFrame)
 endif()
+ROOT_ADD_GTEST(dataframe_vecops dataframe_vecops.cxx LIBRARIES ROOTDataFrame)
+ROOT_ADD_GTEST(dataframe_helpers dataframe_helpers.cxx LIBRARIES ROOTDataFrame)
 
 if(NOT (MSVC OR (APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES arm64)) OR win_broken_tests OR M1_BROKEN_TESTS)
   ROOT_ADD_GTEST(dataframe_snapshot dataframe_snapshot.cxx LIBRARIES ROOTDataFrame)
@@ -49,7 +54,7 @@ ROOT_ADD_GTEST(dataframe_samplecallback dataframe_samplecallback.cxx CounterHelp
 ROOT_ADD_GTEST(dataframe_vary dataframe_vary.cxx LIBRARIES ROOTDataFrame)
 
 #### TESTS FOR DIFFERENT DATASOURCES ####
-if (MSVC)
+if(MSVC AND MSVC_VERSION GREATER_EQUAL 1925 AND MSVC_VERSION LESS 1929 OR CMAKE_CXX_STANDARD LESS 17)
   # TODO: remove this workaround for MS compiler bug #1441527 once fixed
   string(REPLACE "-Od -Z7" "-O2" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
   string(REPLACE "-Z7" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
@@ -63,7 +68,11 @@ configure_file(RCsvDS_test_headers.csv . COPYONLY)
 configure_file(RCsvDS_test_noheaders.csv . COPYONLY)
 configure_file(RCsvDS_test_empty.csv . COPYONLY)
 configure_file(RCsvDS_test_win.csv . COPYONLY)
+configure_file(RCsvDS_test_NaNs.csv . COPYONLY)
 ROOT_ADD_GTEST(datasource_csv datasource_csv.cxx LIBRARIES ROOTDataFrame)
+if(MSVC AND "${CMAKE_GENERATOR_PLATFORM}" MATCHES "x64")
+  set_source_files_properties(dataframe_vary.cxx COMPILE_FLAGS "-bigobj")
+endif()
 
 #### TESTS REQUIRING EXTRA ROOT FEATURES ####
 if (imt)
@@ -87,10 +96,12 @@ endif()
 
 #### PYTHON TESTS ####
 if(pyroot)
-  if(NOT MSVC OR win_broken_tests)
+  if(NOT MSVC OR win_broken_tests OR CMAKE_CXX_STANDARD GREATER 14)
     ROOT_ADD_PYUNITTEST(dataframe_misc dataframe_misc.py)
     ROOT_ADD_PYUNITTEST(dataframe_histograms dataframe_histograms.py)
     ROOT_ADD_PYUNITTEST(dataframe_cache dataframe_cache.py ENVIRONMENT LEGACY_PYROOT=${pyroot_legacy})
+  endif()
+  if(NOT MSVC OR win_broken_tests)
     ROOT_ADD_PYUNITTEST(dataframe_merge_results dataframe_merge_results.py)
   endif()
 endif()

@@ -62,11 +62,11 @@ private:
 
    ////////////////////////////////////////////////////////////////////////////
    /// \brief Starting from any leaf (Action, Filter, Range) it draws the dot representation of the branch.
-   std::string FromGraphLeafToDot(std::shared_ptr<GraphNode> leaf);
+   std::string FromGraphLeafToDot(const GraphNode &leaf) const;
 
    ////////////////////////////////////////////////////////////////////////////
    /// \brief Starting by an array of leaves, it draws the entire graph.
-   std::string FromGraphActionsToDot(std::vector<std::shared_ptr<GraphNode>> leaves);
+   std::string FromGraphActionsToDot(std::vector<std::shared_ptr<GraphNode>> leaves) const;
 
 public:
    ////////////////////////////////////////////////////////////////////////////
@@ -85,7 +85,7 @@ public:
       auto loopManager = rInterface.GetLoopManager();
       loopManager->Jit();
 
-      return FromGraphLeafToDot(rInterface.GetProxiedPtr()->GetGraph(fVisitedMap));
+      return FromGraphLeafToDot(*rInterface.GetProxiedPtr()->GetGraph(fVisitedMap));
    }
 
    ////////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ public:
       loopManager->Jit();
 
       auto actionPtr = resultPtr.fActionPtr;
-      return FromGraphLeafToDot(actionPtr->GetGraph(fVisitedMap));
+      return FromGraphLeafToDot(*actionPtr->GetGraph(fVisitedMap));
    }
 };
 

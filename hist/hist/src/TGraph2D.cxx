@@ -814,7 +814,7 @@ TFitResultPtr TGraph2D::Fit(const char *fname, Option_t *option, Option_t *)
 ///
 ///  f2 is an already predefined function created by TF2.
 ///
-/// See TGraph::Fit for the available fitting options and fitting notes 
+/// See TGraph::Fit for the available fitting options and fitting notes
 ///
 TFitResultPtr TGraph2D::Fit(TF2 *f2, Option_t *option, Option_t *)
 {
@@ -1028,22 +1028,23 @@ TH2D *TGraph2D::GetHistogram(Option_t *option)
       hymin = ymin - fMargin * (ymax - ymin);
       hxmax = xmax + fMargin * (xmax - xmin);
       hymax = ymax + fMargin * (ymax - ymin);
-      if (TMath::Abs(hxmax - hxmin) < 0.0001) {
-         if (TMath::Abs(hxmin) < 0.0001) {
-            hxmin = -0.01;
-            hxmax =  0.01;
+      Double_t epsilon = 1e-9;
+      if (TMath::AreEqualRel(hxmax,hxmin,epsilon)) {
+         if (TMath::Abs(hxmin) < epsilon) {
+            hxmin = -0.001;
+            hxmax =  0.001;
          } else {
-            hxmin = hxmin-TMath::Abs(hxmin)*0.01;
-            hxmax = hxmax+TMath::Abs(hxmax)*0.01;
+            hxmin = hxmin-TMath::Abs(hxmin)*(epsilon/2.);
+            hxmax = hxmax+TMath::Abs(hxmax)*(epsilon/2.);
          }
       }
-      if (TMath::Abs(hymax - hymin) < 0.0001) {
-         if (TMath::Abs(hymin) < 0.0001) {
-            hymin = -0.01;
-            hymax =  0.01;
+      if (TMath::AreEqualRel(hymax, hymin, epsilon)) {
+         if (TMath::Abs(hymin) < epsilon) {
+            hymin = -0.001;
+            hymax =  0.001;
          } else {
-            hymin = hymin-TMath::Abs(hymin)*0.01;
-            hymax = hymax+TMath::Abs(hymax)*0.01;
+            hymin = hymin-TMath::Abs(hymin)*(epsilon/2.);
+            hymax = hymax+TMath::Abs(hymax)*(epsilon/2.);
          }
       }
       if (fHistogram) {
@@ -1079,9 +1080,13 @@ TH2D *TGraph2D::GetHistogram(Option_t *option)
       }
       if (hzmin == hzmax) {
          Double_t hz = hzmin;
-         if (hz==0) hz = 1.;
-         hzmin = hz - 0.01 * hz;
-         hzmax = hz + 0.01 * hz;
+         if (hz==0) {
+            hzmin = -0.01;
+            hzmax = 0.01;
+         } else {
+            hzmin = hz - 0.01 * TMath::Abs(hz);
+            hzmax = hz + 0.01 * TMath::Abs(hz);
+         }
       }
       fHistogram->SetMinimum(hzmin);
       fHistogram->SetMaximum(hzmax);
@@ -1529,14 +1534,21 @@ void TGraph2D::SetDirectory(TDirectory *dir)
 /// 5. Call h->SetDirectory(0)
 /// 6. Call g->SetHistogram(h) again
 /// 7. Carry on as normal
+///
+/// By default use the new interpolation routine based on Triangles
+/// If the option "old" the old interpolation is used
 
-void TGraph2D::SetHistogram(TH2 *h)
+void TGraph2D::SetHistogram(TH2 *h, Option_t *option)
 {
+   TString opt = option;
+   opt.ToLower();
+   Bool_t oldInterp = opt.Contains("old");
+
    fUserHisto = kTRUE;
    fHistogram = (TH2D*)h;
    fNpx       = h->GetNbinsX();
    fNpy       = h->GetNbinsY();
-   CreateInterpolator(kTRUE);
+   CreateInterpolator(oldInterp);
 }
 
 

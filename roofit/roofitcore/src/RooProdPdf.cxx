@@ -83,9 +83,9 @@ RooProdPdf::RooProdPdf() :
   _cacheMgr(this,10),
   _cutOff(0),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
   // Default constructor
   TRACE_CREATE
@@ -96,16 +96,16 @@ RooProdPdf::RooProdPdf() :
 ////////////////////////////////////////////////////////////////////////////////
 /// Dummy constructor
 
-RooProdPdf::RooProdPdf(const char *name, const char *title, Double_t cutOff) :
+RooProdPdf::RooProdPdf(const char *name, const char *title, double cutOff) :
   RooAbsPdf(name,title),
   _cacheMgr(this,10),
   _genCode(10),
   _cutOff(cutOff),
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
   TRACE_CREATE
 }
@@ -131,16 +131,16 @@ RooProdPdf::RooProdPdf(const char *name, const char *title, Double_t cutOff) :
 ///
 
 RooProdPdf::RooProdPdf(const char *name, const char *title,
-             RooAbsPdf& pdf1, RooAbsPdf& pdf2, Double_t cutOff) :
+             RooAbsPdf& pdf1, RooAbsPdf& pdf2, double cutOff) :
   RooAbsPdf(name,title),
   _cacheMgr(this,10),
   _genCode(10),
   _cutOff(cutOff),
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
   _pdfList.add(pdf1) ;
   _pdfNSetList.emplace_back(std::make_unique<RooArgSet>("nset")) ;
@@ -184,21 +184,19 @@ RooProdPdf::RooProdPdf(const char *name, const char *title,
 /// If a cutoff is specified, the PDFs most likely to be small should
 /// be put first in the product. The default cutOff value is zero.
 
-RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgList& inPdfList, Double_t cutOff) :
+RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgList& inPdfList, double cutOff) :
   RooAbsPdf(name,title),
   _cacheMgr(this,10),
   _genCode(10),
   _cutOff(cutOff),
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
-  RooFIter iter = inPdfList.fwdIterator();
-  RooAbsArg* arg ;
   Int_t numExtended(0) ;
-  while((arg=(RooAbsArg*)iter.next())) {
+  for(RooAbsArg * arg : inPdfList) {
     RooAbsPdf* pdf = dynamic_cast<RooAbsPdf*>(arg) ;
     if (!pdf) {
       coutW(InputArguments) << "RooProdPdf::RooProdPdf(" << GetName() << ") list arg "
@@ -272,9 +270,9 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgSet& ful
   _cutOff(0),
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
   RooLinkedList l ;
   l.Add((TObject*)&arg1) ;  l.Add((TObject*)&arg2) ;
@@ -302,9 +300,9 @@ RooProdPdf::RooProdPdf(const char* name, const char* title,
   _cutOff(0),
   _pdfList("!pdfList","List of PDFs",this),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
   RooLinkedList l ;
   l.Add((TObject*)&arg1) ;  l.Add((TObject*)&arg2) ;
@@ -328,9 +326,9 @@ RooProdPdf::RooProdPdf(const char* name, const char* title, const RooArgSet& ful
   _cutOff(0),
   _pdfList("!pdfs","List of PDFs",this),
   _extendedIndex(-1),
-  _useDefaultGen(kFALSE),
+  _useDefaultGen(false),
   _refRangeName(0),
-  _selfNorm(kTRUE)
+  _selfNorm(true)
 {
   initializeFromCmdArgList(fullPdfSet, cmdArgList) ;
   TRACE_CREATE
@@ -384,9 +382,7 @@ void RooProdPdf::initializeFromCmdArgList(const RooArgSet& fullPdfSet, const Roo
   }
 
   // Process list of conditional PDFs
-  RooFIter iter = l.fwdIterator();
-  RooCmdArg* carg ;
-  while((carg=(RooCmdArg*)iter.next())) {
+  for(auto * carg : static_range_cast<RooCmdArg*>(l)) {
 
     if (0 == strcmp(carg->GetName(), "Conditional")) {
 
@@ -394,9 +390,7 @@ void RooProdPdf::initializeFromCmdArgList(const RooArgSet& fullPdfSet, const Roo
       RooArgSet* pdfSet = (RooArgSet*) carg->getSet(0) ;
       RooArgSet* normSet = (RooArgSet*) carg->getSet(1) ;
 
-      RooFIter siter2 = pdfSet->fwdIterator() ;
-      RooAbsPdf* thePdf ;
-      while ((thePdf=(RooAbsPdf*)siter2.next())) {
+      for(auto * thePdf : static_range_cast<RooAbsPdf*>(*pdfSet)) {
         _pdfList.add(*thePdf) ;
 
         _pdfNSetList.emplace_back(std::make_unique<RooArgSet>(0 == argType ? "nset" : "cset"));
@@ -452,7 +446,7 @@ RooProdPdf::CacheElem* RooProdPdf::getCacheElem(RooArgSet const* nset) const {
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate current value of object
 
-Double_t RooProdPdf::evaluate() const
+double RooProdPdf::evaluate() const
 {
   return calculate(*getCacheElem(_normSet)) ;
 }
@@ -463,10 +457,8 @@ Double_t RooProdPdf::evaluate() const
 /// Calculate running product of pdfs terms, using the supplied
 /// normalization set in 'normSetList' for each component
 
-Double_t RooProdPdf::calculate(const RooProdPdf::CacheElem& cache, Bool_t /*verbose*/) const
+double RooProdPdf::calculate(const RooProdPdf::CacheElem& cache, bool /*verbose*/) const
 {
-  //cout << "RooProdPdf::calculate from cache" << endl ;
-
   if (cache._isRearranged) {
     if (dologD(Eval)) {
       cxcoutD(Eval) << "RooProdPdf::calculate(" << GetName() << ") rearranged product calculation"
@@ -479,13 +471,13 @@ Double_t RooProdPdf::calculate(const RooProdPdf::CacheElem& cache, Bool_t /*verb
     return cache._rearrangedNum->getVal() / cache._rearrangedDen->getVal();
   } else {
 
-    Double_t value = 1.0;
+    double value = 1.0;
     assert(cache._normList.size() == cache._partList.size());
     for (std::size_t i = 0; i < cache._partList.size(); ++i) {
       const auto& partInt = static_cast<const RooAbsReal&>(cache._partList[i]);
       const auto normSet = cache._normList[i].get();
 
-      const Double_t piVal = partInt.getVal(normSet->getSize() > 0 ? normSet : nullptr);
+      const double piVal = partInt.getVal(normSet->getSize() > 0 ? normSet : nullptr);
       value *= piVal ;
       if (value <= _cutOff) break;
     }
@@ -496,21 +488,21 @@ Double_t RooProdPdf::calculate(const RooProdPdf::CacheElem& cache, Bool_t /*verb
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate product of PDFs in batch mode.
-void RooProdPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooBatchCompute::DataMap& dataMap) const
+void RooProdPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   RooBatchCompute::VarVector pdfs;
+  pdfs.reserve(_pdfList.size());
   for (const RooAbsArg* i:_pdfList) {
-    auto pdf = static_cast<const RooAbsPdf*>(i);
+    auto span = dataMap.at(i);
     // If the pdf doesn't depend on any observable (detected by it getting evaluated in scalar mode),
     // it corresponds to a parameter constraint and should not be evaluated.
     // These pdfs are evaluated in the RooConstraintSum that gets added to the likelihood in the end.
-    if(dataMap[pdf].size() == 1) continue;
-    pdfs.push_back(pdf);
+    if(span.size() == 1) continue;
+    pdfs.push_back(span);
   }
   RooBatchCompute::ArgVector special{ static_cast<double>(pdfs.size()) };
-  pdfs.push_back(&*_norm);
   auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
-  dispatch->compute(stream, RooBatchCompute::ProdPdf, output, nEvents, dataMap, pdfs, special);
+  dispatch->compute(stream, RooBatchCompute::ProdPdf, output, nEvents, pdfs, special);
 }
 
 namespace {
@@ -663,7 +655,7 @@ void RooProdPdf::factorizeProduct(const RooArgSet& normSet, const RooArgSet& int
       //    in either observable
 
       bool normOverlap = termNormDeps->overlaps(pdfNormDeps.begin(), pdfNormDeps.end());
-      //Bool_t intOverlap =  pdfIntSet->overlaps(*termAllDeps);
+      //bool intOverlap =  pdfIntSet->overlaps(*termAllDeps);
 
       if (normOverlap) {
 //    cout << GetName() << ": this term overlaps with term " << (*term) << " in normalization observables" << endl;
@@ -715,7 +707,7 @@ void RooProdPdf::factorizeProduct(const RooArgSet& normSet, const RooArgSet& int
     term = static_cast<RooArgSet*>(*lIter);
     // Make list of wholly imported dependents
     RooArgSet impDeps(depAllList[i]);
-    impDeps.remove(*normDeps, kTRUE, kTRUE);
+    impDeps.remove(*normDeps, true, true);
     impDepList.Add(impDeps.snapshot());
 //     cout << GetName() << ": list of imported dependents for term " << (*term) << " set to " << impDeps << endl ;
 
@@ -798,19 +790,19 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
 //    cout << "WVE now here" << endl;
 
    // WVE we can skip this if the ref range is equal to the normalization range
-   Bool_t rangeIdentical(kTRUE);
+   bool rangeIdentical(true);
    RooFIter niter = termNSet.fwdIterator();
    RooRealVar* normObs;
 //    cout << "_normRange = " << _normRange << " _refRangeName = " << RooNameReg::str(_refRangeName) << endl ;
    while ((normObs = (RooRealVar*) niter.next())) {
      //FK: Here the refRange should be compared to _normRange, if it's set, and to the normObs range if it's not set
      if (_normRange.Length() > 0) {
-       if (normObs->getMin(_normRange.Data()) != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
-       if (normObs->getMax(_normRange.Data()) != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
+       if (normObs->getMin(_normRange.Data()) != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = false;
+       if (normObs->getMax(_normRange.Data()) != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = false;
      }
      else{
-       if (normObs->getMin() != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
-       if (normObs->getMax() != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
+       if (normObs->getMin() != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = false;
+       if (normObs->getMax() != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = false;
      }
    }
 //    cout<<"FK: rangeIdentical Single = "<<(rangeIdentical ? 'T':'F')<<endl;
@@ -839,19 +831,19 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
    if (termImpSet.getSize() > 0 && 0 != _refRangeName) {
 
      // WVE we can skip this if the ref range is equal to the normalization range
-     Bool_t rangeIdentical(kTRUE);
+     bool rangeIdentical(true);
      RooFIter niter = termNSet.fwdIterator();
      RooRealVar* normObs;
      //FK: Here the refRange should be compared to _normRange, if it's set, and to the normObs range if it's not set
      if(_normRange.Length() > 0) {
        while ((normObs = (RooRealVar*) niter.next())) {
-         if (normObs->getMin(_normRange.Data()) != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
-         if (normObs->getMax(_normRange.Data()) != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
+         if (normObs->getMin(_normRange.Data()) != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = false;
+         if (normObs->getMax(_normRange.Data()) != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = false;
        }
      } else {
        while ((normObs = (RooRealVar*) niter.next())) {
-         if (normObs->getMin() != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
-         if (normObs->getMax() != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = kFALSE;
+         if (normObs->getMin() != normObs->getMin(RooNameReg::str(_refRangeName))) rangeIdentical = false;
+         if (normObs->getMax() != normObs->getMax(RooNameReg::str(_refRangeName))) rangeIdentical = false;
        }
      }
 //      cout<<"FK: rangeIdentical Composite = "<<(rangeIdentical ? 'T':'F') <<endl;
@@ -932,19 +924,19 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
 //       cout << GetName() << ": termImpSet = " << termImpSet << endl;
 
         // Add prefab term to partIntList.
-        Bool_t isOwned(kFALSE);
+        bool isOwned(false);
         vector<RooAbsReal*> func = processProductTerm(nset, iset, isetRangeName, term, termNSet, termISet, isOwned);
         if (func[0]) {
           cache->_partList.add(*func[0]);
           if (isOwned) cache->_ownedList.addOwned(*func[0]);
 
-          cache->_normList.emplace_back(norm->snapshot(kFALSE));
+          cache->_normList.emplace_back(norm->snapshot(false));
 
           cache->_numList.addOwned(*func[1]);
           cache->_denList.addOwned(*func[2]);
-//          cout << "func[0]=" << func[0]->IsA()->GetName() << "::" << func[0]->GetName() << endl;
-//          cout << "func[1]=" << func[1]->IsA()->GetName() << "::" << func[1]->GetName() << endl;
-//          cout << "func[2]=" << func[2]->IsA()->GetName() << "::" << func[2]->GetName() << endl;
+//          cout << "func[0]=" << func[0]->ClassName() << "::" << func[0]->GetName() << endl;
+//          cout << "func[1]=" << func[1]->ClassName() << "::" << func[1]->GetName() << endl;
+//          cout << "func[2]=" << func[2]->ClassName() << "::" << func[2]->GetName() << endl;
         }
       } else {
 //        cout << "processing composite item" << endl;
@@ -964,7 +956,7 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
    termImpSet.add(*imps);
 
    // Remove outer integration dependents from termISet
-   termISet.remove(outerIntDeps, kTRUE, kTRUE);
+   termISet.remove(outerIntDeps, true, true);
 //       cout << "termISet = "; termISet.Print("1");
 
 //    cout << GetName() << ": termISet = " << termISet << endl;
@@ -972,22 +964,22 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
 //    cout << GetName() << ": termXSet = " << termXSet << endl;
 //    cout << GetName() << ": termImpSet = " << termImpSet << endl;
 
-   Bool_t isOwned = false;
-   vector<RooAbsReal*> func = processProductTerm(nset, iset, isetRangeName, term, termNSet, termISet, isOwned, kTRUE);
+   bool isOwned = false;
+   vector<RooAbsReal*> func = processProductTerm(nset, iset, isetRangeName, term, termNSet, termISet, isOwned, true);
 //       cout << GetName() << ": created composite term component " << func[0]->GetName() << endl;
    if (func[0]) {
      compTermSet.add(*func[0]);
      if (isOwned) cache->_ownedList.addOwned(*func[0]);
-     compTermNorm.add(*norm, kFALSE);
+     compTermNorm.add(*norm, false);
 
      compTermNum.add(*func[1]);
      compTermDen.add(*func[2]);
      //cache->_numList.add(*func[1]);
      //cache->_denList.add(*func[2]);
 
-//      cout << "func[0]=" << func[0]->IsA()->GetName() << "::" << func[0]->GetName() << endl;
-//      cout << "func[1]=" << func[1]->IsA()->GetName() << "::" << func[1]->GetName() << endl;
-//      cout << "func[2]=" << func[2]->IsA()->GetName() << "::" << func[2]->GetName() << endl;
+//      cout << "func[0]=" << func[0]->ClassName() << "::" << func[0]->GetName() << endl;
+//      cout << "func[1]=" << func[1]->ClassName() << "::" << func[1]->GetName() << endl;
+//      cout << "func[2]=" << func[2]->ClassName() << "::" << func[2]->GetName() << endl;
    }
       }
 
@@ -1033,7 +1025,7 @@ Int_t RooProdPdf::getPartIntList(const RooArgSet* nset, const RooArgSet* iset, c
 
       cache->_numList.addOwned(*numtmp);
       cache->_denList.addOwned(*(RooAbsArg*)RooFit::RooConst(1).clone("1"));
-      cache->_normList.emplace_back(compTermNorm.snapshot(kFALSE));
+      cache->_normList.emplace_back(compTermNorm.snapshot(false));
     }
   }
 
@@ -1146,16 +1138,13 @@ void RooProdPdf::rearrangeProduct(RooProdPdf::CacheElem& cache) const
    RooFormulaVar* specratio = (RooFormulaVar*) &orig->integrand() ;
    RooProduct* func = (RooProduct*) specratio->getParameter(0) ;
 
-   RooArgSet* comps = orig->getComponents() ;
-   RooFIter iter = comps->fwdIterator() ;
-   RooAbsArg* carg ;
-   while((carg=(RooAbsArg*)iter.next())) {
+   std::unique_ptr<RooArgSet> components{orig->getComponents()};
+   for(RooAbsArg * carg : *components) {
      if (carg->getAttribute("RATIO_TERM")) {
        ratio = (RooFormulaVar*)carg ;
        break ;
      }
    }
-   delete comps ;
 
    if (ratio) {
      RooCustomizer cust(*func,"blah") ;
@@ -1179,10 +1168,7 @@ void RooProdPdf::rearrangeProduct(RooProdPdf::CacheElem& cache) const
       }
       if (func->InheritsFrom(RooProduct::Class())) {
 //    cout << "product term found: " ; func->Print() ;
-   RooArgSet comps(((RooProduct*)(func))->components()) ;
-   RooFIter iter = comps.fwdIterator() ;
-   RooAbsArg* arg ;
-   while((arg=(RooAbsArg*)iter.next())) {
+   for(RooAbsArg * arg : static_cast<RooProduct*>(func)->components()) {
      if (arg->getAttribute("RATIO_TERM")) {
        ratio = (RooFormulaVar*)(arg) ;
      } else {
@@ -1204,7 +1190,7 @@ void RooProdPdf::rearrangeProduct(RooProdPdf::CacheElem& cache) const
     for (list<string>::iterator iter = rangeComps.begin() ; iter != rangeComps.end() ; ++iter) {
       // If denominator is an integral, make a clone with the integration range adjusted to
       // the selected component of the normalization integral
-//       cout << "NOW PROCESSING DENOMINATOR " << den->IsA()->GetName() << "::" << den->GetName() << endl ;
+//       cout << "NOW PROCESSING DENOMINATOR " << den->ClassName() << "::" << den->GetName() << endl ;
 
       if (string("SPECINT")==part->getStringAttribute("PROD_TERM_TYPE")) {
 
@@ -1218,15 +1204,15 @@ void RooProdPdf::rearrangeProduct(RooProdPdf::CacheElem& cache) const
    //RooProduct* numtmp = (RooProduct*) specRatio->getParameter(0) ;
    RooProduct* dentmp = (RooProduct*) specRatio->getParameter(1) ;
 
-//    cout << "numtmp = " << numtmp->IsA()->GetName() << "::" << numtmp->GetName() << endl ;
-//    cout << "dentmp = " << dentmp->IsA()->GetName() << "::" << dentmp->GetName() << endl ;
+//    cout << "numtmp = " << numtmp->ClassName() << "::" << numtmp->GetName() << endl ;
+//    cout << "dentmp = " << dentmp->ClassName() << "::" << dentmp->GetName() << endl ;
 
 //    cout << "denominator components are " << dentmp->components() << endl ;
    RooArgSet comps(dentmp->components()) ;
    RooFIter piter = comps.fwdIterator() ;
    RooAbsReal* parg ;
    while((parg=(RooAbsReal*)piter.next())) {
-//      cout << "now processing denominator component " << parg->IsA()->GetName() << "::" << parg->GetName() << endl ;
+//      cout << "now processing denominator component " << parg->ClassName() << "::" << parg->GetName() << endl ;
 
      if (ratio && parg->dependsOn(*ratio)) {
 //        cout << "depends in value of ratio" << endl ;
@@ -1315,7 +1301,7 @@ void RooProdPdf::rearrangeProduct(RooProdPdf::CacheElem& cache) const
   }
 
   // Do not rearrage terms if numerator and denominator are effectively empty
-  if (nomList.getSize()==0) {
+  if (nomList.empty()) {
     return ;
   }
 
@@ -1362,7 +1348,7 @@ void RooProdPdf::rearrangeProduct(RooProdPdf::CacheElem& cache) const
 
   cache._rearrangedNum.reset(numerator);
   cache._rearrangedDen.reset(norm);
-  cache._isRearranged = kTRUE ;
+  cache._isRearranged = true ;
 
 }
 
@@ -1405,7 +1391,7 @@ RooAbsReal* RooProdPdf::specializeIntegral(RooAbsReal& input, const char* target
 
   } else {
 
-//     cout << "specializeIntegral: unknown input type " << input.IsA()->GetName() << "::" << input.GetName() << endl ;
+//     cout << "specializeIntegral: unknown input type " << input.ClassName() << "::" << input.GetName() << endl ;
   }
 
   return &input ;
@@ -1420,44 +1406,34 @@ void RooProdPdf::groupProductTerms(std::list<std::vector<RooArgSet*>>& groupedTe
                const RooLinkedList& imps, const RooLinkedList& ints, const RooLinkedList& /*cross*/) const
 {
   // Start out with each term in its own group
-  RooFIter tIter = terms.fwdIterator() ;
-  RooArgSet* term ;
-  while((term=(RooArgSet*)tIter.next())) {
+  for(auto * term : static_range_cast<RooArgSet*>(terms)) {
     groupedTerms.emplace_back();
     groupedTerms.back().emplace_back(term) ;
   }
 
   // Make list of imported dependents that occur in any term
   RooArgSet allImpDeps ;
-  RooFIter iIter = imps.fwdIterator() ;
-  RooArgSet *impDeps ;
-  while((impDeps=(RooArgSet*)iIter.next())) {
-    allImpDeps.add(*impDeps,kFALSE) ;
+  for(auto * impDeps : static_range_cast<RooArgSet*>(imps)) {
+    allImpDeps.add(*impDeps,false) ;
   }
 
   // Make list of integrated dependents that occur in any term
   RooArgSet allIntDeps ;
-  iIter = ints.fwdIterator() ;
-  RooArgSet *intDeps ;
-  while((intDeps=(RooArgSet*)iIter.next())) {
-    allIntDeps.add(*intDeps,kFALSE) ;
+  for(auto * intDeps : static_range_cast<RooArgSet*>(ints)) {
+    allIntDeps.add(*intDeps,false) ;
   }
 
-  RooArgSet* tmp = (RooArgSet*) allIntDeps.selectCommon(allImpDeps) ;
   outerIntDeps.removeAll() ;
-  outerIntDeps.add(*tmp) ;
-  delete tmp ;
+  outerIntDeps.add(*std::unique_ptr<RooArgSet>{static_cast<RooArgSet*>(allIntDeps.selectCommon(allImpDeps))});
 
   // Now iteratively merge groups that should be (partially) integrated together
-  RooFIter oidIter = outerIntDeps.fwdIterator() ;
-  RooAbsArg* outerIntDep ;
-  while ((outerIntDep =(RooAbsArg*)oidIter.next())) {
+  for(RooAbsArg * outerIntDep : outerIntDeps) {
 
     // Collect groups that feature this dependent
     std::vector<RooArgSet*>* newGroup = nullptr ;
 
     // Loop over groups
-    Bool_t needMerge = kFALSE ;
+    bool needMerge = false ;
     auto group = groupedTerms.begin();
     auto nGroups = groupedTerms.size();
     for (size_t iGroup = 0; iGroup < nGroups; ++iGroup) {
@@ -1473,7 +1449,7 @@ void RooProdPdf::groupProductTerms(std::list<std::vector<RooArgSet*>>& groupedTe
    if (termNormDeps->contains(*outerIntDep) ||
        termIntDeps->contains(*outerIntDep) ||
        termImpDeps->contains(*outerIntDep)) {
-     needMerge = kTRUE ;
+     needMerge = true ;
    }
 
       }
@@ -1508,7 +1484,7 @@ void RooProdPdf::groupProductTerms(std::list<std::vector<RooArgSet*>>& groupedTe
 
 std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, const RooArgSet* iset, const char* isetRangeName,
                      const RooArgSet* term,const RooArgSet& termNSet, const RooArgSet& termISet,
-                     Bool_t& isOwned, Bool_t forceWrap) const
+                     bool& isOwned, bool forceWrap) const
 {
 //    cout << "   FOLKERT::RooProdPdf(" << GetName() <<") processProductTerm nset = " << (nset?*nset:RooArgSet()) << endl
 //          << "   _normRange = " << _normRange << endl
@@ -1536,7 +1512,7 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
 
   // CASE II: Dropped terms: if term is entirely unnormalized, it should be dropped
   // ------------------------------------------------------------------------------
-  if (nset && termNSet.getSize()==0) {
+  if (nset && termNSet.empty()) {
 
     //cout << "processProductTerm(" << GetName() << ") case II " << endl ;
 
@@ -1556,7 +1532,7 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
       partInt->setOperMode(operMode()) ;
       partInt->setStringAttribute("PROD_TERM_TYPE","IIIa") ;
 
-      isOwned=kTRUE ;
+      isOwned=true ;
 
       //cout << "processProductTerm(" << GetName() << ") case IIIa func = " << partInt->GetName() << endl ;
 
@@ -1582,7 +1558,7 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
 
       //cout << "processProductTerm(" << GetName() << ") case IIIb func = " << partInt->GetName() << endl ;
 
-      isOwned=kTRUE ;
+      isOwned=true ;
       ret[0] = partInt ;
 
       const std::string name1 = makeRGPPName("PROD",*term,RooArgSet(),RooArgSet(),0) ;
@@ -1611,7 +1587,7 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
 
     //cout << "processProductTerm(" << GetName() << ") case IVa func = " << partInt->GetName() << endl ;
 
-    isOwned=kTRUE ;
+    isOwned=true ;
     ret[0] = partInt ;
 
     const std::string name1 = makeRGPPName("PROD",*term,RooArgSet(),RooArgSet(),0) ;
@@ -1638,12 +1614,12 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
       name.Append("_NORM[") ;
       RooFIter nIter = termNSet.fwdIterator() ;
       RooAbsArg* arg ;
-      Bool_t first(kTRUE) ;
+      bool first(true) ;
       while((arg=(RooAbsArg*)nIter.next())) {
    if (!first) {
      name.Append(",") ;
    } else {
-     first=kFALSE ;
+     first=false ;
    }
    name.Append(arg->GetName()) ;
       }
@@ -1655,7 +1631,7 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
 
       RooAbsReal* partInt = new RooRealIntegral(name.Data(),name.Data(),*pdf,RooArgSet(),&termNSet) ;
       partInt->setStringAttribute("PROD_TERM_TYPE","IVb") ;
-      isOwned=kTRUE ;
+      isOwned=true ;
 
       //cout << "processProductTerm(" << GetName() << ") case IVb func = " << partInt->GetName() << endl ;
 
@@ -1668,7 +1644,7 @@ std::vector<RooAbsReal*> RooProdPdf::processProductTerm(const RooArgSet* nset, c
 
 
     } else {
-      isOwned=kFALSE ;
+      isOwned=false ;
 
       //cout << "processProductTerm(" << GetName() << ") case IVb func = " << pdf->GetName() << endl ;
 
@@ -1702,14 +1678,14 @@ std::string RooProdPdf::makeRGPPName(const char* pfx, const RooArgSet& term, con
 
   RooFIter pIter = term.fwdIterator() ;
   // Encode component names
-  Bool_t first(kTRUE) ;
+  bool first(true) ;
   RooAbsPdf* pdf ;
   while ((pdf=(RooAbsPdf*)pIter.next())) {
     if (!first) os << "_X_";
-    first = kFALSE;
+    first = false;
     os << pdf->GetName();
   }
-  os << "]" << integralNameSuffix(iset,&nset,isetRangeName,kTRUE);
+  os << "]" << integralNameSuffix(iset,&nset,isetRangeName,true);
 
   return os.str();
 }
@@ -1719,9 +1695,9 @@ std::string RooProdPdf::makeRGPPName(const char* pfx, const RooArgSet& term, con
 ////////////////////////////////////////////////////////////////////////////////
 /// Force RooRealIntegral to offer all observables for internal integration
 
-Bool_t RooProdPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
+bool RooProdPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
 {
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -1761,7 +1737,7 @@ Int_t RooProdPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVar
 ////////////////////////////////////////////////////////////////////////////////
 /// Return analytical integral defined by given scenario code
 
-Double_t RooProdPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
+double RooProdPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName) const
 {
   // No integration scenario
   if (code==0) {
@@ -1787,7 +1763,7 @@ Double_t RooProdPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, 
     cache = (CacheElem*) _cacheMgr.getObj(&nset,&iset,&code2,rangeName) ;
   }
 
-  Double_t val = calculate(*cache,kTRUE) ;
+  double val = calculate(*cache,true) ;
 //   cout << "RPP::aIWN(" << GetName() << ") ,code = " << code << ", value = " << val << endl ;
 
   return val ;
@@ -1798,8 +1774,8 @@ Double_t RooProdPdf::analyticalIntegralWN(Int_t code, const RooArgSet* normSet, 
 ////////////////////////////////////////////////////////////////////////////////
 /// Obsolete
 
-Bool_t RooProdPdf::checkObservables(const RooArgSet* /*nset*/) const
-{ return kFALSE ; }
+bool RooProdPdf::checkObservables(const RooArgSet* /*nset*/) const
+{ return false ; }
 
 
 
@@ -1819,7 +1795,7 @@ RooAbsPdf::ExtendMode RooProdPdf::extendMode() const
 /// Return the expected number of events associated with the extendable input PDF
 /// in the product. If there is no extendable term, abort.
 
-Double_t RooProdPdf::expectedEvents(const RooArgSet* nset) const
+double RooProdPdf::expectedEvents(const RooArgSet* nset) const
 {
   if (_extendedIndex<0) {
     coutF(Generation) << "Requesting expected number of events from a RooProdPdf that does not contain an extended p.d.f" << endl ;
@@ -1835,7 +1811,7 @@ Double_t RooProdPdf::expectedEvents(const RooArgSet* nset) const
 /// Return generator context optimized for generating events from product p.d.f.s
 
 RooAbsGenContext* RooProdPdf::genContext(const RooArgSet &vars, const RooDataSet *prototype,
-                const RooArgSet* auxProto, Bool_t verbose) const
+                const RooArgSet* auxProto, bool verbose) const
 {
   if (_useDefaultGen) return RooAbsPdf::genContext(vars,prototype,auxProto,verbose) ;
   return new RooProdGenContext(*this,vars,prototype,auxProto,verbose) ;
@@ -1847,7 +1823,7 @@ RooAbsGenContext* RooProdPdf::genContext(const RooArgSet &vars, const RooDataSet
 /// Query internal generation capabilities of component p.d.f.s and aggregate capabilities
 /// into master configuration passed to the generator context
 
-Int_t RooProdPdf::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, Bool_t staticInitOK) const
+Int_t RooProdPdf::getGenerator(const RooArgSet& directVars, RooArgSet &generateVars, bool staticInitOK) const
 {
   if (!_useDefaultGen) return 0 ;
 
@@ -1972,7 +1948,7 @@ void RooProdPdf::CacheElem::printCompactTreeHook(ostream& os, const char* indent
 /// Forward determination of safety of internal generator code to
 /// component p.d.f that would generate the given observable
 
-Bool_t RooProdPdf::isDirectGenSafe(const RooAbsArg& arg) const
+bool RooProdPdf::isDirectGenSafe(const RooAbsArg& arg) const
 {
   // Only override base class behaviour if default generator method is enabled
   if (!_useDefaultGen) return RooAbsPdf::isDirectGenSafe(arg) ;
@@ -1986,13 +1962,13 @@ Bool_t RooProdPdf::isDirectGenSafe(const RooAbsArg& arg) const
       // Found PDF depending on arg
 
       // If multiple PDFs depend on arg directGen is not safe
-      if (thePdf) return kFALSE ;
+      if (thePdf) return false ;
 
       thePdf = pdf ;
     }
   }
   // Forward call to relevant component PDF
-  return thePdf?(thePdf->isDirectGenSafe(arg)):kFALSE ;
+  return thePdf?(thePdf->isDirectGenSafe(arg)):false ;
 }
 
 
@@ -2000,10 +1976,10 @@ Bool_t RooProdPdf::isDirectGenSafe(const RooAbsArg& arg) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Look up user specified normalization set for given input PDF component
 
-RooArgSet* RooProdPdf::findPdfNSet(RooAbsPdf& pdf) const
+RooArgSet* RooProdPdf::findPdfNSet(RooAbsPdf const& pdf) const
 {
   Int_t idx = _pdfList.index(&pdf) ;
-  if (idx<0) return 0 ;
+  if (idx<0) return nullptr;
   return _pdfNSetList[idx].get() ;
 }
 
@@ -2015,33 +1991,29 @@ RooArgSet* RooProdPdf::findPdfNSet(RooAbsPdf& pdf) const
 /// of observables and parameters, which are not constraints, and p.d.fs in terms
 /// of parameters only, which can serve as constraints p.d.f.s
 
-RooArgSet* RooProdPdf::getConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, Bool_t stripDisconnected) const
+RooArgSet* RooProdPdf::getConstraints(const RooArgSet& observables, RooArgSet& constrainedParams, bool stripDisconnected) const
 {
   RooArgSet constraints ;
   RooArgSet pdfParams, conParams ;
 
   // Loop over p.d.f. components
-  RooFIter piter = _pdfList.fwdIterator() ;
-  RooAbsPdf* pdf ;
-  while((pdf=(RooAbsPdf*)piter.next())) {
+  for(auto * pdf : static_range_cast<RooAbsPdf*>(_pdfList)) {
     // A constraint term is a p.d.f that does not depend on any of the listed observables
     // but does depends on any of the parameters that should be constrained
+    RooArgSet tmp;
     if (!pdf->dependsOnValue(observables) && pdf->dependsOnValue(constrainedParams)) {
       constraints.add(*pdf) ;
-      RooArgSet* tmp = pdf->getParameters(observables) ;
-      conParams.add(*tmp,kTRUE) ;
-      delete tmp ;
+      pdf->getParameters(&observables, tmp);
+      conParams.add(tmp,true) ;
     } else {
-      RooArgSet* tmp = pdf->getParameters(observables) ;
-      pdfParams.add(*tmp,kTRUE) ;
-      delete tmp ;
+      pdf->getParameters(&observables, tmp);
+      pdfParams.add(tmp,true) ;
     }
   }
 
   // Strip any constraints that are completely decoupled from the other product terms
   RooArgSet* finalConstraints = new RooArgSet("constraints") ;
-  RooFIter citer = constraints.fwdIterator() ;
-  while((pdf=(RooAbsPdf*)citer.next())) {
+  for(auto * pdf : static_range_cast<RooAbsPdf*>(constraints)) {
     if (pdf->dependsOnValue(pdfParams) || !stripDisconnected) {
       finalConstraints->add(*pdf) ;
     } else {
@@ -2053,10 +2025,9 @@ RooArgSet* RooProdPdf::getConstraints(const RooArgSet& observables, RooArgSet& c
 
   // Now remove from constrainedParams all parameters that occur exclusively in constraint term and not in regular pdf term
 
-  RooArgSet* cexl = (RooArgSet*) conParams.selectCommon(constrainedParams) ;
-  cexl->remove(pdfParams,kTRUE,kTRUE) ;
-  constrainedParams.remove(*cexl,kTRUE,kTRUE) ;
-  delete cexl ;
+  std::unique_ptr<RooArgSet> cexl{static_cast<RooArgSet*>(conParams.selectCommon(constrainedParams))};
+  cexl->remove(pdfParams,true,true) ;
+  constrainedParams.remove(*cexl,true,true) ;
 
   return finalConstraints ;
 }
@@ -2076,9 +2047,9 @@ RooArgSet* RooProdPdf::getConnectedParameters(const RooArgSet& observables) cons
   for (const auto arg : _pdfList) {
     // Check if term is relevant
     if (arg->dependsOn(observables)) {
-      RooArgSet* tmp = arg->getParameters(observables) ;
-      connectedPars->add(*tmp) ;
-      delete tmp ;
+      RooArgSet tmp;
+      arg->getParameters(&observables, tmp);
+      connectedPars->add(tmp) ;
     }
   }
   return connectedPars ;
@@ -2089,10 +2060,10 @@ RooArgSet* RooProdPdf::getConnectedParameters(const RooArgSet& observables) cons
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooProdPdf::getParametersHook(const RooArgSet* nset, RooArgSet* params, Bool_t stripDisconnected) const
+void RooProdPdf::getParametersHook(const RooArgSet* nset, RooArgSet* params, bool stripDisconnected) const
 {
   if (!stripDisconnected) return ;
-  if (!nset || nset->getSize()==0) return ;
+  if (!nset || nset->empty()) return ;
 
   // Get/create appropriate term list for this normalization set
   Int_t code = getPartIntList(nset, nullptr);
@@ -2101,10 +2072,10 @@ void RooProdPdf::getParametersHook(const RooArgSet* nset, RooArgSet* params, Boo
   // Strip any terms from params that do not depend on any term
   RooArgSet tostrip ;
   for (auto param : *params) {
-    Bool_t anyDep(kFALSE) ;
+    bool anyDep(false) ;
     for (auto term : plist) {
       if (term->dependsOnValue(*param)) {
-        anyDep=kTRUE ;
+        anyDep=true ;
       }
     }
     if (!anyDep) {
@@ -2113,7 +2084,7 @@ void RooProdPdf::getParametersHook(const RooArgSet* nset, RooArgSet* params, Boo
   }
 
   if (tostrip.getSize()>0) {
-    params->remove(tostrip,kTRUE,kTRUE);
+    params->remove(tostrip,true,true);
   }
 
 }
@@ -2124,7 +2095,7 @@ void RooProdPdf::getParametersHook(const RooArgSet* nset, RooArgSet* params, Boo
 /// Interface function used by test statistics to freeze choice of range
 /// for interpretation of conditional product terms
 
-void RooProdPdf::selectNormalizationRange(const char* rangeName, Bool_t force)
+void RooProdPdf::selectNormalizationRange(const char* rangeName, bool force)
 {
   if (!force && _refRangeName) {
     return ;
@@ -2148,18 +2119,18 @@ void RooProdPdf::fixRefRange(const char* rangeName)
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward the plot sampling hint from the p.d.f. that defines the observable obs
 
-std::list<Double_t>* RooProdPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooProdPdf::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   RooAbsPdf* pdf ;
   RooFIter pdfIter = _pdfList.fwdIterator();
   while((pdf=(RooAbsPdf*)pdfIter.next())) {
-    list<Double_t>* hint = pdf->plotSamplingHint(obs,xlo,xhi) ;
+    list<double>* hint = pdf->plotSamplingHint(obs,xlo,xhi) ;
     if (hint) {
       return hint ;
     }
   }
 
-  return 0 ;
+  return nullptr;
 }
 
 
@@ -2167,17 +2138,17 @@ std::list<Double_t>* RooProdPdf::plotSamplingHint(RooAbsRealLValue& obs, Double_
 ////////////////////////////////////////////////////////////////////////////////
 /// If all components that depend on obs are binned that so is the product
 
-Bool_t RooProdPdf::isBinnedDistribution(const RooArgSet& obs) const
+bool RooProdPdf::isBinnedDistribution(const RooArgSet& obs) const
 {
   RooAbsPdf* pdf ;
   RooFIter pdfIter = _pdfList.fwdIterator();
   while((pdf=(RooAbsPdf*)pdfIter.next())) {
     if (pdf->dependsOn(obs) && !pdf->isBinnedDistribution(obs)) {
-      return kFALSE ;
+      return false ;
     }
   }
 
-  return kTRUE  ;
+  return true  ;
 }
 
 
@@ -2188,18 +2159,18 @@ Bool_t RooProdPdf::isBinnedDistribution(const RooArgSet& obs) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward the plot sampling hint from the p.d.f. that defines the observable obs
 
-std::list<Double_t>* RooProdPdf::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooProdPdf::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   RooAbsPdf* pdf ;
   RooFIter pdfIter = _pdfList.fwdIterator();
   while((pdf=(RooAbsPdf*)pdfIter.next())) {
-    list<Double_t>* hint = pdf->binBoundaries(obs,xlo,xhi) ;
+    list<double>* hint = pdf->binBoundaries(obs,xlo,xhi) ;
     if (hint) {
       return hint ;
     }
   }
 
-  return 0 ;
+  return nullptr;
 }
 
 
@@ -2214,7 +2185,7 @@ void RooProdPdf::setCacheAndTrackHints(RooArgSet& trackNodes)
 
     if (parg->canNodeBeCached()==Always) {
       trackNodes.add(*parg) ;
-//      cout << "tracking node RooProdPdf component " << parg << " " << parg->IsA()->GetName() << "::" << parg->GetName() << endl ;
+//      cout << "tracking node RooProdPdf component " << parg << " " << parg->ClassName() << "::" << parg->GetName() << endl ;
 
       // Additional processing to fix normalization sets in case product defines conditional observables
       RooArgSet* pdf_nset = findPdfNSet((RooAbsPdf&)(*parg)) ;
@@ -2253,12 +2224,12 @@ void RooProdPdf::printMetaArgs(ostream& os) const
    os << "|" ;
    RooFIter nciter = ncset->fwdIterator() ;
    RooAbsArg* arg ;
-   Bool_t first(kTRUE) ;
+   bool first(true) ;
    while((arg=(RooAbsArg*)nciter.next())) {
      if (!first) {
        os << "," ;
      } else {
-       first = kFALSE ;
+       first = false ;
      }
      os << arg->GetName() ;
    }
@@ -2273,7 +2244,7 @@ void RooProdPdf::printMetaArgs(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Implement support for node removal
 
-Bool_t RooProdPdf::redirectServersHook(const RooAbsCollection& /*newServerList*/, Bool_t /*mustReplaceAll*/, Bool_t nameChange, Bool_t /*isRecursive*/)
+bool RooProdPdf::redirectServersHook(const RooAbsCollection& newServerList, bool /*mustReplaceAll*/, bool nameChange, bool /*isRecursive*/)
 {
   if (nameChange && _pdfList.find("REMOVAL_DUMMY")) {
 
@@ -2288,7 +2259,24 @@ Bool_t RooProdPdf::redirectServersHook(const RooAbsCollection& /*newServerList*/
     // Clear caches
     _cacheMgr.reset() ;
   }
-  return kFALSE ;
+
+  // If the replaced server is an observable that is used in any of the
+  // normalization sets for conditional fits, replace the element in the
+  // normalization set too.
+  for(std::unique_ptr<RooArgSet> const& normSet : _pdfNSetList) {
+    for(RooAbsArg * arg : *normSet) {
+      if(RooAbsArg * newArg = arg->findNewServer(newServerList, nameChange)) {
+        // Need to do some tricks here because it's not possible to replace in
+        // an owning RooAbsCollection.
+        normSet->releaseOwnership();
+        normSet->replace(*arg, *newArg->cloneTree());
+        normSet->takeOwnership();
+        delete arg;
+      }
+    }
+  }
+
+  return false ;
 }
 
 void RooProdPdf::CacheElem::writeToStream(std::ostream& os) const {
@@ -2323,4 +2311,14 @@ void RooProdPdf::CacheElem::writeToStream(std::ostream& os) const {
 
 void RooProdPdf::writeCacheToStream(std::ostream& os, RooArgSet const* nset) const {
   getCacheElem(nset)->writeToStream(os);
+}
+
+std::unique_ptr<RooArgSet> RooProdPdf::fillNormSetForServer(RooArgSet const& normSet, RooAbsArg const& server) const {
+  if(normSet.empty()) return nullptr;
+  auto * pdfNset = findPdfNSet(static_cast<RooAbsPdf const&>(server));
+  if (pdfNset && !pdfNset->empty()) {
+    return std::make_unique<RooArgSet>(*pdfNset);
+  } else {
+    return nullptr;
+  }
 }

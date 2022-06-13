@@ -64,6 +64,7 @@ public:
    virtual void VisitUInt8Field(const RField<std::uint8_t> &field) { VisitField(field); }
    virtual void VisitVectorField(const RVectorField &field) { VisitField(field); }
    virtual void VisitVectorBoolField(const RField<std::vector<bool>> &field) { VisitField(field); }
+   virtual void VisitRVecField(const RRVecField &field) { VisitField(field); }
 }; // class RFieldVisitor
 
 } // namespace Detail
@@ -210,6 +211,7 @@ public:
    void VisitRecordField(const RRecordField &field) final;
    void VisitVectorField(const RVectorField &field) final;
    void VisitVectorBoolField(const RField<std::vector<bool>> &field) final;
+   void VisitRVecField(const RRVecField &field) final;
 };
 
 

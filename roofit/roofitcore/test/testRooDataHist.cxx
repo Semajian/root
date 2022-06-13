@@ -1,13 +1,12 @@
 // Tests for the RooDataHist
 // Authors: Stephan Hageboeck, CERN  01/2019
-//          Jonas Rembser, CERN 02/2020
+//          Jonas Rembser, CERN 02/2021
 
 #include "RooDataHist.h"
 #include "RooGlobalFunc.h"
 #include "RooRealVar.h"
 #include "RooHelpers.h"
 #include "RooCategory.h"
-#include "RunContext.h"
 #include "RooHistFunc.h"
 #include "RooHistPdf.h"
 
@@ -281,14 +280,11 @@ TEST(RooDataHist, BatchDataAccess) {
   ASSERT_STREQ(xp->GetName(), "x");
   ASSERT_STREQ(yp->GetName(), "y");
 
-  RooBatchCompute::RunContext evalDataShort{};
-  dataHist.getBatches(evalDataShort, 0, 100);
-  RooBatchCompute::RunContext evalData{};
-  dataHist.getBatches(evalData, 0, numEntries);
+  auto evalData = dataHist.getBatches(0, numEntries);
 
-  auto xBatchShort = xp->getValues(evalDataShort);
-  auto xBatch = xp->getValues(evalData);
-  auto yBatch = yp->getValues(evalData);
+  auto xBatchShort = dataHist.getBatches(0, 100)[xp];
+  auto xBatch = evalData[xp];
+  auto yBatch = evalData[yp];
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
@@ -338,13 +334,8 @@ TEST(RooDataHist, BatchDataAccessWithCategories) {
   ASSERT_STREQ(catp->GetName(), "cat");
   ASSERT_STREQ(xp->GetName(), "x");
 
-  RooBatchCompute::RunContext evalDataShort{};
-  dataHist.getBatches(evalDataShort, 0, 10);
-  RooBatchCompute::RunContext evalData{};
-  dataHist.getBatches(evalData, 0, numEntries);
-
-  auto xBatchShort = xp->getValues(evalDataShort);
-  auto xBatch      = xp->getValues(evalData);
+  auto xBatchShort = dataHist.getBatches(0, 10)[xp];
+  auto xBatch      = dataHist.getBatches(0, numEntries)[xp];
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
@@ -376,8 +367,6 @@ TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRange) {
   RooDataHist dataHist("dataHist", "Data histogram with batch access",
       RooArgSet(x), RooFit::Index(cat), RooFit::Import("catX", *histoX), RooFit::Import("catY", *histoY));
 
-  dataHist.cacheValidEntries();
-
   const std::size_t numEntries = (std::size_t)dataHist.numEntries();
   ASSERT_EQ(numEntries, 26ul);
 
@@ -389,13 +378,8 @@ TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRange) {
   ASSERT_STREQ(catp->GetName(), "cat");
   ASSERT_STREQ(xp->GetName(), "x");
 
-  RooBatchCompute::RunContext evalDataShort{};
-  dataHist.getBatches(evalDataShort, 0, 10);
-  RooBatchCompute::RunContext evalData{};
-  dataHist.getBatches(evalData, 0, numEntries);
-
-  auto xBatchShort = xp->getValues(evalDataShort);
-  auto xBatch      = xp->getValues(evalData);
+  auto xBatchShort = dataHist.getBatches(0, 10)[xp];
+  auto xBatch      = dataHist.getBatches(0, numEntries)[xp];
 
   ASSERT_FALSE(xBatchShort.empty());
   ASSERT_FALSE(xBatch.empty());
@@ -414,60 +398,6 @@ TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRange) {
   ASSERT_FALSE(weights.empty());
   ASSERT_EQ(weights.size(), numEntries);
   EXPECT_TRUE(std::none_of(weights.begin(), weights.end(), [](double arg){return arg == 0.;}));
-}
-
-
-TEST(RooDataHist, BatchDataAccessWithCategoriesAndFitRangeWithMasking) {
-  RooRealVar x("x", "x", 0, -10, 10);
-  RooCategory cat("cat", "category");
-
-  auto histoX = std::make_unique<TH1D>("xHist", "xHist", 20, -10., 10.);
-  auto histoY = std::make_unique<TH1D>("yHist", "yHist", 20, -10., 10.);
-  fillHist(histoX.get(), 0.2);
-  fillHist(histoY.get(), 0.3);
-
-  RooDataHist dataHist("dataHist", "Data histogram with batch access",
-      RooArgSet(x), RooFit::Index(cat), RooFit::Import("catX", *histoX), RooFit::Import("catY", *histoY));
-
-  const RooArgSet& vars = *dataHist.get();
-  auto catp = dynamic_cast<RooCategory*>(vars[0ul]);
-  auto xp = dynamic_cast<RooRealVar*>(vars[1]);
-  ASSERT_NE(catp, nullptr);
-  ASSERT_NE(xp, nullptr);
-  ASSERT_STREQ(catp->GetName(), "cat");
-  ASSERT_STREQ(xp->GetName(), "x");
-
-  xp->setRange(-8., 5.);
-  dataHist.cacheValidEntries();
-
-  const std::size_t numEntries = (std::size_t)dataHist.numEntries();
-  ASSERT_EQ(numEntries, 40ul);
-
-  RooBatchCompute::RunContext evalDataShort{};
-  dataHist.getBatches(evalDataShort, 0, 10);
-  RooBatchCompute::RunContext evalData{};
-  dataHist.getBatches(evalData, 0, numEntries);
-
-  auto xBatchShort = xp->getValues(evalDataShort);
-  auto xBatch      = xp->getValues(evalData);
-
-  ASSERT_FALSE(xBatchShort.empty());
-  ASSERT_FALSE(xBatch.empty());
-
-  EXPECT_EQ(xBatchShort.size(), 10ul);
-  EXPECT_EQ(xBatch.size(), numEntries);
-
-  EXPECT_EQ(xBatch[15], histoX->GetXaxis()->GetBinCenter(15+1));
-  EXPECT_EQ(xBatch[35], histoX->GetXaxis()->GetBinCenter(15+1));
-
-  auto weights = dataHist.getWeightBatch(0, numEntries);
-  ASSERT_FALSE(weights.empty());
-  ASSERT_EQ(weights.size(), numEntries);
-  EXPECT_TRUE(std::any_of(weights.begin(), weights.end(), [](double arg){return arg == 0.;}));
-
-  for (unsigned int i=0; i < numEntries; ++i) {
-    EXPECT_TRUE((-8. < xBatch[i] && xBatch[i] < 5.) || weights[i] == 0.);
-  }
 }
 
 double integrate(RooAbsReal &absReal, const RooArgSet &iset, const RooArgSet &nset, const char *rangeName = 0)
@@ -702,4 +632,38 @@ TEST(RooDataHist, Interpolation2DSimple)
          EXPECT_FLOAT_EQ(dataHist.weight({x, y}, 1), getTrueWeight());
       }
    }
+}
+
+
+/// GitHub issue #8015
+/// Take binning from input RooDataHists when building a combined RooDataHist.
+TEST(RooDataHist, CombinedRooDataHistBinning)
+{
+   using namespace RooFit;
+
+   TH1D hh1{"h1", "h1", 40, -3, 3};
+   hh1.FillRandom("gaus");
+   TH1D hh2{"h2", "h2", 40, -3, 3};
+   hh2.FillRandom("gaus");
+
+   // Declare observable x
+   RooRealVar x("x", "x", -3, 3);
+
+   // Create category observable c that serves as index for the ROOT histograms
+   RooCategory c("c", "c", {{"SampleA", 0}, {"SampleB", 1}});
+
+   RooDataHist dh1("dh1", "dh1", x, &hh1);
+   RooDataHist dh2("dh2", "dh1", x, &hh2);
+
+   // Create combined RooDataHist via intermediate RooDataHists
+   RooDataHist dhComb1("dhComb1", "dhComb1", x, Index(c), Import("SampleA", dh1),
+                       Import("SampleB", dh2));
+
+   // Create combined RooDataHist directly from the TH1Ds
+   RooDataHist dhComb2{"dhComb2", "dhComb2", x, Index(c), Import("SampleA", hh1),
+                       Import("SampleB", hh2)};
+
+   // In both cases the number of bins should be 40 + 40 = 80
+   EXPECT_EQ(dhComb1.numEntries(), 80);
+   EXPECT_EQ(dhComb2.numEntries(), 80);
 }

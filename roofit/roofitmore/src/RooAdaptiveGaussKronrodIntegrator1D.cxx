@@ -43,8 +43,6 @@ For integrands with integrable singularities the Wynn epsilon rule
 can be selected to speed up the convergence of these integrals.
 **/
 
-#include "RooFit.h"
-
 #include <assert.h>
 #include <stdlib.h>
 #include "TClass.h"
@@ -168,7 +166,7 @@ void RooAdaptiveGaussKronrodIntegrator1D::registerIntegrator(RooNumIntFactory& f
      method.defineType("61Points", 6);
      method.setIndex(2);
      fact.storeProtoIntegrator(new RooAdaptiveGaussKronrodIntegrator1D(), RooArgSet(maxSeg, method));
-     oocoutI((TObject*)nullptr,Integration)  << "RooAdaptiveGaussKronrodIntegrator1D has been registered " << std::endl;
+     oocoutI(nullptr,Integration)  << "RooAdaptiveGaussKronrodIntegrator1D has been registered " << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -193,11 +191,11 @@ RooAdaptiveGaussKronrodIntegrator1D::RooAdaptiveGaussKronrodIntegrator1D(const R
   _workspace(0)
 {
   // Use this form of the constructor to integrate over the function's default range.
-  const RooArgSet& confSet = config.getConfigSection(IsA()->GetName()) ;
+  const RooArgSet& confSet = config.getConfigSection(ClassName()) ;
   _maxSeg = (Int_t) confSet.getRealValue("maxSeg",100) ;
   _methodKey = confSet.getCatIndex("method",2) ;
 
-  _useIntegrandLimits= kTRUE;
+  _useIntegrandLimits= true;
   _valid= initialize();
 }
 
@@ -207,7 +205,7 @@ RooAdaptiveGaussKronrodIntegrator1D::RooAdaptiveGaussKronrodIntegrator1D(const R
 /// Constructor taking a function binding, an integration range and a configuration object
 
 RooAdaptiveGaussKronrodIntegrator1D::RooAdaptiveGaussKronrodIntegrator1D(const RooAbsFunc& function,
-                            Double_t xmin, Double_t xmax,
+                            double xmin, double xmax,
                             const RooNumIntConfig& config) :
   RooAbsIntegrator(function),
   _epsAbs(config.epsRel()),
@@ -217,11 +215,11 @@ RooAdaptiveGaussKronrodIntegrator1D::RooAdaptiveGaussKronrodIntegrator1D(const R
   _xmax(xmax)
 {
   // Use this form of the constructor to integrate over the function's default range.
-  const RooArgSet& confSet = config.getConfigSection(IsA()->GetName()) ;
+  const RooArgSet& confSet = config.getConfigSection(ClassName()) ;
   _maxSeg = (Int_t) confSet.getRealValue("maxSeg",100) ;
   _methodKey = confSet.getCatIndex("method",2) ;
 
-  _useIntegrandLimits= kFALSE;
+  _useIntegrandLimits= false;
   _valid= initialize();
 }
 
@@ -240,10 +238,10 @@ RooAbsIntegrator* RooAdaptiveGaussKronrodIntegrator1D::clone(const RooAbsFunc& f
 ////////////////////////////////////////////////////////////////////////////////
 /// Initialize integrator allocate buffers and setup GSL workspace
 
-Bool_t RooAdaptiveGaussKronrodIntegrator1D::initialize()
+bool RooAdaptiveGaussKronrodIntegrator1D::initialize()
 {
   // Allocate coordinate buffer size after number of function dimensions
-  _x = new Double_t[_function->getDimension()] ;
+  _x = new double[_function->getDimension()] ;
   _workspace = gsl_integration_workspace_alloc (_maxSeg)  ;
 
   return checkLimits();
@@ -267,15 +265,15 @@ RooAdaptiveGaussKronrodIntegrator1D::~RooAdaptiveGaussKronrodIntegrator1D()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Change our integration limits. Return kTRUE if the new limits are
-/// ok, or otherwise kFALSE. Always returns kFALSE and does nothing
+/// Change our integration limits. Return true if the new limits are
+/// ok, or otherwise false. Always returns false and does nothing
 /// if this object was constructed to always use our integrand's limits.
 
-Bool_t RooAdaptiveGaussKronrodIntegrator1D::setLimits(Double_t* xmin, Double_t* xmax)
+bool RooAdaptiveGaussKronrodIntegrator1D::setLimits(double* xmin, double* xmax)
 {
   if(_useIntegrandLimits) {
     coutE(Integration) << "RooAdaptiveGaussKronrodIntegrator1D::setLimits: cannot override integrand's limits" << endl;
-    return kFALSE;
+    return false;
   }
 
   _xmin= *xmin;
@@ -286,10 +284,10 @@ Bool_t RooAdaptiveGaussKronrodIntegrator1D::setLimits(Double_t* xmin, Double_t* 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Check that our integration range is finite and otherwise return kFALSE.
+/// Check that our integration range is finite and otherwise return false.
 /// Update the limits from the integrand if requested.
 
-Bool_t RooAdaptiveGaussKronrodIntegrator1D::checkLimits() const
+bool RooAdaptiveGaussKronrodIntegrator1D::checkLimits() const
 {
   if(_useIntegrandLimits) {
     assert(0 != integrand() && integrand()->isValid());
@@ -298,8 +296,8 @@ Bool_t RooAdaptiveGaussKronrodIntegrator1D::checkLimits() const
   }
 
   // Determine domain type
-  Bool_t infLo= RooNumber::isInfinite(_xmin);
-  Bool_t infHi= RooNumber::isInfinite(_xmax);
+  bool infLo= RooNumber::isInfinite(_xmin);
+  bool infHi= RooNumber::isInfinite(_xmax);
 
   if (!infLo && !infHi) {
     _domainType = Closed ;
@@ -312,7 +310,7 @@ Bool_t RooAdaptiveGaussKronrodIntegrator1D::checkLimits() const
   }
 
 
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -331,7 +329,7 @@ double RooAdaptiveGaussKronrodIntegrator1D_GSL_GlueFunction(double x, void *data
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return integral at at given parameter values
 
-Double_t RooAdaptiveGaussKronrodIntegrator1D::integral(const Double_t *yvec)
+double RooAdaptiveGaussKronrodIntegrator1D::integral(const double *yvec)
 {
   assert(isValid());
 
@@ -402,7 +400,7 @@ Double_t RooAdaptiveGaussKronrodIntegrator1D::integral(const Double_t *yvec)
 #define GSL_ENOMEM   8  /* malloc failed */
 #define GSL_EBADTOL 13  /* user specified an invalid tolerance */
 #define GSL_ETOL    14  /* failed to reach the specified tolerance */
-#define GSL_ERROR(a,b) oocoutE((TObject*)0,Integration) << "RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: " << a << endl ; return b ;
+#define GSL_ERROR(a,b) oocoutE(nullptr,Integration) << "RooAdaptiveGaussKronrodIntegrator1D::integral() ERROR: " << a << endl ; return b ;
 #define GSL_DBL_MIN        2.2250738585072014e-308
 #define GSL_DBL_MAX        1.7976931348623157e+308
 #define GSL_DBL_EPSILON    2.2204460492503131e-16

@@ -221,9 +221,10 @@ constexpr std::size_t CacheLineStep() {
    return (kCacheLineSize + sizeof(T) - 1) / sizeof(T);
 }
 
-void CheckDefineType(RDefineBase &define, const std::type_info &tid);
+void CheckReaderTypeMatches(const std::type_info &colType, const std::type_info &requestedType,
+                            const std::string &colName, const std::string &where);
 
-// TODO in C++17 this could be a lambda within FillParHelper::Exec
+// TODO in C++17 this could be a lambda within FillHelper::Exec
 template <typename T>
 constexpr std::size_t FindIdxTrue(const T &arr)
 {

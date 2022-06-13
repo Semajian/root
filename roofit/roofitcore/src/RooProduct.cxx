@@ -29,7 +29,6 @@ A RooProduct represents the product of a given set of RooAbsReal objects.
 #include "RooAbsReal.h"
 #include "RooAbsCategory.h"
 #include "RooMsgService.h"
-#include "RunContext.h"
 #include "RooTrace.h"
 
 #include <cmath>
@@ -119,14 +118,14 @@ void RooProduct::addTerm(RooAbsArg* term) {
 /// Force internal handling of integration of given observable if any
 /// of the product terms depend on it.
 
-Bool_t RooProduct::forceAnalyticalInt(const RooAbsArg& dep) const
+bool RooProduct::forceAnalyticalInt(const RooAbsArg& dep) const
 {
   // Force internal handling of integration of given observable if any
   // of the product terms depend on it.
 
   RooFIter compRIter = _compRSet.fwdIterator() ;
   RooAbsReal* rcomp ;
-  Bool_t depends(kFALSE);
+  bool depends(false);
   while((rcomp=(RooAbsReal*)compRIter.next())&&!depends) {
         depends = rcomp->dependsOn(dep);
   }
@@ -173,7 +172,7 @@ RooProduct::ProdMap* RooProduct::groupProductTerms(const RooArgSet& allVars) con
   }
 
   // Merge groups with overlapping dependents
-  Bool_t overlap;
+  bool overlap;
   do {
     std::pair<ProdMap::iterator,ProdMap::iterator> i = findOverlap2nd(map->begin(),map->end());
     overlap = (i.first!=i.second);
@@ -196,6 +195,7 @@ RooProduct::ProdMap* RooProduct::groupProductTerms(const RooArgSet& allVars) con
     }
   } while (overlap);
 
+#ifndef NDEBUG
   // check that we have all variables to be integrated over on the LHS
   // of the map, and all terms in the product do appear on the RHS
   int nVar=0; int nFunc=0;
@@ -205,6 +205,7 @@ RooProduct::ProdMap* RooProduct::groupProductTerms(const RooArgSet& allVars) con
   }
   assert(nVar==allVars.getSize());
   assert(nFunc==_compRSet.getSize());
+#endif
   return map;
 }
 
@@ -260,7 +261,7 @@ Int_t RooProduct::getPartIntList(const RooArgSet* iset, const char *isetRange) c
       term = (RooAbsReal*)j.next();
     }
     assert(term!=0);
-    if (i->first->getSize()==0) { // check whether we need to integrate over this term or not...
+    if (i->first->empty()) { // check whether we need to integrate over this term or not...
       cache->_prodList.add(*term);
       cxcoutD(Integration) << "RooProduct::getPartIntList(" << GetName() << ") adding simple factor " << term->GetName() << endl;
     } else {
@@ -297,7 +298,7 @@ Int_t RooProduct::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVar
   // Declare that we can analytically integrate all requested observables
   // (basically, we will take care of the problem, and delegate where required)
   //assert(normSet==0);
-  assert(analVars.getSize()==0);
+  assert(analVars.empty());
   analVars.add(allVars) ;
   Int_t code = getPartIntList(&analVars,rangeName)+1;
   return code ;
@@ -307,7 +308,7 @@ Int_t RooProduct::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVar
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate integral internally from appropriate partial integral cache
 
-Double_t RooProduct::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooProduct::analyticalIntegral(Int_t code, const char* rangeName) const
 {
   // note: rangeName implicit encoded in code: see _cacheMgr.setObj in getPartIntList...
   CacheElem *cache = (CacheElem*) _cacheMgr.getObjByIndex(code-1);
@@ -328,9 +329,9 @@ Double_t RooProduct::analyticalIntegral(Int_t code, const char* rangeName) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return product of partial terms in partIntList
 
-Double_t RooProduct::calculate(const RooArgList& partIntList) const
+double RooProduct::calculate(const RooArgList& partIntList) const
 {
-  Double_t val=1;
+  double val=1;
   for (const auto arg : partIntList) {
     const auto term = static_cast<const RooAbsReal*>(arg);
     double x = term->getVal();
@@ -349,9 +350,9 @@ const char* RooProduct::makeFPName(const char *pfx,const RooArgSet& terms) const
   pname = pfx;
   RooFIter i = terms.fwdIterator();
   RooAbsArg *arg;
-  Bool_t first(kTRUE);
+  bool first(true);
   while((arg=(RooAbsArg*)i.next())) {
-    if (first) { first=kFALSE;}
+    if (first) { first=false;}
     else pname.Append("_X_");
     pname.Append(arg->GetName());
   }
@@ -363,9 +364,9 @@ const char* RooProduct::makeFPName(const char *pfx,const RooArgSet& terms) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate product of input functions
 
-Double_t RooProduct::evaluate() const
+double RooProduct::evaluate() const
 {
-  Double_t prod(1) ;
+  double prod(1) ;
 
   const RooArgSet* nset = _compRSet.nset() ;
   for (const auto item : _compRSet) {
@@ -384,29 +385,18 @@ Double_t RooProduct::evaluate() const
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-/// Evaluate product of input functions for all points found in `evalData`.
-RooSpan<double> RooProduct::evaluateSpan(RooBatchCompute::RunContext& evalData, const RooArgSet* normSet) const {
-  RooSpan<double> prod;
-
-  assert(_compRSet.nset() == normSet);
+void RooProduct::computeBatch(cudaStream_t* /*stream*/, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
+{
+  for (unsigned int i = 0; i < nEvents; ++i) {
+    output[i] = 1.;
+  }
 
   for (const auto item : _compRSet) {
     auto rcomp = static_cast<const RooAbsReal*>(item);
-    auto componentValues = rcomp->getValues(evalData, normSet);
+    auto componentValues = dataMap.at(rcomp);
 
-    if (prod.empty()) {
-      prod = evalData.makeBatch(this, componentValues.size());
-      for (auto& val : prod) val = 1.;
-    } else if (prod.size() == 1 && componentValues.size() > 1) {
-      const double val = prod[0];
-      prod = evalData.makeBatch(this, componentValues.size());
-      std::fill(prod.begin(), prod.end(), val);
-    }
-    assert(prod.size() == componentValues.size() || componentValues.size() == 1);
-
-    for (unsigned int i = 0; i < prod.size(); ++i) {
-      prod[i] *= componentValues.size() == 1 ? componentValues[0] : componentValues[i];
+    for (unsigned int i = 0; i < nEvents; ++i) {
+      output[i] *= componentValues.size() == 1 ? componentValues[0] : componentValues[i];
     }
   }
 
@@ -414,25 +404,22 @@ RooSpan<double> RooProduct::evaluateSpan(RooBatchCompute::RunContext& evalData, 
     auto ccomp = static_cast<const RooAbsCategory*>(item);
     const int catIndex = ccomp->getCurrentIndex();
 
-    for (unsigned int i = 0; i < prod.size(); ++i) {
-      prod[i] *= catIndex;
+    for (unsigned int i = 0; i < nEvents; ++i) {
+      output[i] *= catIndex;
     }
   }
-
-  return prod;
 }
-
 
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward the plot sampling hint from the p.d.f. that defines the observable obs
 
-std::list<Double_t>* RooProduct::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooProduct::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   for (const auto item : _compRSet) {
     auto func = static_cast<const RooAbsReal*>(item);
 
-    list<Double_t>* binb = func->binBoundaries(obs,xlo,xhi) ;
+    list<double>* binb = func->binBoundaries(obs,xlo,xhi) ;
     if (binb) {
       return binb ;
     }
@@ -443,7 +430,7 @@ std::list<Double_t>* RooProduct::binBoundaries(RooAbsRealLValue& obs, Double_t x
 
 
 //_____________________________________________________________________________B
-Bool_t RooProduct::isBinnedDistribution(const RooArgSet& obs) const
+bool RooProduct::isBinnedDistribution(const RooArgSet& obs) const
 {
   // If all components that depend on obs are binned that so is the product
 
@@ -451,11 +438,11 @@ Bool_t RooProduct::isBinnedDistribution(const RooArgSet& obs) const
     auto func = static_cast<const RooAbsReal*>(item);
 
     if (func->dependsOn(obs) && !func->isBinnedDistribution(obs)) {
-      return kFALSE ;
+      return false ;
     }
   }
 
-  return kTRUE  ;
+  return true  ;
 }
 
 
@@ -463,12 +450,12 @@ Bool_t RooProduct::isBinnedDistribution(const RooArgSet& obs) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward the plot sampling hint from the p.d.f. that defines the observable obs
 
-std::list<Double_t>* RooProduct::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooProduct::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   for (const auto item : _compRSet) {
     auto func = static_cast<const RooAbsReal*>(item);
 
-    list<Double_t>* hint = func->plotSamplingHint(obs,xlo,xhi) ;
+    list<double>* hint = func->plotSamplingHint(obs,xlo,xhi) ;
     if (hint) {
       return hint ;
     }
@@ -509,7 +496,7 @@ void RooProduct::setCacheAndTrackHints(RooArgSet& trackNodes)
     if (parg->isDerived()) {
       if (parg->canNodeBeCached()==Always) {
         trackNodes.add(*parg) ;
-   //cout << "tracking node RooProduct component " << parg->IsA()->GetName() << "::" << parg->GetName() << endl ;
+   //cout << "tracking node RooProduct component " << parg->ClassName() << "::" << parg->GetName() << endl ;
       }
     }
   }
@@ -525,17 +512,17 @@ void RooProduct::setCacheAndTrackHints(RooArgSet& trackNodes)
 
 void RooProduct::printMetaArgs(ostream& os) const
 {
-  Bool_t first(kTRUE) ;
+  bool first(true) ;
 
   for (const auto rcomp : _compRSet) {
-    if (!first) {  os << " * " ; } else {  first = kFALSE ; }
+    if (!first) {  os << " * " ; } else {  first = false ; }
     os << rcomp->GetName() ;
   }
 
   for (const auto item : _compCSet) {
     auto ccomp = static_cast<const RooAbsCategory*>(item);
 
-    if (!first) {  os << " * " ; } else {  first = kFALSE ; }
+    if (!first) {  os << " * " ; } else {  first = false ; }
     os << ccomp->GetName() ;
   }
 
@@ -563,10 +550,10 @@ std::pair<RPPMIter,RPPMIter> findOverlap2nd(RPPMIter i, RPPMIter end)
 void dump_map(ostream& os, RPPMIter i, RPPMIter end)
 {
   // Utility dump function for debugging
-  Bool_t first(kTRUE);
+  bool first(true);
   os << " [ " ;
   for(; i!=end;++i) {
-    if (first) { first=kFALSE; }
+    if (first) { first=false; }
     else { os << " , " ; }
     os << *(i->first) << " -> " << *(i->second) ;
   }

@@ -25,8 +25,6 @@ in the two sets.
 **/
 
 
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include "RooAddition.h"
 #include "RooProduct.h"
@@ -38,6 +36,7 @@ in the two sets.
 #include "RooNLLVarNew.h"
 #include "RooChi2Var.h"
 #include "RooMsgService.h"
+#include "RooBatchCompute.h"
 
 #include <algorithm>
 #include <cmath>
@@ -63,7 +62,7 @@ RooAddition::RooAddition() : _cacheMgr(this,10)
 /// \param[in] sumSet The value of the function will be the sum of the values in this set
 /// \param[in] takeOwnership If true, the RooAddition object will take ownership of the arguments in `sumSet`
 
-RooAddition::RooAddition(const char* name, const char* title, const RooArgList& sumSet, Bool_t takeOwnership)
+RooAddition::RooAddition(const char* name, const char* title, const RooArgList& sumSet, bool takeOwnership)
   : RooAbsReal(name, title)
   , _set("!set","set of components",this)
   , _cacheMgr(this,10)
@@ -96,7 +95,7 @@ RooAddition::RooAddition(const char* name, const char* title, const RooArgList& 
 /// \param[in] sumSet2 Right-hand element of the pair-wise products
 /// \param[in] takeOwnership If true, the RooAddition object will take ownership of the arguments in the `sumSets`
 ///
-RooAddition::RooAddition(const char* name, const char* title, const RooArgList& sumSet1, const RooArgList& sumSet2, Bool_t takeOwnership)
+RooAddition::RooAddition(const char* name, const char* title, const RooArgList& sumSet1, const RooArgList& sumSet2, bool takeOwnership)
     : RooAbsReal(name, title)
     , _set("!set","set of components",this)
     , _cacheMgr(this,10)
@@ -162,21 +161,39 @@ RooAddition::~RooAddition()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate and return current value of self
 
-Double_t RooAddition::evaluate() const
+double RooAddition::evaluate() const
 {
-  Double_t sum(0);
+  double sum(0);
   const RooArgSet* nset = _set.nset() ;
 
 //   cout << "RooAddition::eval sum = " ;
 
   for (const auto arg : _set) {
     const auto comp = static_cast<RooAbsReal*>(arg);
-    const Double_t tmp = comp->getVal(nset);
+    const double tmp = comp->getVal(nset);
 //     cout << tmp << " " ;
     sum += tmp ;
   }
 //   cout << " = " << sum << endl ;
   return sum ;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Compute addition of PDFs in batches.
+void RooAddition::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
+{
+  RooBatchCompute::VarVector pdfs;
+  RooBatchCompute::ArgVector coefs;
+  pdfs.reserve(_set.size());
+  coefs.reserve(_set.size());
+  for (const auto arg : _set)
+  {
+    pdfs.push_back(dataMap.at(arg));
+    coefs.push_back(1.0);
+  }
+  auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
+  dispatch->compute(stream, RooBatchCompute::AddPdf, output, nEvents, pdfs, coefs);
 }
 
 
@@ -189,16 +206,13 @@ Double_t RooAddition::evaluate() const
 /// RooChi2Var. If the addition contains neither or both
 /// issue a warning message and return a value of 1
 
-Double_t RooAddition::defaultErrorLevel() const
+double RooAddition::defaultErrorLevel() const
 {
   RooAbsReal* nllArg(0) ;
   RooAbsReal* chi2Arg(0) ;
 
-  RooAbsArg* arg ;
-
   RooArgSet* comps = getComponents() ;
-  TIterator* iter = comps->createIterator() ;
-  while((arg=(RooAbsArg*)iter->Next())) {
+  for(RooAbsArg * arg : *comps) {
     if (dynamic_cast<RooNLLVar*>(arg) || dynamic_cast<ROOT::Experimental::RooNLLVarNew*>(arg)) {
       nllArg = (RooAbsReal*)arg ;
     }
@@ -206,7 +220,6 @@ Double_t RooAddition::defaultErrorLevel() const
       chi2Arg = (RooAbsReal*)arg ;
     }
   }
-  delete iter ;
   delete comps ;
 
   if (nllArg && !chi2Arg) {
@@ -231,7 +244,7 @@ Double_t RooAddition::defaultErrorLevel() const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void RooAddition::enableOffsetting(Bool_t flag)
+void RooAddition::enableOffsetting(bool flag)
 {
   for (auto arg : _set) {
     static_cast<RooAbsReal*>(arg)->enableOffsetting(flag) ;
@@ -242,12 +255,12 @@ void RooAddition::enableOffsetting(Bool_t flag)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Bool_t RooAddition::setData(RooAbsData& data, Bool_t cloneData)
+bool RooAddition::setData(RooAbsData& data, bool cloneData)
 {
   for (const auto arg : _set) {
     static_cast<RooAbsReal*>(arg)->setData(data,cloneData) ;
   }
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -256,12 +269,12 @@ Bool_t RooAddition::setData(RooAbsData& data, Bool_t cloneData)
 
 void RooAddition::printMetaArgs(ostream& os) const
 {
-  Bool_t first(kTRUE) ;
+  bool first(true) ;
   for (const auto arg : _set) {
     if (!first) {
       os << " + " ;
     } else {
-      first = kFALSE ;
+      first = false ;
     }
     os << arg->GetName() ;
   }
@@ -297,7 +310,7 @@ Int_t RooAddition::getAnalyticalIntegral(RooArgSet& allVars, RooArgSet& analVars
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate integral internally from appropriate integral cache
 
-Double_t RooAddition::analyticalIntegral(Int_t code, const char* rangeName) const
+double RooAddition::analyticalIntegral(Int_t code, const char* rangeName) const
 {
   // note: rangeName implicit encoded in code: see _cacheMgr.setObj in getPartIntList...
   CacheElem *cache = (CacheElem*) _cacheMgr.getObjByIndex(code-1);
@@ -325,17 +338,17 @@ Double_t RooAddition::analyticalIntegral(Int_t code, const char* rangeName) cons
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<Double_t>* RooAddition::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooAddition::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
-  std::list<Double_t>* sumBinB = 0 ;
-  Bool_t needClean(kFALSE) ;
+  std::list<double>* sumBinB = 0 ;
+  bool needClean(false) ;
 
   RooFIter iter = _set.fwdIterator() ;
   RooAbsReal* func ;
   // Loop over components pdf
   while((func=(RooAbsReal*)iter.next())) {
 
-    std::list<Double_t>* funcBinB = func->binBoundaries(obs,xlo,xhi) ;
+    std::list<double>* funcBinB = func->binBoundaries(obs,xlo,xhi) ;
 
     // Process hint
     if (funcBinB) {
@@ -344,7 +357,7 @@ std::list<Double_t>* RooAddition::binBoundaries(RooAbsRealLValue& obs, Double_t 
    sumBinB = funcBinB ;
       } else {
 
-   std::list<Double_t>* newSumBinB = new std::list<Double_t>(sumBinB->size()+funcBinB->size()) ;
+   std::list<double>* newSumBinB = new std::list<double>(sumBinB->size()+funcBinB->size()) ;
 
    // Merge hints into temporary array
    merge(funcBinB->begin(),funcBinB->end(),sumBinB->begin(),sumBinB->end(),newSumBinB->begin()) ;
@@ -353,14 +366,14 @@ std::list<Double_t>* RooAddition::binBoundaries(RooAbsRealLValue& obs, Double_t 
    delete sumBinB ;
    delete funcBinB ;
    sumBinB = newSumBinB ;
-   needClean = kTRUE ;
+   needClean = true ;
       }
     }
   }
 
   // Remove consecutive duplicates
   if (needClean) {
-    std::list<Double_t>::iterator new_end = unique(sumBinB->begin(),sumBinB->end()) ;
+    std::list<double>::iterator new_end = unique(sumBinB->begin(),sumBinB->end()) ;
     sumBinB->erase(new_end,sumBinB->end()) ;
   }
 
@@ -369,7 +382,7 @@ std::list<Double_t>* RooAddition::binBoundaries(RooAbsRealLValue& obs, Double_t 
 
 
 //_____________________________________________________________________________B
-Bool_t RooAddition::isBinnedDistribution(const RooArgSet& obs) const
+bool RooAddition::isBinnedDistribution(const RooArgSet& obs) const
 {
   // If all components that depend on obs are binned that so is the product
 
@@ -377,11 +390,11 @@ Bool_t RooAddition::isBinnedDistribution(const RooArgSet& obs) const
   RooAbsReal* func ;
   while((func=(RooAbsReal*)iter.next())) {
     if (func->dependsOn(obs) && !func->isBinnedDistribution(obs)) {
-      return kFALSE ;
+      return false ;
     }
   }
 
-  return kTRUE  ;
+  return true  ;
 }
 
 
@@ -389,17 +402,17 @@ Bool_t RooAddition::isBinnedDistribution(const RooArgSet& obs) const
 
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<Double_t>* RooAddition::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooAddition::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
-  std::list<Double_t>* sumHint = 0 ;
-  Bool_t needClean(kFALSE) ;
+  std::list<double>* sumHint = 0 ;
+  bool needClean(false) ;
 
   RooFIter iter = _set.fwdIterator() ;
   RooAbsReal* func ;
   // Loop over components pdf
   while((func=(RooAbsReal*)iter.next())) {
 
-    std::list<Double_t>* funcHint = func->plotSamplingHint(obs,xlo,xhi) ;
+    std::list<double>* funcHint = func->plotSamplingHint(obs,xlo,xhi) ;
 
     // Process hint
     if (funcHint) {
@@ -410,7 +423,7 @@ std::list<Double_t>* RooAddition::plotSamplingHint(RooAbsRealLValue& obs, Double
 
       } else {
 
-   std::list<Double_t>* newSumHint = new std::list<Double_t>(sumHint->size()+funcHint->size()) ;
+   std::list<double>* newSumHint = new std::list<double>(sumHint->size()+funcHint->size()) ;
 
    // Merge hints into temporary array
    merge(funcHint->begin(),funcHint->end(),sumHint->begin(),sumHint->end(),newSumHint->begin()) ;
@@ -418,14 +431,14 @@ std::list<Double_t>* RooAddition::plotSamplingHint(RooAbsRealLValue& obs, Double
    // Copy merged array without duplicates to new sumHintArrau
    delete sumHint ;
    sumHint = newSumHint ;
-   needClean = kTRUE ;
+   needClean = true ;
       }
     }
   }
 
   // Remove consecutive duplicates
   if (needClean) {
-    std::list<Double_t>::iterator new_end = unique(sumHint->begin(),sumHint->end()) ;
+    std::list<double>::iterator new_end = unique(sumHint->begin(),sumHint->end()) ;
     sumHint->erase(new_end,sumHint->end()) ;
   }
 

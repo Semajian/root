@@ -30,10 +30,10 @@ class RooAbsNumGenerator ;
 class RooGenContext : public RooAbsGenContext {
 public:
   RooGenContext(const RooAbsPdf &model, const RooArgSet &vars, const RooDataSet *prototype= 0,
-      const RooArgSet* auxProto=0, Bool_t verbose=kFALSE, const RooArgSet* forceDirect=0);
+      const RooArgSet* auxProto=0, bool verbose=false, const RooArgSet* forceDirect=0);
   ~RooGenContext() override;
 
-  void printMultiline(std::ostream &os, Int_t content, Bool_t verbose=kFALSE, TString indent="") const override ;
+  void printMultiline(std::ostream &os, Int_t content, bool verbose=false, TString indent="") const override ;
 
   void attach(const RooArgSet& params) override ;
 
@@ -46,7 +46,7 @@ protected:
   RooAbsPdf *_pdfClone;   ///< Clone of input p.d.f
   RooArgSet _directVars,_uniformVars,_otherVars; ///< List of observables generated internally, randomly, and by accept/reject sampling
   Int_t _code;                                   ///< Internal generation code
-  Double_t _maxProb{0.}, _area{0.}, _norm{0.};   ///< Maximum probability, p.d.f area and normalization
+  double _maxProb{0.}, _area{0.}, _norm{0.};   ///< Maximum probability, p.d.f area and normalization
   RooRealIntegral *_acceptRejectFunc; ///< Projection function to be passed to accept/reject sampler
   RooAbsNumGenerator *_generator;     ///< MC sampling generation engine
   RooRealVar *_maxVar ;               ///< Variable holding maximum value of p.d.f

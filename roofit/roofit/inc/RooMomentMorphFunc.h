@@ -41,19 +41,19 @@ public:
 
    void useHorizontalMorphing(bool val) { _useHorizMorph = val; }
 
-   virtual Bool_t selfNormalized() const
+   virtual bool selfNormalized() const
    {
       // P.d.f is self normalized
-      return kTRUE;
+      return true;
    }
 
-   virtual Double_t getVal(const RooArgSet *set = 0) const;
+   virtual double getVal(const RooArgSet *set = 0) const;
    RooAbsReal *sumFunc(const RooArgSet *nset);
    const RooAbsReal *sumFunc(const RooArgSet *nset) const;
 
-   std::list<Double_t> *plotSamplingHint(RooAbsRealLValue &obs, Double_t xlo, Double_t xhi) const override;
-   std::list<Double_t> *binBoundaries(RooAbsRealLValue & /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override;
-   Bool_t isBinnedDistribution(const RooArgSet &obs) const override;
+   std::list<double> *plotSamplingHint(RooAbsRealLValue &obs, double xlo, double xhi) const override;
+   std::list<double> *binBoundaries(RooAbsRealLValue & /*obs*/, double /*xlo*/, double /*xhi*/) const override;
+   bool isBinnedDistribution(const RooArgSet &obs) const override;
 
 protected:
    class CacheElem : public RooAbsCacheElement {
@@ -71,14 +71,14 @@ protected:
 
       RooRealVar *frac(Int_t i);
       const RooRealVar *frac(Int_t i) const;
-      void calculateFractions(const RooMomentMorphFunc &self, Bool_t verbose = kTRUE) const;
+      void calculateFractions(const RooMomentMorphFunc &self, bool verbose = true) const;
    };
    mutable RooObjCacheManager _cacheMgr; //! The cache manager
    mutable RooArgSet *_curNormSet;       //! Current normalization set
 
    friend class CacheElem; // Cache needs to be able to clear _norm pointer
 
-   Double_t evaluate() const override;
+   double evaluate() const override;
 
    void initialize();
    CacheElem *getCache(const RooArgSet *nset) const;

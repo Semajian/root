@@ -28,7 +28,6 @@ http://www.slac.stanford.edu/BFROOT/www/Organization/CollabMtgs/2003/detJuly2003
 **/
 
 #include "RooBukinPdf.h"
-#include "RooFit.h"
 #include "RooRealVar.h"
 #include "RooHelpers.h"
 #include "RooBatchCompute.h"
@@ -85,7 +84,7 @@ RooBukinPdf::RooBukinPdf(const RooBukinPdf& other, const char *name):
 ////////////////////////////////////////////////////////////////////////////////
 /// Implementation
 
-Double_t RooBukinPdf::evaluate() const
+double RooBukinPdf::evaluate() const
 {
   const double consts = 2*sqrt(2*log(2.0));
   double r1=0,r2=0,r3=0,r4=0,r5=0,hp=0;
@@ -142,8 +141,9 @@ Double_t RooBukinPdf::evaluate() const
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute multiple values of Bukin distribution.
-void RooBukinPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooBatchCompute::DataMap& dataMap) const
+void RooBukinPdf::computeBatch(cudaStream_t* stream, double* output, size_t nEvents, RooFit::Detail::DataMap const& dataMap) const
 {
   auto dispatch = stream ? RooBatchCompute::dispatchCUDA : RooBatchCompute::dispatchCPU;
-  dispatch->compute(stream, RooBatchCompute::Bukin, output, nEvents, dataMap, {&*x,&*Xp,&*sigp,&*xi,&*rho1,&*rho2,&*_norm});
+  dispatch->compute(stream, RooBatchCompute::Bukin, output, nEvents,
+          {dataMap.at(x), dataMap.at(Xp), dataMap.at(sigp), dataMap.at(xi), dataMap.at(rho1), dataMap.at(rho2)});
 }

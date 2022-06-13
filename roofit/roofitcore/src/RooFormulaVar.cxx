@@ -45,7 +45,6 @@
 ///
 
 
-#include "RooFit.h"
 #include "Riostream.h"
 
 #include "RooFormulaVar.h"
@@ -77,7 +76,7 @@ RooFormulaVar::RooFormulaVar(const char *name, const char *title, const char* in
 {
   _actualVars.add(dependents) ;
 
-  if (_actualVars.getSize()==0) {
+  if (_actualVars.empty()) {
     _value = traceEval(0);
   } else {
     _formula.reset(new RooFormula(GetName(), _formExpr, _actualVars, checkVariables));
@@ -101,7 +100,7 @@ RooFormulaVar::RooFormulaVar(const char *name, const char *title, const RooArgLi
 {
   _actualVars.add(dependents) ;
 
-  if (_actualVars.getSize()==0) {
+  if (_actualVars.empty()) {
     _value = traceEval(0);
   } else {
     _formula.reset(new RooFormula(GetName(), _formExpr, _actualVars, checkVariables));
@@ -134,7 +133,7 @@ RooFormula& RooFormulaVar::getFormula() const
   if (!_formula) {
     // After being read from file, the formula object might not exist, yet:
     auto theFormula = new RooFormula(GetName(), _formExpr, _actualVars);
-    const_cast<std::unique_ptr<RooFormula>&>(this->_formula).reset(theFormula);
+    const_cast<std::unique_ptr<RooFormula>&>(_formula).reset(theFormula);
     const_cast<TString&>(_formExpr) = _formula->formulaString().c_str();
   }
 
@@ -146,7 +145,7 @@ RooFormula& RooFormulaVar::getFormula() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate current value of object from internal formula
 
-Double_t RooFormulaVar::evaluate() const
+double RooFormulaVar::evaluate() const
 {
   return getFormula().eval(_lastNSet);
 }
@@ -173,7 +172,7 @@ RooSpan<double> RooFormulaVar::evaluateSpan(RooBatchCompute::RunContext& inputDa
 ////////////////////////////////////////////////////////////////////////////////
 /// Propagate server change information to embedded RooFormula object
 
-Bool_t RooFormulaVar::redirectServersHook(const RooAbsCollection& newServerList, Bool_t mustReplaceAll, Bool_t nameChange, Bool_t /*isRecursive*/)
+bool RooFormulaVar::redirectServersHook(const RooAbsCollection& newServerList, bool mustReplaceAll, bool nameChange, bool /*isRecursive*/)
 {
   bool success = getFormula().changeDependents(newServerList,mustReplaceAll,nameChange);
 
@@ -186,7 +185,7 @@ Bool_t RooFormulaVar::redirectServersHook(const RooAbsCollection& newServerList,
 ////////////////////////////////////////////////////////////////////////////////
 /// Print info about this object to the specified stream.
 
-void RooFormulaVar::printMultiline(ostream& os, Int_t contents, Bool_t verbose, TString indent) const
+void RooFormulaVar::printMultiline(ostream& os, Int_t contents, bool verbose, TString indent) const
 {
   RooAbsReal::printMultiline(os,contents,verbose,indent);
   if(verbose) {
@@ -212,10 +211,10 @@ void RooFormulaVar::printMetaArgs(ostream& os) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Read object contents from given stream
 
-Bool_t RooFormulaVar::readFromStream(istream& /*is*/, Bool_t /*compact*/, Bool_t /*verbose*/)
+bool RooFormulaVar::readFromStream(istream& /*is*/, bool /*compact*/, bool /*verbose*/)
 {
   coutE(InputArguments) << "RooFormulaVar::readFromStream(" << GetName() << "): can't read" << endl ;
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -223,7 +222,7 @@ Bool_t RooFormulaVar::readFromStream(istream& /*is*/, Bool_t /*compact*/, Bool_t
 ////////////////////////////////////////////////////////////////////////////////
 /// Write object contents to given stream
 
-void RooFormulaVar::writeToStream(ostream& os, Bool_t compact) const
+void RooFormulaVar::writeToStream(ostream& os, bool compact) const
 {
   if (compact) {
     cout << getVal() << endl ;
@@ -237,11 +236,11 @@ void RooFormulaVar::writeToStream(ostream& os, Bool_t compact) const
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward the plot sampling hint from the p.d.f. that defines the observable obs
 
-std::list<Double_t>* RooFormulaVar::binBoundaries(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooFormulaVar::binBoundaries(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   for (const auto par : _actualVars) {
     auto func = static_cast<const RooAbsReal*>(par);
-    list<Double_t>* binb = nullptr;
+    list<double>* binb = nullptr;
 
     if (func && (binb = func->binBoundaries(obs,xlo,xhi)) ) {
       return binb;
@@ -256,11 +255,11 @@ std::list<Double_t>* RooFormulaVar::binBoundaries(RooAbsRealLValue& obs, Double_
 ////////////////////////////////////////////////////////////////////////////////
 /// Forward the plot sampling hint from the p.d.f. that defines the observable obs
 
-std::list<Double_t>* RooFormulaVar::plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const
+std::list<double>* RooFormulaVar::plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const
 {
   for (const auto par : _actualVars) {
     auto func = dynamic_cast<const RooAbsReal*>(par);
-    list<Double_t>* hint = nullptr;
+    list<double>* hint = nullptr;
 
     if (func && (hint = func->plotSamplingHint(obs,xlo,xhi)) ) {
       return hint;
@@ -281,7 +280,7 @@ std::list<Double_t>* RooFormulaVar::plotSamplingHint(RooAbsRealLValue& obs, Doub
 /// RooChi2Var. If the addition contains neither or both
 /// issue a warning message and return a value of 1
 
-Double_t RooFormulaVar::defaultErrorLevel() const
+double RooFormulaVar::defaultErrorLevel() const
 {
   RooAbsReal* nllArg(0) ;
   RooAbsReal* chi2Arg(0) ;

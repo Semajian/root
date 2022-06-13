@@ -20,26 +20,26 @@
 class RooParamHistFunc : public RooAbsReal {
 public:
   RooParamHistFunc() {} ;
-  RooParamHistFunc(const char *name, const char *title, RooDataHist& dh, Bool_t paramRelative=kTRUE);
-  RooParamHistFunc(const char *name, const char *title, const RooAbsArg& x, RooDataHist& dh, Bool_t paramRelative=kTRUE);
-  RooParamHistFunc(const char *name, const char *title, RooDataHist& dh, const RooParamHistFunc& paramSource, Bool_t paramRelative=kTRUE) ;
+  RooParamHistFunc(const char *name, const char *title, RooDataHist& dh, bool paramRelative=true);
+  RooParamHistFunc(const char *name, const char *title, const RooAbsArg& x, RooDataHist& dh, bool paramRelative=true);
+  RooParamHistFunc(const char *name, const char *title, RooDataHist& dh, const RooParamHistFunc& paramSource, bool paramRelative=true) ;
   RooParamHistFunc(const RooParamHistFunc& other, const char* name=0) ;
   TObject* clone(const char* newname) const override { return new RooParamHistFunc(*this,newname); }
   inline ~RooParamHistFunc() override { }
 
-  std::list<Double_t>* binBoundaries(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override ;
-  std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const override ;
-  Bool_t isBinnedDistribution(const RooArgSet&) const override { return kTRUE ; }
+  std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override ;
+  std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override ;
+  bool isBinnedDistribution(const RooArgSet&) const override { return true ; }
 
 
-  Bool_t forceAnalyticalInt(const RooAbsArg&) const override { return kTRUE ; }
+  bool forceAnalyticalInt(const RooAbsArg&) const override { return true ; }
   Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& analVars, const RooArgSet* normSet,const char* rangeName=0) const override ;
-  Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
+  double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override ;
 
-  Double_t getActual(Int_t ibin) ;
-  void setActual(Int_t ibin, Double_t newVal) ;
-  Double_t getNominal(Int_t ibin) const ;
-  Double_t getNominalError(Int_t ibin) const ;
+  double getActual(Int_t ibin) ;
+  void setActual(Int_t ibin, double newVal) ;
+  double getNominal(Int_t ibin) const ;
+  double getNominalError(Int_t ibin) const ;
 
   const RooArgList& paramList() const { return _p ; }
 
@@ -50,9 +50,9 @@ public:
   RooListProxy  _x ;
   RooListProxy _p ;
   RooDataHist _dh ;
-  Bool_t _relParam ;
+  bool _relParam ;
 
-  Double_t evaluate() const override ;
+  double evaluate() const override ;
 
 private:
 

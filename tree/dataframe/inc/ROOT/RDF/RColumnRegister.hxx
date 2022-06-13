@@ -23,6 +23,7 @@ namespace ROOT {
 namespace Detail {
 namespace RDF {
 class RDefineBase;
+class RLoopManager;
 }
 } // namespace Detail
 
@@ -54,6 +55,8 @@ class RColumnRegister {
    void AddName(std::string_view name);
 
 private:
+   std::shared_ptr<RDFDetail::RLoopManager> fLoopManager;
+
    /// Immutable map of Defines, can be shared among several nodes.
    /// When a new define is added (through a call to RInterface::Define or similar) a new map with the extra element is
    /// created.
@@ -71,12 +74,13 @@ public:
    RColumnRegister(RColumnRegister &&) = default;
    RColumnRegister &operator=(const RColumnRegister &) = default;
 
-   RColumnRegister()
-      : fDefines(std::make_shared<DefinesMap_t>()),
+   RColumnRegister(std::shared_ptr<RDFDetail::RLoopManager> lm)
+      : fLoopManager(lm), fDefines(std::make_shared<DefinesMap_t>()),
         fAliases(std::make_shared<std::unordered_map<std::string, std::string>>()),
         fVariations(std::make_shared<VariationsMap_t>()), fColumnNames(std::make_shared<ColumnNames_t>())
    {
    }
+   ~RColumnRegister();
 
    ////////////////////////////////////////////////////////////////////////////
    /// \brief Returns the list of the names of the defined columns (Defines + Aliases).
@@ -137,11 +141,6 @@ public:
    ////////////////////////////////////////////////////////////////////////////
    /// \brief Return the RVariation object that handles the specified variation of the specified column.
    RVariationBase &FindVariation(const std::string &colName, const std::string &variationName) const;
-
-   ////////////////////////////////////////////////////////////////////////////
-   /// \brief Empty the contents of this ledger.
-   /// The only allowed operation on a RColumnRegister object after a call to Clear is its destruction.
-   void Clear();
 };
 
 } // Namespace RDF

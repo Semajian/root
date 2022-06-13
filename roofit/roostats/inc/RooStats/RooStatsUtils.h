@@ -48,19 +48,19 @@ namespace RooStats {
    RooStatsConfig& GetGlobalRooStatsConfig();
 
    /// returns one-sided significance corresponding to a p-value
-   inline Double_t PValueToSignificance(Double_t pvalue){
+   inline double PValueToSignificance(double pvalue){
       return ::ROOT::Math::normal_quantile_c(pvalue,1);
    }
 
    /// returns p-value corresponding to a 1-sided significance
-   inline Double_t SignificanceToPValue(Double_t Z){
+   inline double SignificanceToPValue(double Z){
       return ::ROOT::Math::normal_cdf_c(Z);
    }
 
    /// Compute the Asimov Median significance for a Poisson process
    /// with s = expected number of signal events, b = expected number of background events
    /// and optionally sigma_b = expected uncertainty of backgorund events
-   Double_t AsimovSignificance(Double_t s, Double_t b, Double_t sigma_b = 0.0 );
+   double AsimovSignificance(double s, double b, double sigma_b = 0.0 );
 
    inline void SetParameters(const RooArgSet* desiredVals, RooArgSet* paramsToChange){
       paramsToChange->assign(*desiredVals) ;
@@ -68,9 +68,7 @@ namespace RooStats {
 
    inline void RemoveConstantParameters(RooArgSet* set){
       RooArgSet constSet;
-      RooLinkedListIter it = set->iterator();
-      RooRealVar *myarg;
-      while ((myarg = (RooRealVar *)it.Next())) {
+      for (auto const *myarg : static_range_cast<RooRealVar *>(*set)) {
          if(myarg->isConstant()) constSet.add(*myarg);
       }
       set->remove(constSet);
@@ -78,9 +76,7 @@ namespace RooStats {
 
    inline void RemoveConstantParameters(RooArgList& set){
       RooArgSet constSet;
-      RooLinkedListIter it = set.iterator();
-      RooRealVar *myarg;
-      while ((myarg = (RooRealVar *)it.Next())) {
+      for (auto const *myarg : static_range_cast<RooRealVar *>(set)) {
          if(myarg->isConstant()) constSet.add(*myarg);
       }
       set.remove(constSet);
@@ -89,10 +85,8 @@ namespace RooStats {
    /// utility function to set all variable constant in a collection
    /// (from G. Petrucciani)
    inline bool SetAllConstant(const RooAbsCollection &coll, bool constant = true) {
-      bool changed = false;
-      RooLinkedListIter iter = coll.iterator();
-      for (RooAbsArg *a = (RooAbsArg *) iter.Next(); a != 0; a = (RooAbsArg *) iter.Next()) {
-         RooRealVar *v = dynamic_cast<RooRealVar *>(a);
+      bool changed = false; 
+      for (auto *v : dynamic_range_cast<RooRealVar *>(coll)) {
          if (v && (v->isConstant() != constant)) {
             changed = true;
             v->setConstant(constant);
@@ -104,23 +98,20 @@ namespace RooStats {
 
    /// assuming all values in set are RooRealVars, randomize their values
    inline void RandomizeCollection(RooAbsCollection& set,
-                                   Bool_t randomizeConstants = kTRUE)
+                                   bool randomizeConstants = true)
    {
-      RooLinkedListIter it = set.iterator();
-      RooRealVar* var;
 
       // repeat loop to avoid calling isConstant for nothing
       if (randomizeConstants) {
-         while ((var = (RooRealVar*)it.Next()) != NULL)
+         for (auto *var : static_range_cast<RooRealVar *>(set))
             var->randomize();
       }
       else {
          // exclude constants variables
-         while ((var = (RooRealVar*)it.Next()) != NULL)
+         for (auto *var : static_range_cast<RooRealVar *>(set))
             if (!var->isConstant() )
                var->randomize();
       }
-
 
    }
 
@@ -132,10 +123,10 @@ namespace RooStats {
    RooAbsPdf * MakeNuisancePdf(RooAbsPdf &pdf, const RooArgSet &observables, const char *name);
    RooAbsPdf * MakeNuisancePdf(const RooStats::ModelConfig &model, const char *name);
    /// remove constraints from pdf and return the unconstrained pdf
-   RooAbsPdf * MakeUnconstrainedPdf(RooAbsPdf &pdf, const RooArgSet &observables, const char *name = NULL);
-   RooAbsPdf * MakeUnconstrainedPdf(const RooStats::ModelConfig &model, const char *name = NULL);
+   RooAbsPdf * MakeUnconstrainedPdf(RooAbsPdf &pdf, const RooArgSet &observables, const char *name = nullptr);
+   RooAbsPdf * MakeUnconstrainedPdf(const RooStats::ModelConfig &model, const char *name = nullptr);
 
-   /// Create a TTree with the given name and description. All RooRealVars in the RooDataSet are represented as branches that contain values of type Double_t.
+   /// Create a TTree with the given name and description. All RooRealVars in the RooDataSet are represented as branches that contain values of type double.
    TTree* GetAsTTree(TString name, TString desc, const RooDataSet& data);
 
    /// useful function to print in one line the content of a set with their values

@@ -27,12 +27,12 @@
 
 namespace RooFit {
 
-typedef Double_t (*CFUNCD3DDD)(Double_t,Double_t,Double_t) ;
-typedef Double_t (*CFUNCD3DDB)(Double_t,Double_t,Bool_t) ;
-typedef Double_t (*CFUNCD3DII)(Double_t,Int_t,Int_t) ;
-typedef Double_t (*CFUNCD3UDU)(UInt_t,Double_t,UInt_t) ;
-typedef Double_t (*CFUNCD3UDD)(UInt_t,Double_t,Double_t) ;
-typedef Double_t (*CFUNCD3UUD)(UInt_t,UInt_t,Double_t) ;
+typedef double (*CFUNCD3DDD)(double,double,double) ;
+typedef double (*CFUNCD3DDB)(double,double,bool) ;
+typedef double (*CFUNCD3DII)(double,Int_t,Int_t) ;
+typedef double (*CFUNCD3UDU)(UInt_t,double,UInt_t) ;
+typedef double (*CFUNCD3UDD)(UInt_t,double,double) ;
+typedef double (*CFUNCD3UUD)(UInt_t,UInt_t,double) ;
 
 RooAbsReal* bindFunction(const char* name,CFUNCD3DDD func,RooAbsReal& x, RooAbsReal& y, RooAbsReal& z) ;
 RooAbsReal* bindFunction(const char* name,CFUNCD3DDB func,RooAbsReal& x, RooAbsReal& y, RooAbsReal& z) ;
@@ -210,7 +210,7 @@ void RooCFunction3Ref<VO,VI1,VI2,VI3>::Streamer(TBuffer &R__b)
    } else {
 
      UInt_t R__c;
-     R__c = R__b.WriteVersion(thisClass::IsA(), kTRUE);
+     R__c = R__b.WriteVersion(thisClass::IsA(), true);
 
      // Lookup name of reference C function
      TString tmpName = fmap().lookupName(_ptr) ;
@@ -229,7 +229,7 @@ void RooCFunction3Ref<VO,VI1,VI2,VI3>::Streamer(TBuffer &R__b)
      // Persist the name
      tmpName.Streamer(R__b) ;
 
-     R__b.SetByteCount(R__c, kTRUE);
+     R__b.SetByteCount(R__c, true);
 
    }
 }
@@ -267,7 +267,7 @@ protected:
   RooRealProxy y ;              // Argument reference
   RooRealProxy z ;              // Argument reference
 
-  Double_t evaluate() const override {
+  double evaluate() const override {
     // Return value of embedded function using value of referenced variable x
     return func(x,y,z) ;
   }
@@ -338,7 +338,7 @@ protected:
   RooRealProxy y ;              // Argument reference
   RooRealProxy z ;              // Argument reference
 
-  Double_t evaluate() const override {
+  double evaluate() const override {
     // Return value of embedded function using value of referenced variable x
     return func(x,y,z) ;
   }

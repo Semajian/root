@@ -523,7 +523,7 @@ void ClassPrinter::DisplayAllClasses()const
   const TranslationUnitDecl* const tuDecl = compiler->getASTContext().getTranslationUnitDecl();
   assert(tuDecl != 0 && "DisplayAllClasses, translation unit is empty");
 
-  fOut.Print("List of classes");
+  fOut.Print("List of classes\n");
   // Could trigger deserialization of decls.
   Interpreter::PushTransactionRAII RAII(const_cast<Interpreter*>(fInterpreter));
   for (decl_iterator decl = tuDecl->decls_begin(); decl != tuDecl->decls_end(); ++decl)
@@ -766,15 +766,15 @@ void ClassPrinter::DisplayClassDecl(const CXXRecordDecl* classDecl)const
     fOut.Print("\n");
 
     if (classDecl->bases_begin() != classDecl->bases_end())
-      fOut.Print("Base classes: --------------------------------------------------------\n");
+      fOut.Print("Base classes: -------------------------------------------------------------\n");
 
     DisplayBasesAsTree(classDecl, 0);
     //now list all members.40963410
 
-    fOut.Print("List of member variables --------------------------------------------------\n");
+    fOut.Print("List of member variables: -------------------------------------------------\n");
     DisplayDataMembers(classDecl, 0);
 
-    fOut.Print("List of member functions :---------------------------------------------------\n");
+    fOut.Print("List of member functions: -------------------------------------------------\n");
     //CINT has a format like %-15s blah-blah.
     fOut.Print("filename     line:size busy function type and name\n");
     DisplayMemberFunctions(classDecl);
@@ -1416,7 +1416,7 @@ void TypedefPrinter::DisplayTypedefs()const
   const TranslationUnitDecl* const tuDecl = compiler->getASTContext().getTranslationUnitDecl();
   assert(tuDecl != 0 && "DisplayTypedefs, translation unit is empty");
 
-  fOut.Print("List of typedefs");
+  fOut.Print("List of typedefs\n");
   ProcessNestedDeclarations(tuDecl);
 }
 
@@ -1505,6 +1505,7 @@ void TypedefPrinter::DisplayTypedefDecl(TypedefNameDecl* typedefDecl)const
     llvm::raw_string_ostream out(textLine);
     typedefDecl->getUnderlyingType().
        getDesugaredType(typedefDecl->getASTContext()).print(out,printingPolicy);
+    out << ' ';
     //Name for diagnostic will include template arguments if any.
     typedefDecl->getNameForDiagnostic(out,
                                       printingPolicy,/*qualified=*/true);
@@ -1517,33 +1518,18 @@ void TypedefPrinter::DisplayTypedefDecl(TypedefNameDecl* typedefDecl)const
 }//unnamed namespace
 
 //______________________________________________________________________________
-void DisplayClasses(llvm::raw_ostream& stream, const Interpreter* interpreter,
-                    bool verbose)
-{
-  assert(interpreter != 0 && "DisplayClasses, 'interpreter' parameter is null");
-
-  ClassPrinter printer(stream, interpreter);
-  printer.SetVerbose(verbose);
-  printer.DisplayAllClasses();
-}
-
-//______________________________________________________________________________
 void DisplayClass(llvm::raw_ostream& stream, const Interpreter* interpreter,
                   const char* className, bool verbose)
 {
   assert(interpreter != 0 && "DisplayClass, 'interpreter' parameter is null");
-  assert(className != 0 && "DisplayClass, 'className' parameter is null");
-
-  while (std::isspace(*className))
-    ++className;
 
   ClassPrinter printer(stream, interpreter);
-
-  if (*className) {
-    printer.SetVerbose(verbose);
+  printer.SetVerbose(verbose);
+  if (className && *className) {
+    while (std::isspace(*className))
+      ++className;
     printer.DisplayClass(className);
   } else {
-    printer.SetVerbose(true);//?
     printer.DisplayAllClasses();
   }
 }

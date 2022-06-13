@@ -30,8 +30,6 @@
 /// ```
 ///
 
-#include "RooFit.h"
-
 #include "RooXYChi2Var.h"
 #include "RooDataSet.h"
 #include "RooAbsReal.h"
@@ -82,17 +80,17 @@ RooXYChi2Var::RooXYChi2Var()
 /// on each X-type observable for which the error should be stored and add datapoints to the dataset as follows
 ///
 /// RooDataSet::add(xset,yval,yerr) where xset is the RooArgSet of x observables (with or without errors) and yval and yerr
-///                                 are the Double_t values that correspond to the Y and its error
+///                                 are the double values that correspond to the Y and its error
 ///
 
-RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& xydata, Bool_t integrate) :
+RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& xydata, bool integrate) :
   RooAbsOptTestStatistic(name,title,func,xydata,RooArgSet(),makeRooAbsTestStatisticCfg()),
-  _extended(kFALSE),
+  _extended(false),
   _integrate(integrate),
   _intConfig(*defaultIntegratorConfig()),
   _funcInt(0)
 {
-  _extended = kFALSE ;
+  _extended = false ;
   _yvar = 0 ;
 
   initialize() ;
@@ -110,17 +108,17 @@ RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsReal& func
 /// on each X-type observable for which the error should be stored and add datapoints to the dataset as follows
 ///
 /// RooDataSet::add(xset,yval,yerr) where xset is the RooArgSet of x observables (with or without errors) and yval and yerr
-///                                 are the Double_t values that correspond to the Y and its error
+///                                 are the double values that correspond to the Y and its error
 ///
 
-RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& xydata, RooRealVar& yvar, Bool_t integrate) :
+RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsReal& func, RooDataSet& xydata, RooRealVar& yvar, bool integrate) :
   RooAbsOptTestStatistic(name,title,func,xydata,RooArgSet(),makeRooAbsTestStatisticCfg()),
-  _extended(kFALSE),
+  _extended(false),
   _integrate(integrate),
   _intConfig(*defaultIntegratorConfig()),
   _funcInt(0)
 {
-  _extended = kFALSE ;
+  _extended = false ;
   _yvar = (RooRealVar*) _dataClone->get()->find(yvar.GetName()) ;
 
   initialize() ;
@@ -141,12 +139,12 @@ RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsReal& func
 /// on each X-type observable for which the error should be stored and add datapoints to the dataset as follows
 ///
 /// RooDataSet::add(xset,yval,yerr) where xset is the RooArgSet of x observables (with or without errors) and yval and yerr
-///                                 are the Double_t values that correspond to the Y and its error
+///                                 are the double values that correspond to the Y and its error
 ///
 
-RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& xydata, Bool_t integrate) :
+RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& xydata, bool integrate) :
   RooAbsOptTestStatistic(name,title,extPdf,xydata,RooArgSet(),makeRooAbsTestStatisticCfg()),
-  _extended(kTRUE),
+  _extended(true),
   _integrate(integrate),
   _intConfig(*defaultIntegratorConfig()),
   _funcInt(0)
@@ -175,12 +173,12 @@ RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPd
 /// on each X-type observable for which the error should be stored and add datapoints to the dataset as follows
 ///
 /// RooDataSet::add(xset,yval,yerr) where xset is the RooArgSet of x observables (with or without errors) and yval and yerr
-///                                 are the Double_t values that correspond to the Y and its error
+///                                 are the double values that correspond to the Y and its error
 ///
 
-RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& xydata, RooRealVar& yvar, Bool_t integrate) :
+RooXYChi2Var::RooXYChi2Var(const char *name, const char* title, RooAbsPdf& extPdf, RooDataSet& xydata, RooRealVar& yvar, bool integrate) :
   RooAbsOptTestStatistic(name,title,extPdf,xydata,RooArgSet(),makeRooAbsTestStatisticCfg()),
-  _extended(kTRUE),
+  _extended(true),
   _integrate(integrate),
   _intConfig(*defaultIntegratorConfig()),
   _funcInt(0)
@@ -258,7 +256,7 @@ void RooXYChi2Var::initIntegrator()
     _rrvIter->Reset() ;
     RooRealVar* x ;
     while((x=(RooRealVar*)_rrvIter->Next())) {
-      _binList.push_back(&x->getBinning("bin",kFALSE,kTRUE)) ;
+      _binList.push_back(&x->getBinning("bin",false,true)) ;
     }
   }
 
@@ -282,10 +280,10 @@ RooXYChi2Var::~RooXYChi2Var()
 /// Calculate contribution to internal error due to error on 'x' coordinates
 /// at point i
 
-Double_t RooXYChi2Var::xErrorContribution(Double_t ydata) const
+double RooXYChi2Var::xErrorContribution(double ydata) const
 {
   RooRealVar* var ;
-  Double_t ret(0) ;
+  double ret(0) ;
 
   _rrvIter->Reset() ;
   while((var=(RooRealVar*)_rrvIter->Next())) {
@@ -293,21 +291,21 @@ Double_t RooXYChi2Var::xErrorContribution(Double_t ydata) const
     if (var->hasAsymError()) {
 
       // Get value at central X
-      Double_t cxval = var->getVal() ;
-      Double_t xerrLo = -var->getAsymErrorLo() ;
-      Double_t xerrHi = var->getAsymErrorHi() ;
-      Double_t xerr = (xerrLo+xerrHi)/2 ;
+      double cxval = var->getVal() ;
+      double xerrLo = -var->getAsymErrorLo() ;
+      double xerrHi = var->getAsymErrorHi() ;
+      double xerr = (xerrLo+xerrHi)/2 ;
 
       // Get value at X-eps
       var->setVal(cxval - xerr/100) ;
-      Double_t fxmin = fy() ;
+      double fxmin = fy() ;
 
       // Get value at X+eps
       var->setVal(cxval + xerr/100) ;
-      Double_t fxmax = fy() ;
+      double fxmax = fy() ;
 
       // Calculate slope
-      Double_t slope = (fxmax-fxmin)/(2*xerr/100.) ;
+      double slope = (fxmax-fxmin)/(2*xerr/100.) ;
 
 //       cout << "xerrHi = " << xerrHi << " xerrLo = " << xerrLo << " slope = " << slope << endl ;
 
@@ -323,19 +321,19 @@ Double_t RooXYChi2Var::xErrorContribution(Double_t ydata) const
     } else if (var->hasError()) {
 
       // Get value at central X
-      Double_t cxval = var->getVal() ;
-      Double_t xerr = var->getError() ;
+      double cxval = var->getVal() ;
+      double xerr = var->getError() ;
 
       // Get value at X-eps
       var->setVal(cxval - xerr/100) ;
-      Double_t fxmin = fy() ;
+      double fxmin = fy() ;
 
       // Get value at X+eps
       var->setVal(cxval + xerr/100) ;
-      Double_t fxmax = fy() ;
+      double fxmax = fy() ;
 
       // Calculate slope
-      Double_t slope = (fxmax-fxmin)/(2*xerr/100.) ;
+      double slope = (fxmax-fxmin)/(2*xerr/100.) ;
 
 //       cout << var << " " ;
 //       var->Print() ;
@@ -363,24 +361,24 @@ Double_t RooXYChi2Var::xErrorContribution(Double_t ydata) const
 /// If an extended p.d.f. is used as function, its value is
 /// also multiplied by the expected number of events here
 
-Double_t RooXYChi2Var::fy() const
+double RooXYChi2Var::fy() const
 {
   // Get function value
-  Double_t yfunc ;
+  double yfunc ;
   if (!_integrate) {
     yfunc = _funcClone->getVal(_dataClone->get()) ;
   } else {
-    Double_t volume(1) ;
+    double volume(1) ;
     _rrvIter->Reset() ;
     for (list<RooAbsBinning*>::const_iterator iter = _binList.begin() ; iter != _binList.end() ; ++iter) {
       RooRealVar* x = (RooRealVar*) _rrvIter->Next() ;
-      Double_t xmin = x->getVal() + x->getErrorLo() ;
-      Double_t xmax = x->getVal() + x->getErrorHi() ;
+      double xmin = x->getVal() + x->getErrorLo() ;
+      double xmax = x->getVal() + x->getErrorHi() ;
       (*iter)->setRange(xmin,xmax) ;
       x->setShapeDirty() ;
       volume *= (xmax - xmin) ;
     }
-    Double_t ret = _funcInt->getVal() ;
+    double ret = _funcInt->getVal() ;
     return ret / volume ;
   }
   if (_extended) {
@@ -396,34 +394,26 @@ Double_t RooXYChi2Var::fy() const
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate chi^2 in partition from firstEvent to lastEvent using given stepSize
 
-Double_t RooXYChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
+double RooXYChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t lastEvent, std::size_t stepSize) const
 {
-  Double_t result(0), carry(0);
+  double result(0), carry(0);
 
   // Loop over bins of dataset
   RooDataSet* xydata = (RooDataSet*) _dataClone ;
 
-  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize,kFALSE ) ;
+  _dataClone->store()->recalculateCache( _projDeps, firstEvent, lastEvent, stepSize,false ) ;
 
   for (auto i=firstEvent ; i<lastEvent ; i+=stepSize) {
 
     // get the data values for this event
     xydata->get(i);
 
-    if (!xydata->valid()) {
-      continue ;
-    }
-
-//     cout << "xydata = " << endl ;
-//     xydata->get()->Print("v") ;
-    //xydata->store()->dump() ;
-
     // Get function value
-    Double_t yfunc = fy() ;
+    double yfunc = fy() ;
 
     // Get data value and error
-    Double_t ydata ;
-    Double_t eylo,eyhi ;
+    double ydata ;
+    double eylo,eyhi ;
     if (_yvar) {
       ydata = _yvar->getVal() ;
       eylo = -1*_yvar->getErrorLo() ;
@@ -434,13 +424,13 @@ Double_t RooXYChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t las
     }
 
     // Calculate external error
-    Double_t eExt = yfunc-ydata ;
+    double eExt = yfunc-ydata ;
 
     // Pick upper or lower error bar depending on sign of external error
-    Double_t eInt = (eExt>0) ? eyhi : eylo ;
+    double eInt = (eExt>0) ? eyhi : eylo ;
 
     // Add contributions due to error in x coordinates
-    Double_t eIntX2 = _integrate ? 0 : xErrorContribution(ydata) ;
+    double eIntX2 = _integrate ? 0 : xErrorContribution(ydata) ;
 
 //     cout << "fy = " << yfunc << " eExt = " << eExt << " eInt = " << eInt << " eIntX2 = " << eIntX2 << endl ;
 
@@ -452,9 +442,9 @@ Double_t RooXYChi2Var::evaluatePartition(std::size_t firstEvent, std::size_t las
     }
 
     // Add chi2 term
-    Double_t term = eExt*eExt/(eInt*eInt+ eIntX2);
-    Double_t y = term - carry;
-    Double_t t = result + y;
+    double term = eExt*eExt/(eInt*eInt+ eIntX2);
+    double y = term - carry;
+    double t = result + y;
     carry = (t - result) - y;
     result = t;
   }

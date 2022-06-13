@@ -50,7 +50,7 @@ public:
     return true ;
   }
   Int_t getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& numVars, const RooArgSet* normSet, const char* rangeName=0) const override;
-  Double_t analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override;
+  double analyticalIntegralWN(Int_t code, const RooArgSet* normSet, const char* rangeName=0) const override;
   bool selfNormalized() const override {
     // P.d.f is self normalized
     return true ;
@@ -62,7 +62,7 @@ public:
   }
   /// Return expected number of events for extended likelihood calculation, which
   /// is the sum of all coefficients.
-  Double_t expectedEvents(const RooArgSet* nset) const override;
+  double expectedEvents(const RooArgSet* nset) const override;
 
   const RooArgList& pdfList() const {
     // Return list of component p.d.fs
@@ -81,8 +81,8 @@ public:
 
   void resetErrorCounters(Int_t resetValue=10) override;
 
-  std::list<Double_t>* plotSamplingHint(RooAbsRealLValue& obs, Double_t xlo, Double_t xhi) const override;
-  std::list<Double_t>* binBoundaries(RooAbsRealLValue& /*obs*/, Double_t /*xlo*/, Double_t /*xhi*/) const override;
+  std::list<double>* plotSamplingHint(RooAbsRealLValue& obs, double xlo, double xhi) const override;
+  std::list<double>* binBoundaries(RooAbsRealLValue& /*obs*/, double /*xlo*/, double /*xhi*/) const override;
   bool isBinnedDistribution(const RooArgSet& obs) const override;
 
   void printMetaArgs(std::ostream& os) const override;
@@ -127,8 +127,11 @@ protected:
                                const RooArgSet* auxProto=0, bool verbose= false) const override;
 
 
-  Double_t evaluate() const override;
-  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooBatchCompute::DataMap&) const override;
+  double evaluate() const override {
+      return getValV(nullptr);
+  }
+  double getValV(const RooArgSet* set=nullptr) const override ;
+  void computeBatch(cudaStream_t*, double* output, size_t nEvents, RooFit::Detail::DataMap const&) const override;
   inline bool canComputeBatchWithCuda() const override { return true; }
 
 
@@ -152,7 +155,7 @@ protected:
   }
 
 private:
-  std::pair<const RooArgSet*, CacheElem*> getNormAndCache(const RooArgSet* defaultNorm = nullptr) const;
+  std::pair<const RooArgSet*, CacheElem*> getNormAndCache(const RooArgSet* nset) const;
   mutable RooFit::UniqueId<RooArgSet>::Value_t _idOfLastUsedNormSet = RooFit::UniqueId<RooArgSet>::nullval; ///<!
   mutable std::unique_ptr<const RooArgSet> _copyOfLastNormSet = nullptr; ///<!
 

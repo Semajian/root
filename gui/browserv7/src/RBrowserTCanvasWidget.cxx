@@ -17,7 +17,10 @@
 #include "TCanvas.h"
 #include "TROOT.h"
 #include "TClass.h"
+#include "TEnv.h"
 #include "TWebCanvas.h"
+
+#include <vector>
 
 using namespace ROOT::Experimental;
 
@@ -29,7 +32,7 @@ class RBrowserTCanvasWidget : public RBrowserWidget {
    std::unique_ptr<TCanvas> fCanvas; ///<! drawn canvas
    TWebCanvas *fWebCanvas{nullptr};  ///<! web implementation, owned by TCanvas
 
-   std::unique_ptr<Browsable::RHolder> fObject; // TObject drawing in the TCanvas
+   std::vector<std::unique_ptr<Browsable::RHolder>> fObjects; ///<! objects holder
 
    void SetPrivateCanvasFields(bool on_init)
    {
@@ -56,6 +59,23 @@ class RBrowserTCanvasWidget : public RBrowserWidget {
       } else {
          printf("ERROR: Cannot set TCanvas::fMother data member\n");
       }
+
+      offset = TCanvas::Class()->GetDataMemberOffset("fCw");
+      if (offset > 0) {
+         UInt_t *cw = (UInt_t *)((char*) fCanvas.get() + offset);
+         if (*cw == fCanvas->GetWw()) *cw = on_init ? 800 : 0;
+      } else {
+         printf("ERROR: Cannot set TCanvas::fCw data member\n");
+      }
+
+      offset = TCanvas::Class()->GetDataMemberOffset("fCh");
+      if (offset > 0) {
+         UInt_t *ch = (UInt_t *)((char*) fCanvas.get() + offset);
+         if (*ch == fCanvas->GetWh()) *ch = on_init ? 600 : 0;
+      } else {
+         printf("ERROR: Cannot set TCanvas::fCw data member\n");
+      }
+
    }
 
 public:
@@ -72,14 +92,18 @@ public:
       fCanvas->SetBatch(kTRUE); // mark canvas as batch
       fCanvas->SetEditable(kTRUE); // ensure fPrimitives are created
 
+      Bool_t readonly = gEnv->GetValue("WebGui.FullCanvas", (Int_t) 0) == 0;
+
       // create implementation
-      fWebCanvas = new TWebCanvas(fCanvas.get(), "title", 0, 0, 800, 600);
+      fWebCanvas = new TWebCanvas(fCanvas.get(), "title", 0, 0, 800, 600, readonly);
 
       // assign implementation
       fCanvas->SetCanvasImp(fWebCanvas);
-
       SetPrivateCanvasFields(true);
       fCanvas->cd();
+
+      R__LOCKGUARD(gROOTMutex);
+      gROOT->GetListOfCleanups()->Add(fCanvas.get());
    }
 
    RBrowserTCanvasWidget(const std::string &name, std::unique_ptr<TCanvas> &canv) : RBrowserWidget(name)
@@ -87,17 +111,27 @@ public:
       fCanvas = std::move(canv);
       fCanvas->SetBatch(kTRUE); // mark canvas as batch
 
+      Bool_t readonly = gEnv->GetValue("WebGui.FullCanvas", (Int_t) 0) == 0;
+
       // create implementation
-      fWebCanvas = new TWebCanvas(fCanvas.get(), "title", 0, 0, 800, 600);
+      fWebCanvas = new TWebCanvas(fCanvas.get(), "title", 0, 0, 800, 600, readonly);
 
       // assign implementation
       fCanvas->SetCanvasImp(fWebCanvas);
       SetPrivateCanvasFields(true);
       fCanvas->cd();
+
+      R__LOCKGUARD(gROOTMutex);
+      gROOT->GetListOfCleanups()->Add(fCanvas.get());
    }
 
    virtual ~RBrowserTCanvasWidget()
    {
+      {
+         R__LOCKGUARD(gROOTMutex);
+         gROOT->GetListOfCleanups()->Remove(fCanvas.get());
+      }
+
       SetPrivateCanvasFields(false);
 
       gROOT->GetListOfCanvases()->Remove(fCanvas.get());
@@ -127,19 +161,34 @@ public:
       return fCanvas->GetName();
    }
 
-   bool DrawElement(std::shared_ptr<Browsable::RElement> &elem, const std::string &opt) override
+   bool DrawElement(std::shared_ptr<Browsable::RElement> &elem, const std::string &opt, bool append) override
    {
       if (!elem->IsCapable(Browsable::RElement::kActDraw6))
          return false;
 
-      fObject = elem->GetObject();
+      std::unique_ptr<Browsable::RHolder> obj = elem->GetObject();
+      if (!obj)
+         return false;
 
-      if (fObject && Browsable::RProvider::Draw6(fCanvas.get(), fObject, opt)) {
+      if (!append) {
+         fCanvas->GetListOfPrimitives()->Clear();
+         fObjects.clear();
+         fCanvas->Range(0,0,1,1);  // set default range
+      }
+
+      if (Browsable::RProvider::Draw6(fCanvas.get(), obj, opt)) {
+         fObjects.emplace_back(std::move(obj));
          fCanvas->ForceUpdate();
          return true;
       }
 
       return false;
+   }
+
+   void CheckModified() override
+   {
+      if (fCanvas->IsModified())
+         fCanvas->Update();
    }
 
 };

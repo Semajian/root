@@ -574,13 +574,6 @@ namespace Internal {
       return 0;
 #endif
    }
-
-   ////////////////////////////////////////////////////////////////////////////////
-   /// Returns the size of the pool used for implicit multi-threading.
-   UInt_t GetImplicitMTPoolSize()
-   {
-      return GetThreadPoolSize();
-   }
 } // end of ROOT namespace
 
 TROOT *ROOT::Internal::gROOTLocal = ROOT::GetROOT();
@@ -2774,6 +2767,17 @@ void TROOT::SetWebDisplay(const char *webdisplay)
       fIsWebDisplay = kFALSE;
       fIsWebDisplayBatch = kFALSE;
       fWebDisplay = "";
+   } else if (!strncmp(wd, "server", 6)) {
+      fIsWebDisplay = kTRUE;
+      fIsWebDisplayBatch = kFALSE;
+      fWebDisplay = "server";
+      if (wd[6] == ':') {
+         auto port = TString(wd+7).Atoi();
+         if (port > 0)
+            gEnv->SetValue("WebGui.HttpPort", port);
+         else
+            Error("SetWebDisplay","Wrong port parameter %s for server", wd+7);
+      }
    } else {
       fIsWebDisplay = kTRUE;
       if (!strncmp(wd, "batch", 5)) {

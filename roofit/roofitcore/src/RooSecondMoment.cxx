@@ -24,9 +24,6 @@ of any RooAbsReal as calculated (numerically) by the MathCore Richardson
 derivator class.
 **/
 
-
-#include "RooFit.h"
-
 #include "Riostream.h"
 #include <math.h>
 
@@ -64,9 +61,9 @@ RooSecondMoment::RooSecondMoment()
 
 ////////////////////////////////////////////////////////////////////////////////
 
-RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal& func, RooRealVar& x, Bool_t centr, Bool_t takeRoot) :
+RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal& func, RooRealVar& x, bool centr, bool takeRoot) :
   RooAbsMoment(name, title,func,x,2,takeRoot),
-  _xf("!xf","xf",this,kFALSE,kFALSE),
+  _xf("!xf","xf",this,false,false),
   _ixf("!ixf","ixf",this),
   _if("!if","if",this),
   _xfOffset(0)
@@ -92,13 +89,13 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
   XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
 
   if (func.isBinnedDistribution(x)) {
-    XF->specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator");
+    XF->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator");
   }
 
   RooRealIntegral* intXF = (RooRealIntegral*) XF->createIntegral(x) ;
   RooRealIntegral* intF =  (RooRealIntegral*) func.createIntegral(x) ;
-  intXF->setCacheNumeric(kTRUE) ;
-  intF->setCacheNumeric(kTRUE) ;
+  intXF->setCacheNumeric(true) ;
+  intF->setCacheNumeric(true) ;
 
   _xf.setArg(*XF) ;
   _ixf.setArg(*intXF) ;
@@ -109,9 +106,9 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
 ////////////////////////////////////////////////////////////////////////////////
 
 RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal& func, RooRealVar& x, const RooArgSet& nset,
-           Bool_t centr, Bool_t takeRoot, Bool_t intNSet) :
+           bool centr, bool takeRoot, bool intNSet) :
   RooAbsMoment(name, title,func,x,2,takeRoot),
-  _xf("!xf","xf",this,kFALSE,kFALSE),
+  _xf("!xf","xf",this,false,false),
   _ixf("!ixf","ixf",this),
   _if("!if","if",this),
   _xfOffset(0)
@@ -141,19 +138,19 @@ RooSecondMoment::RooSecondMoment(const char* name, const char* title, RooAbsReal
   XF->setExpensiveObjectCache(func.expensiveObjectCache()) ;
 
   if (func.isBinnedDistribution(x)) {
-    XF->specialIntegratorConfig(kTRUE)->method1D().setLabel("RooBinIntegrator");
+    XF->specialIntegratorConfig(true)->method1D().setLabel("RooBinIntegrator");
   }
   if (intNSet && _nset.getSize()>0 && func.isBinnedDistribution(_nset)) {
-      XF->specialIntegratorConfig(kTRUE)->method2D().setLabel("RooBinIntegrator");
-      XF->specialIntegratorConfig(kTRUE)->methodND().setLabel("RooBinIntegrator");
+      XF->specialIntegratorConfig(true)->method2D().setLabel("RooBinIntegrator");
+      XF->specialIntegratorConfig(true)->methodND().setLabel("RooBinIntegrator");
   }
 
   RooArgSet intSet(x) ;
-  if (intNSet) intSet.add(_nset,kTRUE) ;
+  if (intNSet) intSet.add(_nset,true) ;
   RooRealIntegral* intXF = (RooRealIntegral*) XF->createIntegral(intSet,&_nset) ;
   RooRealIntegral* intF =  (RooRealIntegral*) func.createIntegral(intSet,&_nset) ;
-  intXF->setCacheNumeric(kTRUE) ;
-  intF->setCacheNumeric(kTRUE) ;
+  intXF->setCacheNumeric(true) ;
+  intF->setCacheNumeric(true) ;
 
   _xf.setArg(*XF) ;
   _ixf.setArg(*intXF) ;
@@ -188,15 +185,15 @@ RooSecondMoment::~RooSecondMoment()
 ////////////////////////////////////////////////////////////////////////////////
 /// Calculate value
 
-Double_t RooSecondMoment::evaluate() const
+double RooSecondMoment::evaluate() const
 {
-  Double_t ratio = _ixf / _if ;
+  double ratio = _ixf / _if ;
 
   if (_mean.absArg()) {
     ratio -= (_mean - _xfOffset)*(_mean-_xfOffset) ;
   }
 
-  Double_t ret =  _takeRoot ? sqrt(ratio) : ratio ;
+  double ret =  _takeRoot ? sqrt(ratio) : ratio ;
   return ret ;
 }
 

@@ -1,7 +1,7 @@
 // Author: Enrico Guiraud, CERN 11/2021
 
 /*************************************************************************
- * Copyright (C) 1995-2021, Rene Brun and Fons Rademakers.               *
+ * Copyright (C) 1995-2022, Rene Brun and Fons Rademakers.               *
  * All rights reserved.                                                  *
  *                                                                       *
  * For the licensing terms see $ROOTSYS/LICENSE.                         *
@@ -17,6 +17,7 @@
 #include "RColumnReaderBase.hxx"
 #include "RLoopManager.hxx"
 #include "RJittedFilter.hxx"
+#include "ROOT/RDF/RMergeableValue.hxx"
 
 #include <Rtypes.h> // R__CLING_PTRCHECK
 #include <ROOT/TypeTraits.hxx>
@@ -55,11 +56,10 @@ class R__CLING_PTRCHECK(off) RVariedAction final : public RActionBase {
    {
       const auto &variations = GetVariations();
       std::vector<std::shared_ptr<PrevNodeType>> prevFilters;
-      prevFilters.reserve(variations.size() + 1);
-      prevFilters.emplace_back(nominal);
+      prevFilters.reserve(variations.size());
       if (static_cast<RNodeBase *>(nominal.get()) == fLoopManager) {
          // just fill this with the RLoopManager N times
-         prevFilters.resize(variations.size() + 1, nominal);
+         prevFilters.resize(variations.size(), nominal);
       } else {
          // create varied versions of the previous filter node
          const auto &prevVariations = nominal->GetVariations();
@@ -81,6 +81,8 @@ public:
       : RActionBase(prevNode->GetLoopManagerUnchecked(), columns, colRegister, prevNode->GetVariations()),
         fHelpers(std::move(helpers)), fPrevNodes(MakePrevFilters(prevNode)), fInputValues(GetNSlots())
    {
+      fLoopManager->Register(this);
+
       const auto &defines = colRegister.GetColumns();
       for (auto i = 0u; i < columns.size(); ++i) {
          auto it = defines.find(columns[i]);
@@ -92,13 +94,8 @@ public:
 
    RVariedAction(const RVariedAction &) = delete;
    RVariedAction &operator=(const RVariedAction &) = delete;
-   ~RVariedAction()
-   {
-      // must Deregister objects from the RLoopManager here, before the fPrevDataFrame data member is destroyed:
-      // otherwise if fPrevDataFrame is the RLoopManager, it will be destroyed before the calls to Deregister happen.
-      RActionBase::GetColRegister().Clear(); // triggers RDefine deregistration
-      fLoopManager->Deregister(this);
-   }
+
+   ~RVariedAction() { fLoopManager->Deregister(this); }
 
    void Initialize() final
    {
@@ -110,8 +107,7 @@ public:
       RDFInternal::RColumnReadersInfo info{GetColumnNames(), GetColRegister(), fIsDefine.data(),
                                            fLoopManager->GetDSValuePtrs(), fLoopManager->GetDataSource()};
 
-      // get readers for the nominal case + each systematic variation
-      fInputValues[slot].emplace_back(MakeColumnReaders(slot, r, ColumnTypes_t{}, info /*, "nominal"*/));
+      // get readers for each systematic variation
       for (const auto &variation : GetVariations())
          fInputValues[slot].emplace_back(MakeColumnReaders(slot, r, ColumnTypes_t{}, info, variation));
 
@@ -128,7 +124,7 @@ public:
 
    void Run(unsigned int slot, Long64_t entry) final
    {
-      for (auto varIdx = 0u; varIdx < GetVariations().size() + 1; ++varIdx) {
+      for (auto varIdx = 0u; varIdx < GetVariations().size(); ++varIdx) {
          if (fPrevNodes[varIdx]->CheckFilters(slot, entry))
             CallExec(slot, varIdx, entry, ColumnTypes_t{}, TypeInd_t{});
       }
@@ -164,24 +160,35 @@ public:
    GetGraph(std::unordered_map<void *, std::shared_ptr<RDFGraphDrawing::GraphNode>> &visitedMap) final
    {
       auto prevNode = fPrevNodes[0]->GetGraph(visitedMap);
-      auto prevColumns = prevNode->GetDefinedColumns();
+      const auto &prevColumns = prevNode->GetDefinedColumns();
 
       // Action nodes do not need to go through CreateFilterNode: they are never common nodes between multiple branches
-      auto thisNode = std::make_shared<RDFGraphDrawing::GraphNode>("Varied " + fHelpers[0].GetActionName());
+      const auto nodeType = HasRun() ? RDFGraphDrawing::ENodeType::kUsedAction : RDFGraphDrawing::ENodeType::kAction;
+      auto thisNode = std::make_shared<RDFGraphDrawing::GraphNode>("Varied " + fHelpers[0].GetActionName(),
+                                                                   visitedMap.size(), nodeType);
+      visitedMap[(void *)this] = thisNode;
 
       auto upmostNode = AddDefinesToGraph(thisNode, GetColRegister(), prevColumns, visitedMap);
 
       thisNode->AddDefinedColumns(GetColRegister().GetNames());
-      thisNode->SetAction(HasRun());
       upmostNode->SetPrevNode(prevNode);
-      thisNode->SetCounter(visitedMap.size());
-      visitedMap[(void *)this] = thisNode;
       return thisNode;
    }
 
-   [[noreturn]] std::unique_ptr<RMergeableValueBase> GetMergeableValue() const
+   /**
+      Retrieve a container holding the names and values of the variations. It
+      knows how to merge with others of the same type.
+   */
+   std::unique_ptr<RMergeableValueBase> GetMergeableValue() const final
    {
-      throw std::logic_error("Varied actions cannot provide mergeable values");
+      std::vector<std::string> keys{GetVariations()};
+
+      std::vector<std::unique_ptr<RDFDetail::RMergeableValueBase>> values;
+      values.reserve(fHelpers.size());
+      for (auto &&h : fHelpers)
+         values.emplace_back(h.GetMergeableValue());
+
+      return std::make_unique<RDFDetail::RMergeableVariationsBase>(std::move(keys), std::move(values));
    }
 
    [[noreturn]] std::unique_ptr<RActionBase> MakeVariedAction(std::vector<void *> &&)

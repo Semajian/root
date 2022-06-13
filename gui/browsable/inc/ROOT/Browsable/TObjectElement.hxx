@@ -36,6 +36,8 @@ protected:
 
    bool IsSame(TObject *obj) const { return obj == fObj; }
 
+   virtual bool CheckObject() const;
+
 public:
    TObjectElement(TObject *obj, const std::string &name = "");
 
@@ -61,6 +63,8 @@ public:
 
    /** Return copy of TObject holder - if possible */
    std::unique_ptr<RHolder> GetObject() override;
+
+   bool IsObject(void *) override;
 
    const TClass *GetClass() const;
 

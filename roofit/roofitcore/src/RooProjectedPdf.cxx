@@ -29,7 +29,6 @@ is therefore identical to that of <pre>f->createProjection(RooArgSet(x,y))</pre>
 
 #include "Riostream.h"
 
-#include "RooFit.h"
 #include "RooProjectedPdf.h"
 #include "RooMsgService.h"
 #include "RooAbsReal.h"
@@ -56,9 +55,9 @@ RooProjectedPdf::RooProjectedPdf() : _cacheMgr(this,10)
 
  RooProjectedPdf::RooProjectedPdf(const char *name, const char *title, RooAbsReal& _intpdf, const RooArgSet& intObs) :
    RooAbsPdf(name,title),
-   intpdf("!IntegratedPdf","intpdf",this,_intpdf,kFALSE,kFALSE),
-   intobs("!IntegrationObservables","intobs",this,kFALSE,kFALSE),
-   deps("!Dependents","deps",this,kTRUE,kTRUE),
+   intpdf("!IntegratedPdf","intpdf",this,_intpdf,false,false),
+   intobs("!IntegrationObservables","intobs",this,false,false),
+   deps("!Dependents","deps",this,true,true),
    _cacheMgr(this,10)
  {
    intobs.add(intObs) ;
@@ -88,7 +87,7 @@ RooProjectedPdf::RooProjectedPdf() : _cacheMgr(this,10)
 ////////////////////////////////////////////////////////////////////////////////
 /// Evaluate projected p.d.f
 
-Double_t RooProjectedPdf::evaluate() const
+double RooProjectedPdf::evaluate() const
 {
   // Calculate current unnormalized value of object
   int code ;
@@ -154,9 +153,9 @@ RooAbsPdf* RooProjectedPdf::createProjection(const RooArgSet& iset)
 ////////////////////////////////////////////////////////////////////////////////
 /// Force RooRealIntegral to relegate integration of all observables to internal logic
 
-Bool_t RooProjectedPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
+bool RooProjectedPdf::forceAnalyticalInt(const RooAbsArg& /*dep*/) const
 {
-  return kTRUE ;
+  return true ;
 }
 
 
@@ -182,7 +181,7 @@ Int_t RooProjectedPdf::getAnalyticalIntegralWN(RooArgSet& allVars, RooArgSet& an
 ////////////////////////////////////////////////////////////////////////////////
 /// Return analytical integral represent by appropriate element of projection cache
 
-Double_t RooProjectedPdf::analyticalIntegralWN(Int_t code, const RooArgSet* /*normSet*/, const char* rangeName) const
+double RooProjectedPdf::analyticalIntegralWN(Int_t code, const RooArgSet* /*normSet*/, const char* rangeName) const
 {
   CacheElem *cache = (CacheElem*) _cacheMgr.getObjByIndex(code-1) ;
 
@@ -207,7 +206,7 @@ Double_t RooProjectedPdf::analyticalIntegralWN(Int_t code, const RooArgSet* /*no
 ////////////////////////////////////////////////////////////////////////////////
 /// No internal generator is implemented
 
-Int_t RooProjectedPdf::getGenerator(const RooArgSet& /*directVars*/, RooArgSet& /*generateVars*/, Bool_t /*staticInitOK*/) const
+Int_t RooProjectedPdf::getGenerator(const RooArgSet& /*directVars*/, RooArgSet& /*generateVars*/, bool /*staticInitOK*/) const
  {
    return 0 ;
  }
@@ -229,8 +228,8 @@ void RooProjectedPdf::generateEvent(Int_t /*code*/)
 /// Specifically update the set proxy 'deps' which introduces the dependency
 /// on server value dirty flags of ourselves
 
-Bool_t RooProjectedPdf::redirectServersHook(const RooAbsCollection& newServerList, Bool_t /*mustReplaceAll*/,
-                   Bool_t /*nameChange*/, Bool_t /*isRecursive*/)
+bool RooProjectedPdf::redirectServersHook(const RooAbsCollection& newServerList, bool /*mustReplaceAll*/,
+                   bool /*nameChange*/, bool /*isRecursive*/)
 {
   // Redetermine explicit list of dependents if intPdf is being replaced
   RooAbsArg* newPdf = newServerList.find(intpdf.arg().GetName()) ;
@@ -240,22 +239,22 @@ Bool_t RooProjectedPdf::redirectServersHook(const RooAbsCollection& newServerLis
     RooArgSet olddeps(deps) ;
     RooArgSet* newdeps = newPdf->getParameters(intobs) ;
     RooArgSet* common = (RooArgSet*) newdeps->selectCommon(deps) ;
-    newdeps->remove(*common,kTRUE,kTRUE) ;
-    olddeps.remove(*common,kTRUE,kTRUE) ;
+    newdeps->remove(*common,true,true) ;
+    olddeps.remove(*common,true,true) ;
 
     // If so, adjust composition of deps Listproxy
     if (newdeps->getSize()>0) {
       deps.add(*newdeps) ;
     }
     if (olddeps.getSize()>0) {
-      deps.remove(olddeps,kTRUE,kTRUE) ;
+      deps.remove(olddeps,true,true) ;
     }
 
     delete common ;
     delete newdeps ;
   }
 
-  return kFALSE ;
+  return false ;
 }
 
 

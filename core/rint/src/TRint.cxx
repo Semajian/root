@@ -83,7 +83,7 @@ static void ResetTermAtExit()
 class TInterruptHandler : public TSignalHandler {
 public:
    TInterruptHandler() : TSignalHandler(kSigInterrupt, kFALSE) { }
-   Bool_t  Notify();
+   Bool_t  Notify() override;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,8 +121,8 @@ Bool_t TInterruptHandler::Notify()
 class TTermInputHandler : public TFileHandler {
 public:
    TTermInputHandler(Int_t fd) : TFileHandler(fd, 1) { }
-   Bool_t Notify();
-   Bool_t ReadNotify() { return Notify(); }
+   Bool_t Notify() override;
+   Bool_t ReadNotify() override { return Notify(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -141,15 +141,17 @@ namespace {
 static int SetExtraClingArgsBeforeTAppCtor(Int_t *argc, char **argv)
 {
    bool forcePtrCheck = false;
-   for (int iarg = 1; iarg < *argc; ++iarg) {
-      if (!strcmp(argv[iarg], "--ptrcheck")) {
-         // Hide this, by moving all other args one down...
-         for (int jarg = iarg + 1; jarg < *argc; ++jarg)
-            argv[jarg - 1] = argv[jarg];
-         // ... and updating argc accordingly.
-         --*argc;
-         forcePtrCheck = true;
-         break;
+   if (argc != nullptr) {
+      for (int iarg = 1; iarg < *argc; ++iarg) {
+         if (!strcmp(argv[iarg], "--ptrcheck")) {
+            // Hide this, by moving all other args one down...
+            for (int jarg = iarg + 1; jarg < *argc; ++jarg)
+               argv[jarg - 1] = argv[jarg];
+            // ... and updating argc accordingly.
+            --*argc;
+            forcePtrCheck = true;
+            break;
+         }
       }
    }
 #ifdef R__UNIX
@@ -166,13 +168,15 @@ static int SetExtraClingArgsBeforeTAppCtor(Int_t *argc, char **argv)
 /// of TApplication and in addition provides interactive access to
 /// the Cling C++ interpreter via the command line.
 
-TRint::TRint(const char *appClassName, Int_t *argc, char **argv, void *options, Int_t numOptions, Bool_t noLogo)
+TRint::TRint(const char *appClassName, Int_t *argc, char **argv, void *options, Int_t numOptions, Bool_t noLogo,
+             Bool_t exitOnUnknownArgs)
    : TApplication(appClassName, argc, argv, options, numOptions + SetExtraClingArgsBeforeTAppCtor(argc, argv)),
      fCaughtSignal(-1)
 {
 
-   if (*argc > 1) {
+   if (exitOnUnknownArgs && argc != nullptr && *argc > 1) {
       // Early exit if there are remaining unrecognized options
+      // This branch supposes that TRint is created as a result of using the `root` command
       for (auto n = 1; n < *argc; n++) {
          std::cerr << "root: unrecognized option '" << argv[n] << "'\n";
       }
@@ -514,7 +518,7 @@ void TRint::PrintLogo(Bool_t lite)
       // Here, %%s results in %s after TString::Format():
       lines.emplace_back(TString::Format("Welcome to ROOT %s%%shttps://root.cern",
                                          gROOT->GetVersion()));
-      lines.emplace_back(TString::Format("(c) 1995-2021, The ROOT Team; conception: R. Brun, F. Rademakers%%s"));
+      lines.emplace_back(TString::Format("(c) 1995-2022, The ROOT Team; conception: R. Brun, F. Rademakers%%s"));
       lines.emplace_back(TString::Format("Built for %s on %s%%s", gSystem->GetBuildArch(), gROOT->GetGitDate()));
       if (!strcmp(gROOT->GetGitBranch(), gROOT->GetGitCommit())) {
          static const char *months[] = {"January","February","March","April","May",
@@ -537,7 +541,7 @@ void TRint::PrintLogo(Bool_t lite)
       }
       lines.emplace_back(TString::Format("With %s %%s",
                                          gSystem->GetBuildCompilerVersionStr()));
-      lines.emplace_back(TString("Try '.help', '.demo', '.license', '.credits', '.quit'/'.q'%s"));
+      lines.emplace_back(TString("Try '.help'/'.?', '.demo', '.license', '.credits', '.quit'/'.q'%s"));
 
       // Find the longest line and its length:
       auto itLongest = std::max_element(lines.begin(), lines.end(),

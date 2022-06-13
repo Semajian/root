@@ -31,7 +31,6 @@
 #include "RooBernstein.h"
 #include "TCanvas.h"
 #include "RooAbsPdf.h"
-#include "RooFit.h"
 #include "RooFitResult.h"
 #include "RooPlot.h"
 #include <string>
@@ -43,7 +42,6 @@
 #include "RooProdPdf.h"
 #include "RooAddPdf.h"
 #include "RooGaussian.h"
-#include "RooNLLVar.h"
 #include "RooProfileLL.h"
 #include "RooWorkspace.h"
 

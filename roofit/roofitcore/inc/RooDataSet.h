@@ -29,7 +29,26 @@ class RooDataHist;
 #include <list>
 
 
-#define USEMEMPOOLFORDATASET
+//#define USEMEMPOOLFORDATASET
+
+// In the past, a custom memory pool was used for RooDataSet objects on the
+// heap. This memoy pool guaranteed that no memory addresses were reused for
+// different RooDataSets, making it possible to uniquely identify manually
+// allocated RooDataSets by their memory address.
+//
+// However, the memoy pool for RooArgSets caused unexpected memory usage
+// increases, even if no memory leaks were present [1]. It was suspected that
+// the memory allocation pattern with the memory pool might cause some heap
+// fragmentation, which did not happen when the standard allocator was used.
+//
+// To solve that problem, the memory pool was disabled. It is not clear what
+// RooFit code actually relied on the unique memory addresses, but an
+// alternative mechanism to uniquely identify RooDataSet objects was
+// implemented for these usecases (see RooAbsData::uniqueId()) [2].
+//
+// [1] https://github.com/root-project/root/issues/8323
+// [2] https://github.com/root-project/root/pull/8324
+
 template <class RooSet_t, size_t>
 class MemPoolForRooSets;
 
@@ -76,8 +95,8 @@ public:
 
   RooDataHist* binnedClone(const char* newName=0, const char* newTitle=0) const ;
 
-  Double_t sumEntries() const override;
-  Double_t sumEntries(const char* cutSpec, const char* cutRange=0) const override;
+  double sumEntries() const override;
+  double sumEntries(const char* cutSpec, const char* cutRange=0) const override;
 
   virtual RooPlot* plotOnXY(RooPlot* frame,
              const RooCmdArg& arg1=RooCmdArg::none(), const RooCmdArg& arg2=RooCmdArg::none(),
@@ -91,17 +110,17 @@ public:
   static RooDataSet *read(const char *filename, const RooArgList &variables,
            const char *opts= "", const char* commonPath="",
            const char *indexCatName=0) ;
-  Bool_t write(const char* filename) const;
-  Bool_t write(std::ostream & ofs) const;
+  bool write(const char* filename) const;
+  bool write(std::ostream & ofs) const;
 
 
-  Bool_t isWeighted() const override;
-  Bool_t isNonPoissonWeighted() const override;
+  bool isWeighted() const override;
+  bool isNonPoissonWeighted() const override;
 
-  Double_t weight() const override;
+  double weight() const override;
   /// Returns a pointer to the weight variable (if set).
   RooRealVar* weightVar() const { return _wgtVar; }
-  Double_t weightSquared() const override;
+  double weightSquared() const override;
   void weightError(double& lo, double& hi,ErrorType etype=SumW2) const override;
   double weightError(ErrorType etype=SumW2) const override;
 
@@ -111,27 +130,20 @@ public:
   RooSpan<const double> getWeightBatch(std::size_t first, std::size_t len, bool sumW2) const override;
 
   /// Add one ore more rows of data
-  void add(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0) override;
-  virtual void add(const RooArgSet& row, Double_t weight, Double_t weightErrorLo, Double_t weightErrorHi);
+  void add(const RooArgSet& row, double weight=1.0, double weightError=0) override;
+  virtual void add(const RooArgSet& row, double weight, double weightErrorLo, double weightErrorHi);
 
-  virtual void addFast(const RooArgSet& row, Double_t weight=1.0, Double_t weightError=0);
+  virtual void addFast(const RooArgSet& row, double weight=1.0, double weightError=0);
 
   void append(RooDataSet& data) ;
-  Bool_t merge(RooDataSet* data1, RooDataSet* data2=0, RooDataSet* data3=0,
+  bool merge(RooDataSet* data1, RooDataSet* data2=0, RooDataSet* data3=0,
            RooDataSet* data4=0, RooDataSet* data5=0, RooDataSet* data6=0) ;
-  Bool_t merge(std::list<RooDataSet*> dsetList) ;
+  bool merge(std::list<RooDataSet*> dsetList) ;
 
-  virtual RooAbsArg* addColumn(RooAbsArg& var, Bool_t adjustRange=kTRUE) ;
+  virtual RooAbsArg* addColumn(RooAbsArg& var, bool adjustRange=true) ;
   virtual RooArgSet* addColumns(const RooArgList& varList) ;
 
-  /// Plot the distribution of a real valued arg
-  using RooAbsData::createHistogram ;
-  TH2F* createHistogram(const RooAbsRealLValue& var1, const RooAbsRealLValue& var2, const char* cuts="",
-         const char *name= "hist") const;
-  TH2F* createHistogram(const RooAbsRealLValue& var1, const RooAbsRealLValue& var2, Int_t nx, Int_t ny,
-                        const char* cuts="", const char *name="hist") const;
-
-  void printMultiline(std::ostream& os, Int_t contents, Bool_t verbose=kFALSE, TString indent="") const override;
+  void printMultiline(std::ostream& os, Int_t contents, bool verbose=false, TString indent="") const override;
   void printArgs(std::ostream& os) const override;
   void printValue(std::ostream& os) const override;
 
@@ -144,19 +156,16 @@ public:
 
 protected:
 
-  RooAbsData* cacheClone(const RooAbsArg* newCacheOwner, const RooArgSet* newCacheVars, const char* newName=0) override;
-
   friend class RooProdGenContext ;
 
   void initialize(const char* wgtVarName) ;
 
   // Cache copy feature is not publicly accessible
   RooAbsData* reduceEng(const RooArgSet& varSubset, const RooFormulaVar* cutVar, const char* cutRange=0,
-                        std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max(),
-                        Bool_t copyCache=kTRUE) override;
+                        std::size_t nStart=0, std::size_t nStop = std::numeric_limits<std::size_t>::max()) override;
   RooDataSet(RooStringView name, RooStringView title, RooDataSet *ntuple,
              const RooArgSet& vars, const RooFormulaVar* cutVar, const char* cutRange,
-             std::size_t nStart, std::size_t nStop, Bool_t copyCache, const char* wgtVarName=0);
+             std::size_t nStart, std::size_t nStop);
 
   RooArgSet addWgtVar(const RooArgSet& origVars, const RooAbsArg* wgtVar) ;
 

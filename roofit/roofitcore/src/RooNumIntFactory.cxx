@@ -32,8 +32,6 @@ the preference of the caller as encoded in the configuration object.
 #include "TSystem.h"
 #include "Riostream.h"
 
-#include "RooFit.h"
-
 #include "RooNumIntFactory.h"
 #include "RooArgSet.h"
 #include "RooAbsFunc.h"
@@ -47,8 +45,6 @@ the preference of the caller as encoded in the configuration object.
 #include "RooSegmentedIntegrator2D.h"
 #include "RooImproperIntegrator1D.h"
 #include "RooMCIntegrator.h"
-//#include "RooGaussKronrodIntegrator1D.h"
-//#include "RooAdaptiveGaussKronrodIntegrator1D.h"
 #include "RooAdaptiveIntegratorND.h"
 
 #include "RooMsgService.h"
@@ -84,7 +80,7 @@ void RooNumIntFactory::init() {
 #ifdef R__HAS_MATHMORE
   int iret = gSystem->Load("libRooFitMore");
   if (iret < 0) {
-     oocoutE((TObject*)nullptr, Integration) << " RooNumIntFactory::Init : libRooFitMore cannot be loaded. GSL integrators will not beavailable ! " << std::endl;
+     oocoutE(nullptr, Integration) << " RooNumIntFactory::Init : libRooFitMore cannot be loaded. GSL integrators will not beavailable ! " << std::endl;
   }
 #endif
 }
@@ -116,13 +112,13 @@ RooNumIntFactory& RooNumIntFactory::instance()
 /// default configuration options and an optional list of names of other numeric integrators
 /// on which this integrator depends. Returns true if integrator was previously registered
 
-Bool_t RooNumIntFactory::storeProtoIntegrator(RooAbsIntegrator* proto, const RooArgSet& defConfig, const char* depName)
+bool RooNumIntFactory::storeProtoIntegrator(RooAbsIntegrator* proto, const RooArgSet& defConfig, const char* depName)
 {
-  TString name = proto->IsA()->GetName() ;
+  TString name = proto->ClassName() ;
 
   if (getProtoIntegrator(name)) {
     //cout << "RooNumIntFactory::storeIntegrator() ERROR: integrator '" << name << "' already registered" << endl ;
-    return kTRUE ;
+    return true ;
   }
 
   // Add to factory
@@ -131,7 +127,7 @@ Bool_t RooNumIntFactory::storeProtoIntegrator(RooAbsIntegrator* proto, const Roo
   // Add default config to master config
   RooNumIntConfig::defaultConfig().addConfigSection(proto,defConfig) ;
 
-  return kFALSE ;
+  return false ;
 }
 
 
@@ -169,17 +165,17 @@ const char* RooNumIntFactory::getDepIntegratorName(const char* name) const
 /// the number of dimensions, the nature of the limits (open ended vs closed) and the user
 /// preference stated in 'config'
 
-RooAbsIntegrator* RooNumIntFactory::createIntegrator(RooAbsFunc& func, const RooNumIntConfig& config, Int_t ndimPreset, Bool_t isBinned) const
+RooAbsIntegrator* RooNumIntFactory::createIntegrator(RooAbsFunc& func, const RooNumIntConfig& config, Int_t ndimPreset, bool isBinned) const
 {
   // First determine dimensionality and domain of integrand
   Int_t ndim = ndimPreset>0 ? ndimPreset : ((Int_t)func.getDimension()) ;
 
-  Bool_t openEnded = kFALSE ;
+  bool openEnded = false ;
   Int_t i ;
   for (i=0 ; i<ndim ; i++) {
     if(RooNumber::isInfinite(func.getMinLimit(i)) ||
        RooNumber::isInfinite(func.getMaxLimit(i))) {
-      openEnded = kTRUE ;
+      openEnded = true ;
     }
   }
 
@@ -206,7 +202,7 @@ RooAbsIntegrator* RooNumIntFactory::createIntegrator(RooAbsFunc& func, const Roo
 
   // Check that a method was defined for this case
   if (!method.CompareTo("N/A")) {
-    oocoutE((TObject*)0,Integration) << "RooNumIntFactory::createIntegrator: No integration method has been defined for "
+    oocoutE(nullptr,Integration) << "RooNumIntFactory::createIntegrator: No integration method has been defined for "
                  << (openEnded?"an open ended ":"a ") << ndim << "-dimensional integral" << endl ;
     return 0 ;
   }
@@ -215,7 +211,7 @@ RooAbsIntegrator* RooNumIntFactory::createIntegrator(RooAbsFunc& func, const Roo
   const RooAbsIntegrator* proto = getProtoIntegrator(method) ;
   RooAbsIntegrator* engine =  proto->clone(func,config) ;
   if (config.printEvalCounter()) {
-    engine->setPrintEvalCounter(kTRUE) ;
+    engine->setPrintEvalCounter(true) ;
   }
   return engine ;
 }
